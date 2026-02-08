@@ -51,6 +51,23 @@ public class LobbyManager {
 		return LobbyActionResult.ok("<green>✔</green> Đã gửi lời mời tham gia phòng.", match);
 	}
 
+	public LobbyActionResult acceptInvite(UUID playerId) {
+		Match match = findInvitedMatch(playerId);
+		if (match == null) {
+			return LobbyActionResult.fail("<red>❌</red> Bạn không có lời mời nào.");
+		}
+		return join(playerId, match.getId());
+	}
+
+	public LobbyActionResult declineInvite(UUID playerId) {
+		Match match = findInvitedMatch(playerId);
+		if (match == null) {
+			return LobbyActionResult.fail("<red>❌</red> Bạn không có lời mời nào.");
+		}
+		match.getInvitedPlayers().remove(playerId);
+		return LobbyActionResult.ok("<green>✔</green> Đã từ chối lời mời vào phòng <yellow>" + match.getId() + "</yellow>.", match);
+	}
+
 	public LobbyActionResult join(UUID playerId, String matchId) {
 		if (playerId == null || matchId == null || matchId.isBlank()) {
 			return LobbyActionResult.fail("<red>❌</red> Mã phòng không hợp lệ.");
@@ -132,6 +149,18 @@ public class LobbyManager {
 			return null;
 		}
 		return matchManager.getMatch(matchId);
+	}
+
+	private Match findInvitedMatch(UUID playerId) {
+		if (playerId == null) {
+			return null;
+		}
+		return matchManager.getMatches().stream()
+			.filter(match -> match.getState() == MatchState.LOBBY)
+			.filter(match -> match.getInvitedPlayers().contains(playerId))
+			.sorted(java.util.Comparator.comparing(Match::getId))
+			.findFirst()
+			.orElse(null);
 	}
 
 	private boolean canJoin(Match match, UUID playerId) {

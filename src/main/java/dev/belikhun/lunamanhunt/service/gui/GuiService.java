@@ -241,7 +241,7 @@ public class GuiService {
 			Text.msg(player, "<red>❌</red> Không tìm thấy phòng đấu.");
 			return;
 		}
-		Inventory inventory = Bukkit.createInventory(new GuiHolder(GuiType.CARDS, match.getId()), 27,
+		Inventory inventory = Bukkit.createInventory(new GuiHolder(GuiType.CARDS, match.getId()), 54,
 			Text.mm(UiColors.titlePrimary("Thẻ bài")));
 		fillCardsMenu(match, inventory);
 		player.openInventory(inventory);
@@ -714,22 +714,21 @@ public class GuiService {
 		int points = match.getSpeedrunnerPoints();
 		List<CardDefinition> poolCards = cardService.getDrawnCards(match);
 		List<CardDefinition> keptCards = cardService.getKeptCards(match);
-		inventory.setItem(4, buildInfoItem(Material.PAPER,
-			"<yellow>ℹ</yellow> Điểm hiện tại",
-			List.of(
-				"<gray>Bạn có <white>" + pointService.formatPoints(points) + "</white>.</gray>",
-				"<gray>Thẻ mới: <white>" + poolCards.size() + "</white>/" + cardService.getPoolCount() + "</gray>"
-			)));
+		ItemStack pane = buildInfoItem(Material.LIGHT_GRAY_STAINED_GLASS_PANE, " ", List.of(" "));
+		for (int slot = 0; slot < inventory.getSize(); slot++) {
+			inventory.setItem(slot, pane);
+		}
 
 		inventory.setItem(8, buildInfoItem(Material.BOOK,
 			"<yellow>ℹ</yellow> Hướng dẫn",
 			List.of(
-				"<gray>● Chọn thẻ trong danh sách để giữ.</gray>",
+				"<gray>● Chọn thẻ ở hàng 3 để giữ.</gray>",
 				" ",
-				"<gray>● Ô giữ đầy thì hãy bỏ thẻ bên dưới.</gray>"
+				"<gray>● Thẻ đang giữ nằm ở hàng 5.</gray>",
+				"<gray>● Ô đầy thì bấm nút bỏ thẻ ở hàng 6.</gray>"
 			)));
 
-		int[] poolSlots = new int[] { 0, 1, 2, 3, 5, 6, 7 };
+		int[] poolSlots = new int[] { 19, 20, 21, 22, 23, 24, 25 };
 		for (int i = 0; i < poolSlots.length; i++) {
 			if (i >= poolCards.size()) {
 				break;
@@ -739,7 +738,7 @@ public class GuiService {
 				cardService.buildCardItem(card, i, actionKey, targetKey, ACTION_CARD_KEEP));
 		}
 
-		int[] keptSlots = new int[] { 11, 13, 15 };
+		int[] keptSlots = new int[] { 38, 40, 42 };
 		for (int i = 0; i < keptSlots.length; i++) {
 			if (i >= keptCards.size()) {
 				break;
@@ -752,7 +751,7 @@ public class GuiService {
 				cardService.buildCardItem(card, i, actionKey, targetKey, ACTION_CARD_USE));
 		}
 
-		int[] discardSlots = new int[] { 20, 22, 24 };
+		int[] discardSlots = new int[] { 47, 49, 51 };
 		for (int i = 0; i < discardSlots.length; i++) {
 			String label = "<red>❌</red> Bỏ thẻ ô " + (i + 1);
 			inventory.setItem(discardSlots[i], buildActionItem(Material.BARRIER, label,
@@ -760,13 +759,28 @@ public class GuiService {
 				ACTION_CARD_DISCARD, String.valueOf(i)));
 		}
 
+		ItemStack pointsItem = new ItemStack(Material.SUNFLOWER);
+		ItemMeta pointsMeta = pointsItem.getItemMeta();
+		if (pointsMeta != null) {
+			pointsMeta.displayName(mmNoItalic("<yellow>ℹ</yellow> Điểm hiện tại"));
+			pointsMeta.lore(mmNoItalic(List.of(
+				"<gray>Bạn có <white>" + pointService.formatPoints(points) + "</white>.</gray>",
+				" ",
+				"<gray>Thẻ mới: <white>" + poolCards.size() + "</white>/" + cardService.getPoolCount() + "</gray>"
+			)));
+			pointsMeta.setEnchantmentGlintOverride(true);
+			pointsItem.setItemMeta(pointsMeta);
+		}
+		pointsItem.setAmount(Math.max(1, Math.min(64, points)));
+		inventory.setItem(44, pointsItem);
+
 		if (poolCards.isEmpty()) {
-			inventory.setItem(5, buildInfoItem(Material.PAPER,
+			inventory.setItem(22, buildInfoItem(Material.PAPER,
 				"<yellow>ℹ</yellow> Chưa có thẻ mới",
 				List.of("<gray>Nhận thành tựu để mở 7 thẻ.</gray>")));
 		}
 
-		inventory.setItem(26, buildActionItem(Material.BARRIER,
+		inventory.setItem(53, buildActionItem(Material.BARRIER,
 			"<red>❌</red> Đóng",
 			List.of("<gray>Đóng bảng thẻ bài.</gray>"), ACTION_CARD_CLOSE, null));
 	}
@@ -1201,9 +1215,22 @@ public class GuiService {
 		LobbyActionResult result = lobbyManager.invite(player.getUniqueId(), target.getUniqueId(), match);
 		Text.msg(player, result.getMessage());
 		if (result.isSuccess()) {
-			Text.msg(target, "<green>✔</green> Bạn vừa nhận lời mời vào phòng <yellow>" + match.getId() + "</yellow>.");
+			sendInviteMessage(target, match);
 		}
 		openInviteMenu(player, match);
+	}
+
+	private void sendInviteMessage(Player target, Match match) {
+		if (target == null || match == null) {
+			return;
+		}
+		Text.send(target, Text.mm(Text.prefixMiniMessage()
+			+ "<green>✔</green> Bạn vừa nhận lời mời vào phòng <yellow>" + match.getId() + "</yellow>."));
+		Text.send(target, Text.mm(Text.prefixMiniMessage()
+			+ "<gray>Chọn: </gray>"
+			+ "<green><click:run_command:'/m accept'><hover:show_text:'<gray>Bấm để chấp nhận</gray>'><b>[CHẤP NHẬN]</b></hover></click></green> "
+			+ "<red><click:run_command:'/m decline'><hover:show_text:'<gray>Bấm để từ chối</gray>'><b>[TỪ CHỐI]</b></hover></click></red> "
+			+ "<gray>(/m accept | /m decline)</gray>"));
 	}
 
 	private void handleOpenSettings(Player player, String matchId) {
@@ -1296,14 +1323,14 @@ public class GuiService {
 			return;
 		}
 		if (match.getLobbyPlayers().size() < 2) {
-			Text.msg(player, "<red>❌</red> Cần ít nhất <white>2</white> người chơi để bắt đầu.");
+			Text.msg(player, "<red>❌</red> Cần ít nhất <aqua>2</aqua> người chơi để bắt đầu.");
 			openMatchInfoMenu(player);
 			return;
 		}
+		player.closeInventory();
 		boolean started = matchManager.startMatch(match);
 		if (started) {
 			Text.msg(player, "<green>✔</green> Đang tạo thế giới cho trận đấu...");
-			openMatchInfoMenu(player);
 			return;
 		}
 		Text.msg(player, "<red>❌</red> Không thể bắt đầu trận đấu lúc này.");
@@ -1715,22 +1742,6 @@ public class GuiService {
 		}
 	}
 
-	private String formatState(MatchState state) {
-		if (state == null) {
-			return "Không rõ";
-		}
-		return switch (state) {
-			case LOBBY -> "Chờ";
-			case WORLD_CREATING -> "Tạo thế giới";
-			case WORLD_READY -> "Sẵn sàng";
-			case RUN_PENDING -> "Chờ bắt đầu";
-			case RUNNING -> "Đang chạy";
-			case ENDING -> "Kết thúc";
-			case CLEANUP -> "Dọn dẹp";
-			case FINISHED -> "Đã xong";
-		};
-	}
-
 	private String formatStateColored(MatchState state) {
 		if (state == null) {
 			return "<gray>Không rõ</gray>";
@@ -1767,21 +1778,6 @@ public class GuiService {
 			case INVITE_ONLY -> "<#ffd166>Chỉ mời</#ffd166>";
 			case PRIVATE -> "<#ff6b6b>Riêng tư</#ff6b6b>";
 		};
-	}
-
-	private String formatSpeedrunner(MatchSettings settings) {
-		if (settings == null) {
-			return "Chưa đặt";
-		}
-		if (settings.getSpeedrunnerSelection() == SpeedrunnerSelection.RANDOM) {
-			return "Ngẫu nhiên";
-		}
-		UUID id = settings.getSpeedrunnerId();
-		if (id == null) {
-			return "Chưa đặt";
-		}
-		Player player = Bukkit.getPlayer(id);
-		return player != null ? player.getName() : "Người chơi";
 	}
 
 	private String formatSpeedrunnerColored(MatchSettings settings) {

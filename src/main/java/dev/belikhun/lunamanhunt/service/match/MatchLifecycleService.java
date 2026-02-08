@@ -12,11 +12,13 @@ import dev.belikhun.lunamanhunt.service.lobby.LobbyManager;
 import dev.belikhun.lunamanhunt.util.Text;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
+import org.bukkit.Material;
 import org.bukkit.Sound;
 import org.bukkit.World;
 import org.bukkit.entity.Player;
 import org.bukkit.GameMode;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.PlayerInventory;
 import org.bukkit.plugin.java.JavaPlugin;
 import net.kyori.adventure.title.Title;
 import org.mvplugins.multiverse.core.world.LoadedMultiverseWorld;
@@ -106,6 +108,14 @@ public class MatchLifecycleService {
 		startCountdown(match, overworld);
 	}
 
+	public void handleWorldCreationFailed(Match match, String worldName) {
+		if (match == null) {
+			return;
+		}
+		String label = resolveWorldLabel(worldName);
+		markMatchFailed(match, "<red>❌</red> Không thể tạo thế giới <yellow>" + label + "</yellow>. Vui lòng thử lại.");
+	}
+
 	public boolean tryStartRun(Player attacker, Player victim) {
 		if (attacker == null || victim == null) {
 			return false;
@@ -138,9 +148,10 @@ public class MatchLifecycleService {
 			}
 		}
 		cardService.addPoint(match, 1);
+		cardService.drawNewCards(match);
 		Player speedrunner = Bukkit.getPlayer(match.getSpeedrunnerId());
 		if (speedrunner != null) {
-			Text.msg(speedrunner, "<green>✔</green> Bạn nhận được <white>1</white> điểm khởi đầu.");
+			Text.msg(speedrunner, "<green>✔</green> Bạn nhận được <white>1</white> điểm khởi đầu và <white>7</white> thẻ mới.");
 		}
 		playMatchStartSound(match);
 		broadcast(match, "<green>✔</green> Trận đấu bắt đầu. Chúc may mắn!");
@@ -225,6 +236,18 @@ public class MatchLifecycleService {
 		}
 	}
 
+	private void clearLobbyItems(Match match) {
+		for (UUID id : Set.copyOf(match.getLobbyPlayers())) {
+			Player player = Bukkit.getPlayer(id);
+			if (player == null) {
+				continue;
+			}
+			player.getInventory().clear();
+			player.getInventory().setArmorContents(null);
+			player.getInventory().setExtraContents(null);
+		}
+	}
+
 	private void setGameMode(Match match, GameMode gameMode) {
 		if (match == null || gameMode == null) {
 			return;
@@ -246,11 +269,58 @@ public class MatchLifecycleService {
 		if (items.isEmpty()) {
 			return;
 		}
+		PlayerInventory inventory = speedrunner.getInventory();
 		for (ItemStack item : items) {
 			if (item != null) {
-				speedrunner.getInventory().addItem(item);
+				if (equipArmorIfPossible(inventory, item)) {
+					continue;
+				}
+				inventory.addItem(item);
 			}
 		}
+	}
+
+	private boolean equipArmorIfPossible(PlayerInventory inventory, ItemStack item) {
+		if (inventory == null || item == null) {
+			return false;
+		}
+		Material type = item.getType();
+		if (type == Material.AIR) {
+			return false;
+		}
+		if (type == Material.ELYTRA || type.name().endsWith("_CHESTPLATE")) {
+			if (isEmptyArmor(inventory.getChestplate())) {
+				inventory.setChestplate(item);
+				return true;
+			}
+			return false;
+		}
+		if (type == Material.TURTLE_HELMET || type.name().endsWith("_HELMET")) {
+			if (isEmptyArmor(inventory.getHelmet())) {
+				inventory.setHelmet(item);
+				return true;
+			}
+			return false;
+		}
+		if (type.name().endsWith("_LEGGINGS")) {
+			if (isEmptyArmor(inventory.getLeggings())) {
+				inventory.setLeggings(item);
+				return true;
+			}
+			return false;
+		}
+		if (type.name().endsWith("_BOOTS")) {
+			if (isEmptyArmor(inventory.getBoots())) {
+				inventory.setBoots(item);
+				return true;
+			}
+			return false;
+		}
+		return false;
+	}
+
+	private boolean isEmptyArmor(ItemStack item) {
+		return item == null || item.getType() == Material.AIR;
 	}
 
 	private String getMatchId(Player player) {
@@ -277,7 +347,8 @@ public class MatchLifecycleService {
 			}
 			int ready = countReady(worlds);
 			String current = resolveCurrentWorldLabel(worlds);
-			String message = "<yellow>⌛</yellow> Đang tạo thế giới: <white>" + current + "</white> <gray>(" + ready + "/" + WORLD_TOTAL + ")</gray>";
+			int percent = (ready * 100) / WORLD_TOTAL;
+			String message = "<yellow>⌛</yellow> Đang tạo thế giới: <white>" + current + "</white> <gray>(" + percent + "%)</gray>";
 			sendActionBar(match, message);
 		}, 0L, 20L);
 		worldProgressTasks.put(match.getId(), task);
@@ -325,6 +396,7 @@ public class MatchLifecycleService {
 		Location spawn = overworld.getSpawnLocation();
 		applyWorldBorder(overworld, spawn, match.getSettings());
 		teleportPlayers(match, spawn);
+		clearLobbyItems(match);
 		setGameMode(match, GameMode.ADVENTURE);
 		giveSpeedrunnerKit(match, match.getSpeedrunnerId());
 		match.setState(MatchState.RUN_PENDING);
@@ -460,6 +532,23 @@ public class MatchLifecycleService {
 			return "The End";
 		}
 		return "Hoàn tất";
+	}
+
+	private String resolveWorldLabel(String worldName) {
+		if (worldName == null) {
+			return "thế giới";
+		}
+		String lower = worldName.toLowerCase();
+		if (lower.endsWith("_overworld")) {
+			return "Overworld";
+		}
+		if (lower.endsWith("_nether")) {
+			return "Nether";
+		}
+		if (lower.endsWith("_end")) {
+			return "The End";
+		}
+		return "thế giới";
 	}
 
 	private String formatWorldLabel(World.Environment environment) {

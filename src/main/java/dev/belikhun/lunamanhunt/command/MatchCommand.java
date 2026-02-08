@@ -60,6 +60,8 @@ public class MatchCommand implements TabExecutor {
 			case "create" -> handleCreate(player);
 			case "join" -> handleJoin(player, args);
 			case "invite" -> handleInvite(player, args);
+			case "accept" -> handleAccept(player);
+			case "decline" -> handleDecline(player);
 			case "start" -> handleStart(player);
 			case "leave" -> handleLeave(player);
 			case "seed" -> handleSeed(player, args);
@@ -75,7 +77,7 @@ public class MatchCommand implements TabExecutor {
 	@Override
 	public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
 		if (args.length == 1) {
-			return filter(List.of("create", "join", "invite", "start", "leave", "seed", "kit", "gui", "menu", "help"), args[0]);
+			return filter(List.of("create", "join", "invite", "accept", "decline", "start", "leave", "seed", "kit", "gui", "menu", "help"), args[0]);
 		}
 		if (args.length == 2 && "join".equalsIgnoreCase(args[0]) && sender instanceof Player player) {
 			List<String> ids = new ArrayList<>();
@@ -150,8 +152,21 @@ public class MatchCommand implements TabExecutor {
 		LobbyActionResult result = lobbyManager.invite(player.getUniqueId(), target.getUniqueId(), match);
 		Text.msg(player, result.getMessage());
 		if (result.isSuccess()) {
-			Text.msg(target, "<green>✔</green> Bạn vừa nhận lời mời vào phòng <yellow>" + match.getId() + "</yellow>.");
+			sendInviteMessage(target, match);
 		}
+	}
+
+	private void handleAccept(Player player) {
+		LobbyActionResult result = lobbyManager.acceptInvite(player.getUniqueId());
+		Text.msg(player, result.getMessage());
+		if (result.isSuccess()) {
+			lobbyItemService.applyLobbyStateIfEligible(player);
+		}
+	}
+
+	private void handleDecline(Player player) {
+		LobbyActionResult result = lobbyManager.declineInvite(player.getUniqueId());
+		Text.msg(player, result.getMessage());
 	}
 
 	private void handleStart(Player player) {
@@ -237,11 +252,26 @@ public class MatchCommand implements TabExecutor {
 		Text.msg(player, "<yellow>●</yellow> <white>/match create</white>");
 		Text.msg(player, "<yellow>●</yellow> <white>/match join <mã_phòng></white>");
 		Text.msg(player, "<yellow>●</yellow> <white>/match invite <tên_người_chơi></white>");
+		Text.msg(player, "<yellow>●</yellow> <white>/match accept</white>");
+		Text.msg(player, "<yellow>●</yellow> <white>/match decline</white>");
 		Text.msg(player, "<yellow>●</yellow> <white>/match start</white>");
 		Text.msg(player, "<yellow>●</yellow> <white>/match leave</white>");
 		Text.msg(player, "<yellow>●</yellow> <white>/match seed <giá_trị|xoa></white>");
 		Text.msg(player, "<yellow>●</yellow> <white>/match kit xoa</white>");
 		Text.msg(player, "<yellow>●</yellow> <white>/match gui</white>");
+	}
+
+	private void sendInviteMessage(Player target, Match match) {
+		if (target == null || match == null) {
+			return;
+		}
+		Text.send(target, Text.mm(Text.prefixMiniMessage()
+			+ "<green>✔</green> Bạn vừa nhận lời mời vào phòng <yellow>" + match.getId() + "</yellow>."));
+		Text.send(target, Text.mm(Text.prefixMiniMessage()
+			+ "<gray>Chọn: </gray>"
+			+ "<green><click:run_command:'/m accept'><hover:show_text:'<gray>Bấm để chấp nhận</gray>'><b>[CHẤP NHẬN]</b></hover></click></green> "
+			+ "<red><click:run_command:'/m decline'><hover:show_text:'<gray>Bấm để từ chối</gray>'><b>[TỪ CHỐI]</b></hover></click></red> "
+			+ "<gray>(/m accept | /m decline)</gray>"));
 	}
 
 	private void handleGui(Player player) {

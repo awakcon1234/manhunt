@@ -11,6 +11,7 @@ import dev.belikhun.lunamanhunt.listener.EndPortalListener;
 import dev.belikhun.lunamanhunt.listener.GuiInputListener;
 import dev.belikhun.lunamanhunt.listener.GuiListener;
 import dev.belikhun.lunamanhunt.listener.LobbyHotbarListener;
+import dev.belikhun.lunamanhunt.listener.LobbyItemGuardListener;
 import dev.belikhun.lunamanhunt.listener.LobbyStateListener;
 import dev.belikhun.lunamanhunt.listener.MatchWinListener;
 import dev.belikhun.lunamanhunt.listener.RunStartListener;
@@ -84,6 +85,7 @@ public final class LunaManhuntPlugin extends JavaPlugin {
         getServer().getPluginManager().registerEvents(new GuiListener(guiService), this);
         getServer().getPluginManager().registerEvents(new GuiInputListener(this, guiService), this);
         getServer().getPluginManager().registerEvents(new LobbyHotbarListener(lobbyItemService), this);
+        getServer().getPluginManager().registerEvents(new LobbyItemGuardListener(lobbyItemService), this);
         getServer().getPluginManager().registerEvents(new LobbyStateListener(lobbyItemService, lobbyTeleportService), this);
         getServer().getPluginManager().registerEvents(new CardListener(cardService), this);
         getServer().getPluginManager().registerEvents(new RunStartListener(matchLifecycleService), this);

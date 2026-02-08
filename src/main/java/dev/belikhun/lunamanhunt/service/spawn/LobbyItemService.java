@@ -82,6 +82,10 @@ public class LobbyItemService {
 		return true;
 	}
 
+	public boolean isLobbyItem(ItemStack item) {
+		return item != null && getAction(item) != null;
+	}
+
 	public boolean isLobbyWorld(World world) {
 		World lobbyWorld = resolveLobbyWorld();
 		return lobbyWorld != null && world != null && lobbyWorld.getUID().equals(world.getUID());

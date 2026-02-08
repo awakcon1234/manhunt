@@ -77,9 +77,7 @@ public class MatchManager {
 			lifecycleService.handleWorldsCreating(match);
 		}
 
-		createWorld(match, worlds, worlds.getOverworldName(), World.Environment.NORMAL, () -> worlds.setOverworldReady(true));
-		createWorld(match, worlds, worlds.getNetherName(), World.Environment.NETHER, () -> worlds.setNetherReady(true));
-		createWorld(match, worlds, worlds.getEndName(), World.Environment.THE_END, () -> worlds.setEndReady(true));
+		createWorldSequence(match, worlds, 0);
 		return true;
 	}
 
@@ -101,22 +99,57 @@ public class MatchManager {
 		match.setState(MatchState.FINISHED);
 	}
 
+	private void createWorldSequence(Match match, MatchWorlds worlds, int index) {
+		if (match == null || worlds == null) {
+			return;
+		}
+		if (match.getState() != MatchState.WORLD_CREATING) {
+			return;
+		}
+		String name;
+		World.Environment environment;
+		Runnable readyCallback;
+		switch (index) {
+			case 0 -> {
+				name = worlds.getOverworldName();
+				environment = World.Environment.NORMAL;
+				readyCallback = () -> worlds.setOverworldReady(true);
+			}
+			case 1 -> {
+				name = worlds.getNetherName();
+				environment = World.Environment.NETHER;
+				readyCallback = () -> worlds.setNetherReady(true);
+			}
+			case 2 -> {
+				name = worlds.getEndName();
+				environment = World.Environment.THE_END;
+				readyCallback = () -> worlds.setEndReady(true);
+			}
+			default -> {
+				return;
+			}
+		}
+		createWorld(match, worlds, name, environment, readyCallback, () -> createWorldSequence(match, worlds, index + 1));
+	}
+
 	private void createWorld(Match match, MatchWorlds worlds, String name, World.Environment environment,
-			Runnable readyCallback) {
+			Runnable readyCallback, Runnable nextCallback) {
 		CreateWorldOptions options = CreateWorldOptions.worldName(name)
 			.environment(environment)
 			.generateStructures(true);
 
 		Long seed = parseSeed(match.getSettings());
-		if (seed != null) {
-			options = options.seed(seed);
-		}
+		CreateWorldOptions finalOptions = seed != null ? options.seed(seed) : options;
 
 		multiverseService.getCoreApi().getWorldManager()
-			.createWorld(options)
+			.createWorld(finalOptions)
 			.onFailure(reason -> {
 				logger.warning("Failed to create world " + name + ": " + reason);
-				markMatchFailed(match);
+				if (lifecycleService != null) {
+					lifecycleService.handleWorldCreationFailed(match, name);
+				} else {
+					markMatchFailed(match);
+				}
 			})
 			.onSuccess(world -> {
 				readyCallback.run();
@@ -124,6 +157,9 @@ public class MatchManager {
 					lifecycleService.handleWorldGenerated(match, world);
 				}
 				checkWorldsReady(match, worlds);
+				if (nextCallback != null) {
+					nextCallback.run();
+				}
 			});
 	}
 
