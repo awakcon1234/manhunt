@@ -1838,7 +1838,7 @@ public class GuiService {
 		}
 		MatchSettings settings = match.getSettings();
 		int current = settings.getWorldBorderLimit();
-		int next = clamp(current + delta, 100, 100000);
+		int next = clamp(current + delta, MatchSettings.WORLD_BORDER_LIMIT_MIN, MatchSettings.WORLD_BORDER_LIMIT_MAX);
 		settings.setWorldBorderLimit(next);
 		if (settings.getStartingBorder() > next) {
 			settings.setStartingBorder(next);

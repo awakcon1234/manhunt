@@ -9,6 +9,7 @@ import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.PortalType;
 import org.bukkit.World;
+import org.bukkit.WorldCreator;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -19,16 +20,19 @@ import org.bukkit.event.player.PlayerPortalEvent;
 
 import java.util.Objects;
 import java.util.Set;
+import java.util.logging.Logger;
 
 public class MatchPortalLinkListener implements Listener {
 	private static final double NETHER_SCALE = 8.0;
 
 	private final LobbyManager lobbyManager;
 	private final MatchManager matchManager;
+	private final Logger logger;
 
-	public MatchPortalLinkListener(LobbyManager lobbyManager, MatchManager matchManager) {
+	public MatchPortalLinkListener(LobbyManager lobbyManager, MatchManager matchManager, Logger logger) {
 		this.lobbyManager = Objects.requireNonNull(lobbyManager, "lobbyManager");
 		this.matchManager = Objects.requireNonNull(matchManager, "matchManager");
+		this.logger = Objects.requireNonNull(logger, "logger");
 	}
 
 	@EventHandler(priority = EventPriority.HIGH)
@@ -43,6 +47,7 @@ public class MatchPortalLinkListener implements Listener {
 		}
 		PortalType type = resolvePortalType(event);
 		if (type == null) {
+			debug("Player portal ignored (unknown type): player=" + player.getName());
 			return;
 		}
 		Location from = event.getFrom().clone();
@@ -50,16 +55,14 @@ public class MatchPortalLinkListener implements Listener {
 		if (fromWorld == null) {
 			return;
 		}
+		debug("Player portal: player=" + player.getName() + " match=" + match.getId()
+			+ " type=" + type + " from=" + fromWorld.getName());
 		String linkedWorld = getLinkedWorld(match, fromWorld.getName(), type);
 		Location newTo = getLinkedLocation(from, type, linkedWorld, player);
 		if (newTo == null) {
+			debug("Player portal cancelled: linkedWorld=" + linkedWorld + " from=" + fromWorld.getName());
 			event.setCancelled(true);
 			return;
-		}
-		if (type == PortalType.NETHER) {
-			event.setCanCreatePortal(true);
-		} else if (type == PortalType.ENDER) {
-			event.setCanCreatePortal(false);
 		}
 		event.setTo(newTo);
 
@@ -68,15 +71,12 @@ public class MatchPortalLinkListener implements Listener {
 			return;
 		}
 		if (fromWorld.getEnvironment() == World.Environment.THE_END && type == PortalType.ENDER) {
-			Location bedSpawn = player.getBedSpawnLocation();
+			Location bedSpawn = player.getRespawnLocation();
 			if (bedSpawn != null && bedSpawn.getWorld() != null && bedSpawn.getWorld().getUID().equals(toWorld.getUID())) {
 				event.setTo(bedSpawn);
 			} else {
 				event.setTo(toWorld.getSpawnLocation());
 			}
-			event.setCanCreatePortal(false);
-		} else if (fromWorld.getEnvironment() == World.Environment.NETHER && type == PortalType.NETHER) {
-			event.setCanCreatePortal(true);
 		} else if (toWorld.getEnvironment() == World.Environment.THE_END && type == PortalType.ENDER) {
 			Location spawnLocation = getEndPlatformLocation(player, toWorld);
 			event.setTo(spawnLocation);
@@ -99,15 +99,19 @@ public class MatchPortalLinkListener implements Listener {
 
 		PortalType type = resolvePortalType(fromWorld, originalToWorld);
 		if (type == null) {
+			debug("Entity portal ignored (unknown type): entity=" + event.getEntity().getType());
 			return;
 		}
 		Match match = findMatchByWorld(fromWorld.getName());
 		if (match == null) {
 			return;
 		}
+		debug("Entity portal: entity=" + event.getEntity().getType() + " match=" + match.getId()
+			+ " type=" + type + " from=" + fromWorld.getName());
 		String linkedWorld = getLinkedWorld(match, fromWorld.getName(), type);
 		Location newTo = getLinkedLocation(from, type, linkedWorld, event.getEntity());
 		if (newTo == null) {
+			debug("Entity portal cancelled: linkedWorld=" + linkedWorld + " from=" + fromWorld.getName());
 			event.setCancelled(true);
 			return;
 		}
@@ -182,7 +186,17 @@ public class MatchPortalLinkListener implements Listener {
 		World fromWorld = currentLocation.getWorld();
 		World targetWorld = Bukkit.getWorld(linkedWorld);
 		if (fromWorld == null || targetWorld == null) {
-			return null;
+			if (fromWorld == null) {
+				return null;
+			}
+			World.Environment targetEnvironment = resolveTargetEnvironment(fromWorld, type);
+			WorldCreator creator = new WorldCreator(linkedWorld).environment(targetEnvironment);
+			targetWorld = Bukkit.createWorld(creator);
+			debug("Loading target world: name=" + linkedWorld + " env=" + targetEnvironment
+				+ " result=" + (targetWorld != null ? "ok" : "null"));
+			if (targetWorld == null) {
+				return null;
+			}
 		}
 		if (fromWorld.getName().equalsIgnoreCase(linkedWorld)) {
 			return null;
@@ -195,6 +209,23 @@ public class MatchPortalLinkListener implements Listener {
 		double targetZ = currentLocation.getZ() * scale;
 		return new Location(targetWorld, targetX, currentLocation.getY(), targetZ,
 			currentLocation.getYaw(), currentLocation.getPitch());
+	}
+
+	private World.Environment resolveTargetEnvironment(World fromWorld, PortalType type) {
+		if (fromWorld == null || type == null) {
+			return World.Environment.NORMAL;
+		}
+		if (type == PortalType.NETHER) {
+			return fromWorld.getEnvironment() == World.Environment.NETHER
+				? World.Environment.NORMAL
+				: World.Environment.NETHER;
+		}
+		if (type == PortalType.ENDER) {
+			return fromWorld.getEnvironment() == World.Environment.THE_END
+				? World.Environment.NORMAL
+				: World.Environment.THE_END;
+		}
+		return World.Environment.NORMAL;
 	}
 
 	private Location getEndPlatformLocation(Entity entity, World targetWorld) {
@@ -221,10 +252,8 @@ public class MatchPortalLinkListener implements Listener {
 		}
 	}
 
-	private double clampY(World world, double y) {
-		int min = world.getMinHeight() + 1;
-		int max = world.getMaxHeight() - 2;
-		return Math.max(min, Math.min(max, y));
+	private void debug(String message) {
+		logger.info("[PortalDebug] " + message);
 	}
 
 	private Match findMatchByWorld(String worldName) {

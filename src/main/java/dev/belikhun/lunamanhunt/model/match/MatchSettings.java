@@ -5,10 +5,14 @@ import java.util.List;
 import java.util.UUID;
 
 public class MatchSettings {
+    public static final int WORLD_BORDER_LIMIT_DEFAULT = 3000;
+    public static final int WORLD_BORDER_LIMIT_MIN = 2000;
+    public static final int WORLD_BORDER_LIMIT_MAX = 6000;
+
     private SpeedrunnerSelection speedrunnerSelection = SpeedrunnerSelection.RANDOM;
     private UUID speedrunnerId;
     private String worldSeed;
-    private int worldBorderLimit = 1000;
+    private int worldBorderLimit = WORLD_BORDER_LIMIT_DEFAULT;
     private int startingBorder = 10;
     private String speedrunnerKitId;
     private List<String> speedrunnerKit = new ArrayList<>();
@@ -44,7 +48,11 @@ public class MatchSettings {
     }
 
     public void setWorldBorderLimit(int worldBorderLimit) {
-        this.worldBorderLimit = worldBorderLimit;
+        this.worldBorderLimit = clamp(worldBorderLimit, WORLD_BORDER_LIMIT_MIN, WORLD_BORDER_LIMIT_MAX);
+    }
+
+    private int clamp(int value, int min, int max) {
+        return Math.max(min, Math.min(max, value));
     }
 
     public int getStartingBorder() {

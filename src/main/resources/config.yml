@@ -11,7 +11,7 @@ match:
   defaults:
     speedrunnerSelection: RANDOM
     worldSeed: ""
-    worldBorderLimit: 1000
+    worldBorderLimit: 3000
     startingBorder: 10
     visibility: PUBLIC
     speedrunnerKitId: starter
