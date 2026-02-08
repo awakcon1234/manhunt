@@ -26,6 +26,10 @@ public class RunStartListener implements Listener {
 		if (!(event.getEntity() instanceof Player victim)) {
 			return;
 		}
+		if (matchLifecycleService.shouldCancelPendingDamage(attacker, victim)) {
+			event.setCancelled(true);
+			return;
+		}
 		matchLifecycleService.tryStartRun(attacker, victim);
 	}
 }

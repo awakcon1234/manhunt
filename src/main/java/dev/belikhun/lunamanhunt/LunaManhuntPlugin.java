@@ -19,6 +19,8 @@ import dev.belikhun.lunamanhunt.service.card.CardService;
 import dev.belikhun.lunamanhunt.service.compass.CompassService;
 import dev.belikhun.lunamanhunt.service.gui.GuiService;
 import dev.belikhun.lunamanhunt.service.integration.MultiverseService;
+import dev.belikhun.lunamanhunt.service.kit.SpeedrunnerKitService;
+import dev.belikhun.lunamanhunt.service.kit.SpeedrunnerKitStore;
 import dev.belikhun.lunamanhunt.service.lobby.LobbyManager;
 import dev.belikhun.lunamanhunt.service.match.MatchManager;
 import dev.belikhun.lunamanhunt.service.match.MatchEndService;
@@ -38,6 +40,7 @@ public final class LunaManhuntPlugin extends JavaPlugin {
     private MultiverseService multiverseService;
     private MatchManager matchManager;
     private MatchSettingsService matchSettingsService;
+    private SpeedrunnerKitService kitService;
     private LobbyManager lobbyManager;
     private WinConditionService winConditionService;
     private CompassService compassService;
@@ -53,7 +56,8 @@ public final class LunaManhuntPlugin extends JavaPlugin {
     @Override
     public void onEnable() {
         saveDefaultConfig();
-        this.matchSettingsService = new MatchSettingsService(this);
+        this.kitService = new SpeedrunnerKitService(new SpeedrunnerKitStore());
+        this.matchSettingsService = new MatchSettingsService(this, kitService);
         this.persistenceManager = new PersistenceManager(this, matchSettingsService);
         this.multiverseService = new MultiverseService();
         this.matchManager = new MatchManager(this, multiverseService);
@@ -62,14 +66,15 @@ public final class LunaManhuntPlugin extends JavaPlugin {
         this.pointService = new PointService();
         this.cardService = new CardService(this, lobbyManager, compassService, pointService);
         this.guiService = new GuiService(this, lobbyManager, matchManager, cardService, pointService,
-            persistenceManager.getProfileStore(), matchSettingsService);
+            persistenceManager.getProfileStore(), matchSettingsService, kitService);
         this.lobbyItemService = new LobbyItemService(this, lobbyManager, guiService);
         this.guiService.setLobbyItemService(lobbyItemService);
         this.lobbyTeleportService = new LobbyTeleportService(this, lobbyItemService);
         this.matchEndService = new MatchEndService(this, lobbyManager, multiverseService, lobbyTeleportService, cardService);
         this.winConditionService = new WinConditionService(lobbyManager, persistenceManager.getProfileStore(),
             matchEndService);
-        this.matchLifecycleService = new MatchLifecycleService(lobbyManager, matchManager, compassService);
+        this.matchLifecycleService = new MatchLifecycleService(this, lobbyManager, matchManager, compassService,
+            kitService, cardService);
         this.matchManager.setLifecycleService(matchLifecycleService);
         this.spawnService = new SpawnService(this, lobbyManager, matchManager, winConditionService, lobbyTeleportService);
 

@@ -20,8 +20,8 @@ import java.util.stream.Collectors;
 public final class Text {
     private static final Locale LOCALE = Locale.US;
     private static final MiniMessage MINI_MESSAGE = MiniMessage.miniMessage();
-    private static String prefixMiniMessage = "<gold>[LunaManhunt] ";
-    private static String prefixLegacy = colorize("&6[LunaManhunt] ");
+    private static String prefixMiniMessage = "<gold>⚔ ";
+    private static String prefixLegacy = colorize("&6⚔ ");
 
     private Text() {
     }

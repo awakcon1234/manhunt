@@ -10,6 +10,7 @@ public class MatchSettings {
     private String worldSeed;
     private int worldBorderLimit = 1000;
     private int startingBorder = 10;
+    private String speedrunnerKitId;
     private List<String> speedrunnerKit = new ArrayList<>();
     private MatchVisibility visibility = MatchVisibility.PUBLIC;
     private List<String> enabledCardIds = new ArrayList<>();
@@ -52,6 +53,14 @@ public class MatchSettings {
 
     public void setStartingBorder(int startingBorder) {
         this.startingBorder = startingBorder;
+    }
+
+    public String getSpeedrunnerKitId() {
+        return speedrunnerKitId;
+    }
+
+    public void setSpeedrunnerKitId(String speedrunnerKitId) {
+        this.speedrunnerKitId = speedrunnerKitId;
     }
 
     public List<String> getSpeedrunnerKit() {

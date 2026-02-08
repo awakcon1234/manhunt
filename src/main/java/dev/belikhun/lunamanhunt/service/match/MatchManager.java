@@ -70,6 +70,9 @@ public class MatchManager {
 		worlds.setNetherName(buildWorldName(match.getId(), "nether"));
 		worlds.setEndName(buildWorldName(match.getId(), "end"));
 		match.setWorlds(worlds);
+		if (lifecycleService != null) {
+			lifecycleService.handleWorldsCreating(match);
+		}
 
 		createWorld(match, worlds, worlds.getOverworldName(), World.Environment.NORMAL, () -> worlds.setOverworldReady(true));
 		createWorld(match, worlds, worlds.getNetherName(), World.Environment.NETHER, () -> worlds.setNetherReady(true));
@@ -114,6 +117,9 @@ public class MatchManager {
 			})
 			.onSuccess(world -> {
 				readyCallback.run();
+				if (lifecycleService != null) {
+					lifecycleService.handleWorldGenerated(match, world);
+				}
 				checkWorldsReady(match, worlds);
 			});
 	}

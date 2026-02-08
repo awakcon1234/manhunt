@@ -20,6 +20,7 @@ public class Match {
     private final Set<UUID> hunters = new HashSet<>();
     private final Set<UUID> invitedPlayers = new HashSet<>();
     private final List<CardDefinition> drawnCards = new ArrayList<>();
+    private final List<CardDefinition> keptCards = new ArrayList<>();
     private int speedrunnerPoints;
     private long createdAtMillis;
     private Long startedAtMillis;
@@ -95,6 +96,10 @@ public class Match {
 
     public List<CardDefinition> getDrawnCards() {
         return drawnCards;
+    }
+
+    public List<CardDefinition> getKeptCards() {
+        return keptCards;
     }
 
     public int getSpeedrunnerPoints() {

@@ -26,9 +26,6 @@ public class GuiListener implements Listener {
 		if (!guiService.isGuiInventory(inventory)) {
 			return;
 		}
-		if (guiService.isKitEditorInventory(inventory)) {
-			return;
-		}
 		event.setCancelled(true);
 		ItemStack item = event.getCurrentItem();
 		guiService.handleMenuClick(player, inventory, item);

@@ -14,4 +14,5 @@ match:
     worldBorderLimit: 1000
     startingBorder: 10
     visibility: PUBLIC
+    speedrunnerKitId: starter
     speedrunnerKit: []

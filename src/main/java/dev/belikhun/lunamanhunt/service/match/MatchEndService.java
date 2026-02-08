@@ -97,6 +97,7 @@ public class MatchEndService {
 		cleanupWorlds(match);
 		match.getHunters().clear();
 		match.getDrawnCards().clear();
+		match.getKeptCards().clear();
 		match.setSpeedrunnerPoints(0);
 		match.setSpeedrunnerId(null);
 		match.setState(MatchState.FINISHED);
@@ -180,6 +181,7 @@ public class MatchEndService {
 		cleanupWorlds(match);
 		match.getHunters().clear();
 		match.getDrawnCards().clear();
+		match.getKeptCards().clear();
 		match.setSpeedrunnerPoints(0);
 		match.setSpeedrunnerId(null);
 		match.setState(MatchState.FINISHED);

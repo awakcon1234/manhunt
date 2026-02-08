@@ -5,9 +5,7 @@ import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
-import org.bukkit.event.inventory.InventoryCloseEvent;
 import io.papermc.paper.event.player.AsyncChatEvent;
-import org.bukkit.inventory.Inventory;
 import org.bukkit.plugin.java.JavaPlugin;
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 
@@ -33,15 +31,4 @@ public class GuiInputListener implements Listener {
 		Bukkit.getScheduler().runTask(plugin, () -> guiService.handleSeedInput(player, message));
 	}
 
-	@EventHandler
-	public void onInventoryClose(InventoryCloseEvent event) {
-		if (!(event.getPlayer() instanceof Player player)) {
-			return;
-		}
-		Inventory inventory = event.getInventory();
-		if (!guiService.isKitEditorInventory(inventory)) {
-			return;
-		}
-		guiService.handleKitClose(player, inventory);
-	}
 }

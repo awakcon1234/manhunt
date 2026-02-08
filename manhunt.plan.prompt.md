@@ -16,8 +16,9 @@
 - after all 3 worlds has completed initializing, all players in the match are teleported to the world spawn, with the world border initialy set to 10 blocks. the game start when the speedrunner hit any of the hunters. when the game started, each hunters are given a compass for tracking the speedrunner.
 - when the speedrunner is killed by any of the hunters, the game is ended with the victory of the hunters. speedrunner dying by natural causes does not end the game.
 - when the speedrunner killed the ender dragon, the game is finished with the victory of the speedrunner. their speedrun time is recorded into their profile, and an ending sequence is played where all hunters have their gamemode set to spectator and teleport hunters to the end if they are not in the end already, a firework show is played all over the end island. all players will be teleported to the lobby and cleanup of the worlds is initialized when the speedrunner enter the central end portal.
-- there will be a power-up cards and effect cards system. the power-up cards will assist the speedrunner during their run, and effect cards help slowing down the hunters by applying bad effects on them. each draw cost a point. and each achievements the speedrunner got will award a point to use the card system.
-- during the run, the speedrunners can draw power-up cards or effect cards.
+- there will be a power-up cards and effect cards system. the power-up cards will assist the speedrunner during their run, and effect cards help slowing down the hunters by applying bad effects on them. when the speedrunner earns a new achievement, 7 random cards are drawn for selection.
+- the speedrunner has 3 card slots to keep cards; keeping cards does not cost any point.
+- the speedrunner can discard any kept card and replace it with any card in the current random pool.
 
 with those basic informations in mind. analyze the technical aspect, generate a plan file to prepare for the implementation
 
@@ -36,11 +37,9 @@ Win conditions:
 You also want a card system:
 - Power-up cards help the speedrunner.
 - Effect cards hinder hunters.
-- Each draw costs points.
-- Points are earned through achievements during the run.
-- Points only exist during the match and reset afterward.
-- Only the speedrunner earns points from achievements.
-- Speedrunners can draw cards during the match.
+- Each speedrunner achievement triggers a 7-card random pool.
+- The speedrunner keeps up to 3 cards in their slots at any time.
+- Discarded slot cards can be replaced with any card in the current pool.
 
 Build a multi-match lobby + world lifecycle system around Paper + Multiverse-Core, with command + GUI surfaces from day one and YAML persistence. The core work is to model match state, world provisioning, player routing, and win conditions, then layer GUI flows and a card/points subsystem on top. This plan assumes a hard dependency on Multiverse-Core and supports multiple concurrent matches with unique 7-letter IDs.
 
@@ -51,7 +50,7 @@ Build a multi-match lobby + world lifecycle system around Paper + Multiverse-Cor
 4. Implement match lifecycle: create match (generate 7-letter ID), invite/join flows (public / invite-only / private), configure settings in lobby, start match -> create three worlds via Multiverse, wait for world init, set border to 10, teleport all match players to spawn, register "first hit starts game" trigger, then grant hunters tracking compasses when the run officially begins.
 5. Implement win/lose rules and end sequence: hunter kills speedrunner ends match; speedrunner death by non-player causes doesn't end; ender dragon kill triggers speedrunner win, records time to profile, sets hunters to spectator, teleports hunters to end, plays fireworks, then returns everyone to lobby after speedrunner enters end portal and queues world cleanup.
 6. Build command + GUI layer: commands for match creation/join/invite/config/start plus admin utilities; GUI screens for match list, create match, invite list, settings editor, card draw; add permissions and help output.
-7. Add the card/points system: match-scoped points earned by speedrunner achievements (define initial trigger list), points spent to draw power-up/effect cards, card inventory/selection UI, effect application logic gated to match state and roles.
+7. Add the card system: 7-card roll on speedrunner achievements (define initial trigger list), 3-slot keep UI, discard/replace from the current pool, effect application logic gated to match state and roles.
 8. Create persistence schema: YAML files for profiles, match templates, and last known lobby state; ensure safe load/save with versioning and migration hooks.
 
 **Verification**
@@ -77,6 +76,6 @@ Build a multi-match lobby + world lifecycle system around Paper + Multiverse-Cor
 7. Add compass tracking
 8. Add commands and permissions
 9. Create GUI flows
-10. Implement cards and points
+10. Implement cards and slots
 11. Add config defaults
 12. Add tests and validation

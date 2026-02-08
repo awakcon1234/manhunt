@@ -56,8 +56,8 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
 public class CardService {
-	private static final int DRAW_COUNT = 3;
-	private static final int DRAW_COST = 1;
+	private static final int POOL_COUNT = 7;
+	private static final int MAX_SLOTS = 3;
 
 	private final JavaPlugin plugin;
 	private final LobbyManager lobbyManager;
@@ -144,12 +144,12 @@ public class CardService {
 		return null;
 	}
 
-	public int getDrawCost() {
-		return DRAW_COST;
+	public int getPoolCount() {
+		return POOL_COUNT;
 	}
 
-	public int getDrawCount() {
-		return DRAW_COUNT;
+	public int getMaxSlots() {
+		return MAX_SLOTS;
 	}
 
 	public List<CardDefinition> getDrawnCards(Match match) {
@@ -157,6 +157,13 @@ public class CardService {
 			return List.of();
 		}
 		return List.copyOf(match.getDrawnCards());
+	}
+
+	public List<CardDefinition> getKeptCards(Match match) {
+		if (match == null) {
+			return List.of();
+		}
+		return new ArrayList<>(ensureCardSlots(match));
 	}
 
 	public List<ActiveCard> getActiveCards(Match match) {
@@ -199,7 +206,7 @@ public class CardService {
 		if (match == null) {
 			return;
 		}
-		List<CardDefinition> draw = drawRandomCards(match, DRAW_COUNT);
+		List<CardDefinition> draw = drawRandomCards(match, POOL_COUNT);
 		match.getDrawnCards().clear();
 		match.getDrawnCards().addAll(draw);
 	}
@@ -211,7 +218,90 @@ public class CardService {
 		return match.getSpeedrunnerPoints() >= card.getCost();
 	}
 
-	public boolean useCard(Player player, Match match, CardDefinition card) {
+	public boolean useKeptCard(Player player, Match match, int slotIndex) {
+		if (player == null || match == null) {
+			return false;
+		}
+		List<CardDefinition> slots = ensureCardSlots(match);
+		if (slotIndex < 0 || slotIndex >= slots.size()) {
+			return false;
+		}
+		CardDefinition card = slots.get(slotIndex);
+		if (card == null) {
+			Text.msg(player, "<red>❌</red> Ô thẻ này đang trống.");
+			return false;
+		}
+		if (!applyCard(player, match, card)) {
+			return false;
+		}
+		slots.set(slotIndex, null);
+		return true;
+	}
+
+	public boolean keepCardFromPool(Player player, Match match, int poolIndex) {
+		if (player == null || match == null) {
+			return false;
+		}
+		if (match.getState() != MatchState.RUNNING) {
+			Text.msg(player, "<red>❌</red> Chỉ chọn thẻ khi trận đang diễn ra.");
+			return false;
+		}
+		UUID speedrunnerId = match.getSpeedrunnerId();
+		if (speedrunnerId == null || !speedrunnerId.equals(player.getUniqueId())) {
+			Text.msg(player, "<red>❌</red> Chỉ speedrunner mới được giữ thẻ.");
+			return false;
+		}
+		List<CardDefinition> pool = match.getDrawnCards();
+		if (poolIndex < 0 || poolIndex >= pool.size()) {
+			return false;
+		}
+		CardDefinition card = pool.get(poolIndex);
+		if (card == null) {
+			return false;
+		}
+		List<CardDefinition> slots = ensureCardSlots(match);
+		if (slots.contains(card)) {
+			Text.msg(player, "<yellow>ℹ</yellow> Bạn đã giữ thẻ này rồi.");
+			return false;
+		}
+		int emptyIndex = slots.indexOf(null);
+		if (emptyIndex < 0) {
+			Text.msg(player, "<red>❌</red> Ô thẻ đã đầy, hãy bỏ bớt trước.");
+			return false;
+		}
+		slots.set(emptyIndex, card);
+		Text.msg(player, "<green>✔</green> Đã giữ thẻ <yellow>" + card.getName() + "</yellow>.");
+		return true;
+	}
+
+	public boolean discardKeptCard(Player player, Match match, int slotIndex) {
+		if (player == null || match == null) {
+			return false;
+		}
+		if (match.getState() != MatchState.RUNNING) {
+			Text.msg(player, "<red>❌</red> Chỉ bỏ thẻ khi trận đang diễn ra.");
+			return false;
+		}
+		UUID speedrunnerId = match.getSpeedrunnerId();
+		if (speedrunnerId == null || !speedrunnerId.equals(player.getUniqueId())) {
+			Text.msg(player, "<red>❌</red> Chỉ speedrunner mới được bỏ thẻ.");
+			return false;
+		}
+		List<CardDefinition> slots = ensureCardSlots(match);
+		if (slotIndex < 0 || slotIndex >= slots.size()) {
+			return false;
+		}
+		CardDefinition card = slots.get(slotIndex);
+		if (card == null) {
+			Text.msg(player, "<red>❌</red> Ô thẻ này đang trống.");
+			return false;
+		}
+		slots.set(slotIndex, null);
+		Text.msg(player, "<green>✔</green> Đã bỏ thẻ <yellow>" + card.getName() + "</yellow>.");
+		return true;
+	}
+
+	private boolean applyCard(Player player, Match match, CardDefinition card) {
 		if (player == null || match == null || card == null) {
 			return false;
 		}
@@ -224,10 +314,6 @@ public class CardService {
 			Text.msg(player, "<red>❌</red> Chỉ speedrunner mới được dùng thẻ.");
 			return false;
 		}
-		if (!match.getDrawnCards().contains(card)) {
-			Text.msg(player, "<red>❌</red> Thẻ này không còn khả dụng.");
-			return false;
-		}
 		if (!canUseCard(match, card)) {
 			Text.msg(player, "<red>❌</red> Bạn không đủ điểm để dùng thẻ này.");
 			return false;
@@ -238,7 +324,6 @@ public class CardService {
 		}
 		trackActiveCard(match, card);
 		match.setSpeedrunnerPoints(match.getSpeedrunnerPoints() - card.getCost());
-		match.getDrawnCards().remove(card);
 		Text.msg(player, "<green>✔</green> Đã dùng thẻ <yellow>" + card.getName() + "</yellow>.");
 		return true;
 	}
@@ -256,45 +341,33 @@ public class CardService {
 			return;
 		}
 		addPoint(match, 1);
-		Text.msg(player, "<green>✔</green> Bạn nhận được " + pointService.formatPoints(1) + " từ thành tựu.");
-		Text.msg(player, "<yellow>ℹ</yellow> Dùng <white>/cards draw</white> để rút thẻ.");
-	}
-
-	public boolean drawCards(Player player, Match match) {
-		if (player == null || match == null) {
-			return false;
-		}
-		if (match.getState() != MatchState.RUNNING) {
-			Text.msg(player, "<red>❌</red> Chỉ rút thẻ khi trận đang diễn ra.");
-			return false;
-		}
-		UUID speedrunnerId = match.getSpeedrunnerId();
-		if (speedrunnerId == null || !speedrunnerId.equals(player.getUniqueId())) {
-			Text.msg(player, "<red>❌</red> Chỉ speedrunner mới được rút thẻ.");
-			return false;
-		}
-		if (match.getSpeedrunnerPoints() < DRAW_COST) {
-			Text.msg(player, "<red>❌</red> Bạn không đủ điểm để rút thẻ.");
-			return false;
-		}
-		match.setSpeedrunnerPoints(match.getSpeedrunnerPoints() - DRAW_COST);
 		drawNewCards(match);
-		Text.msg(player, "<green>✔</green> Đã rút " + DRAW_COUNT + " thẻ với " + pointService.formatPoints(DRAW_COST) + ".");
-		return true;
+		Text.msg(player, "<green>✔</green> Bạn nhận được " + pointService.formatPoints(1) + " từ thành tựu.");
+		Text.msg(player, "<yellow>ℹ</yellow> Đã mở " + POOL_COUNT + " thẻ mới, hãy giữ vào ô thẻ.");
 	}
 
 	public void sendCardList(Player player, Match match) {
 		if (player == null || match == null) {
 			return;
 		}
-		List<CardDefinition> cards = match.getDrawnCards();
-		if (cards.isEmpty()) {
-			Text.msg(player, "<yellow>ℹ</yellow> Chưa có thẻ nào được rút.");
+		List<CardDefinition> cards = ensureCardSlots(match);
+		boolean hasCard = false;
+		for (CardDefinition card : cards) {
+			if (card != null) {
+				hasCard = true;
+				break;
+			}
+		}
+		if (!hasCard) {
+			Text.msg(player, "<yellow>ℹ</yellow> Chưa có thẻ nào trong ô giữ.");
 			return;
 		}
-		Text.msg(player, "<yellow>ℹ</yellow> Thẻ hiện tại:");
+		Text.msg(player, "<yellow>ℹ</yellow> Thẻ đang giữ:");
 		for (int i = 0; i < cards.size(); i++) {
 			CardDefinition card = cards.get(i);
+			if (card == null) {
+				continue;
+			}
 			Text.msg(player, "<yellow>●</yellow> <white>" + (i + 1) + ". " + card.getName()
 				+ "</white> <gray>(" + pointService.formatPoints(card.getCost()) + ")</gray>");
 		}
@@ -489,6 +562,17 @@ public class CardService {
 		pool = new ArrayList<>(pool);
 		Collections.shuffle(pool, random);
 		return pool.subList(0, Math.min(count, pool.size()));
+	}
+
+	private List<CardDefinition> ensureCardSlots(Match match) {
+		List<CardDefinition> slots = match.getKeptCards();
+		while (slots.size() < MAX_SLOTS) {
+			slots.add(null);
+		}
+		if (slots.size() > MAX_SLOTS) {
+			slots.subList(MAX_SLOTS, slots.size()).clear();
+		}
+		return slots;
 	}
 
 	private void ensureEnabledCards(Match match) {

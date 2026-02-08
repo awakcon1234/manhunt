@@ -94,7 +94,17 @@ public class MatchTemplateStore {
         if (section.isSet("startingBorder")) {
             settings.setStartingBorder(section.getInt("startingBorder", settings.getStartingBorder()));
         }
-        if (section.contains("speedrunnerKit")) {
+        if (section.isSet("speedrunnerKitId")) {
+            String kitId = section.getString("speedrunnerKitId");
+            if (kitId != null && !kitId.isBlank()) {
+                if (matchSettingsService != null) {
+                    matchSettingsService.applyKit(settings, kitId.trim());
+                } else {
+                    settings.setSpeedrunnerKitId(kitId.trim());
+                }
+            }
+        }
+        if (settings.getSpeedrunnerKitId() == null && section.contains("speedrunnerKit")) {
             List<String> kit = section.getStringList("speedrunnerKit");
             settings.setSpeedrunnerKit(new ArrayList<>(kit));
         }
@@ -116,6 +126,7 @@ public class MatchTemplateStore {
         section.set("worldSeed", settings.getWorldSeed());
         section.set("worldBorderLimit", settings.getWorldBorderLimit());
         section.set("startingBorder", settings.getStartingBorder());
+        section.set("speedrunnerKitId", settings.getSpeedrunnerKitId());
         section.set("speedrunnerKit", settings.getSpeedrunnerKit());
         section.set("enabledCards", settings.getEnabledCardIds());
         section.set("visibility", settings.getVisibility().name());

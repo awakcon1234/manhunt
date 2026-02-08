@@ -5,18 +5,19 @@ import dev.belikhun.lunamanhunt.model.match.MatchSettings;
 import dev.belikhun.lunamanhunt.model.match.MatchState;
 import dev.belikhun.lunamanhunt.model.match.MatchVisibility;
 import dev.belikhun.lunamanhunt.model.match.SpeedrunnerSelection;
+import dev.belikhun.lunamanhunt.model.kit.SpeedrunnerKitDefinition;
 import dev.belikhun.lunamanhunt.model.card.CardDefinition;
 import dev.belikhun.lunamanhunt.model.match.MatchWinner;
 import dev.belikhun.lunamanhunt.model.profile.MatchHistoryEntry;
 import dev.belikhun.lunamanhunt.model.profile.PlayerProfile;
 import dev.belikhun.lunamanhunt.service.card.CardService;
+import dev.belikhun.lunamanhunt.service.kit.SpeedrunnerKitService;
 import dev.belikhun.lunamanhunt.service.lobby.LobbyActionResult;
 import dev.belikhun.lunamanhunt.service.lobby.LobbyManager;
 import dev.belikhun.lunamanhunt.service.match.MatchManager;
 import dev.belikhun.lunamanhunt.service.persistence.ProfileStore;
 import dev.belikhun.lunamanhunt.service.point.PointService;
 import dev.belikhun.lunamanhunt.service.spawn.LobbyItemService;
-import dev.belikhun.lunamanhunt.util.ItemStackCodec;
 import dev.belikhun.lunamanhunt.util.Text;
 import dev.belikhun.lunamanhunt.util.UiColors;
 import net.kyori.adventure.text.Component;
@@ -59,6 +60,7 @@ public class GuiService {
 	private static final String ACTION_MATCH_INFO_SETTINGS = "match_info_settings";
 	private static final String ACTION_MATCH_INFO_CARDS = "match_info_cards";
 	private static final String ACTION_MATCH_INFO_KIT = "match_info_kit";
+	private static final String ACTION_MATCH_INFO_START = "match_info_start";
 	private static final String ACTION_MATCH_INFO_CLOSE = "match_info_close";
 
 	private static final String ACTION_INVITE_PLAYER = "invite_player";
@@ -79,8 +81,9 @@ public class GuiService {
 	private static final String ACTION_SETTINGS_RESET_CARDS = "settings_reset_cards";
 	private static final String ACTION_SETTINGS_SEED = "settings_seed";
 	private static final String ACTION_SETTINGS_SEED_CLEAR = "settings_seed_clear";
-	private static final String ACTION_SETTINGS_KIT = "settings_kit";
-	private static final String ACTION_SETTINGS_KIT_CLEAR = "settings_kit_clear";
+	private static final String ACTION_SETTINGS_KIT_SELECT = "settings_kit_select";
+	private static final String ACTION_SETTINGS_KIT_PAGE_PREV = "settings_kit_page_prev";
+	private static final String ACTION_SETTINGS_KIT_PAGE_NEXT = "settings_kit_page_next";
 	private static final String ACTION_SETTINGS_CARDS = "settings_cards";
 	private static final String ACTION_SETTINGS_BORDER_CHANGE = "settings_border_change";
 	private static final String ACTION_SETTINGS_START_BORDER_CHANGE = "settings_start_border_change";
@@ -91,12 +94,12 @@ public class GuiService {
 	private static final String ACTION_SPEEDRUNNER_RANDOM = "speedrunner_random";
 	private static final String ACTION_SPEEDRUNNER_PICK = "speedrunner_pick";
 	private static final String ACTION_SPEEDRUNNER_BACK = "speedrunner_back";
-
-	private static final String ACTION_KIT_CLEAR_CONFIRM = "kit_clear_confirm";
-	private static final String ACTION_KIT_CLEAR_CANCEL = "kit_clear_cancel";
+	private static final String ACTION_KIT_PREVIEW_SELECT = "kit_preview_select";
+	private static final String ACTION_KIT_PREVIEW_BACK = "kit_preview_back";
 
 	private static final String ACTION_CARD_USE = "card_use";
-	private static final String ACTION_CARD_DRAW = "card_draw";
+	private static final String ACTION_CARD_KEEP = "card_keep";
+	private static final String ACTION_CARD_DISCARD = "card_discard";
 	private static final String ACTION_CARD_CLOSE = "card_close";
 	private static final String ACTION_CARDS_INFO_CLOSE = "cards_info_close";
 	private static final String ACTION_CARDS_INFO_PREV = "cards_info_prev";
@@ -117,6 +120,9 @@ public class GuiService {
 	private static final int CARDS_ADJUST_PAGE_SIZE = 20;
 	private static final int SETTINGS_ROWS_PER_PAGE = 4;
 	private static final int SETTINGS_TOTAL_ROWS = 7;
+	private static final int SETTINGS_ROW_KIT_INDEX = 5;
+	private static final int SETTINGS_KIT_PAGE_SIZE = 3;
+	private static final int SETTINGS_KIT_PAGE_SIZE_FULL = 5;
 
 	private static final int[] AVAILABLE_CARD_SLOTS = new int[] {
 		0, 1, 2, 3,
@@ -138,23 +144,27 @@ public class GuiService {
 	private final CardService cardService;
 	private final PointService pointService;
 	private final ProfileStore profileStore;
+	private final SpeedrunnerKitService kitService;
 	private final dev.belikhun.lunamanhunt.service.match.MatchSettingsService matchSettingsService;
 	private LobbyItemService lobbyItemService;
 	private final NamespacedKey actionKey;
 	private final NamespacedKey targetKey;
 	private final java.util.Map<UUID, String> seedInputs = new java.util.concurrent.ConcurrentHashMap<>();
-	private final java.util.Map<UUID, String> kitEditors = new java.util.concurrent.ConcurrentHashMap<>();
 	private final java.util.Map<UUID, Integer> settingsPages = new java.util.concurrent.ConcurrentHashMap<>();
+	private final java.util.Map<UUID, Integer> kitPages = new java.util.concurrent.ConcurrentHashMap<>();
+	private final java.util.Map<UUID, Integer> kitPreviewPages = new java.util.concurrent.ConcurrentHashMap<>();
 
 	public GuiService(JavaPlugin plugin, LobbyManager lobbyManager, MatchManager matchManager, CardService cardService,
 			PointService pointService, ProfileStore profileStore,
-			dev.belikhun.lunamanhunt.service.match.MatchSettingsService matchSettingsService) {
+			dev.belikhun.lunamanhunt.service.match.MatchSettingsService matchSettingsService,
+			SpeedrunnerKitService kitService) {
 		this.lobbyManager = Objects.requireNonNull(lobbyManager, "lobbyManager");
 		this.matchManager = Objects.requireNonNull(matchManager, "matchManager");
 		this.cardService = Objects.requireNonNull(cardService, "cardService");
 		this.pointService = Objects.requireNonNull(pointService, "pointService");
 		this.profileStore = Objects.requireNonNull(profileStore, "profileStore");
 		this.matchSettingsService = Objects.requireNonNull(matchSettingsService, "matchSettingsService");
+		this.kitService = Objects.requireNonNull(kitService, "kitService");
 		this.actionKey = new NamespacedKey(plugin, ACTION_KEY);
 		this.targetKey = new NamespacedKey(plugin, TARGET_KEY);
 	}
@@ -200,7 +210,7 @@ public class GuiService {
 		Inventory inventory = Bukkit.createInventory(new GuiHolder(GuiType.SETTINGS, match.getId()), 54,
 			Text.mm(UiColors.titlePrimary("Cài đặt phòng") + " "
 				+ UiColors.titleSecondary("- Trang " + (safePage + 1) + "/" + Math.max(1, totalPages))));
-		fillSettingsMenu(match, inventory, safePage, totalPages);
+		fillSettingsMenu(player, match, inventory, safePage, totalPages);
 		player.openInventory(inventory);
 	}
 
@@ -215,30 +225,14 @@ public class GuiService {
 		player.openInventory(inventory);
 	}
 
-	public void openKitEditor(Player player, Match match) {
-		if (match == null) {
-			Text.msg(player, "<red>❌</red> Không tìm thấy phòng đấu.");
+	public void openKitPreviewMenu(Player player, Match match, SpeedrunnerKitDefinition kit) {
+		if (match == null || kit == null) {
+			Text.msg(player, "<red>❌</red> Không tìm thấy bộ đồ.");
 			return;
 		}
-		Inventory inventory = Bukkit.createInventory(new GuiHolder(GuiType.KIT_EDITOR, match.getId()), 54,
+		Inventory inventory = Bukkit.createInventory(new GuiHolder(GuiType.KIT_PREVIEW, match.getId()), 54,
 			Text.mm(UiColors.titlePrimary("Bộ đồ speedrunner")));
-		List<ItemStack> items = ItemStackCodec.decodeList(match.getSettings().getSpeedrunnerKit());
-		for (int i = 0; i < inventory.getSize() && i < items.size(); i++) {
-			inventory.setItem(i, items.get(i));
-		}
-		kitEditors.put(player.getUniqueId(), match.getId());
-		player.openInventory(inventory);
-		Text.msg(player, "<yellow>ℹ</yellow> Đặt vật phẩm vào khung, đóng lại để lưu.");
-	}
-
-	public void openKitClearConfirm(Player player, Match match) {
-		if (match == null) {
-			Text.msg(player, "<red>❌</red> Không tìm thấy phòng đấu.");
-			return;
-		}
-		Inventory inventory = Bukkit.createInventory(new GuiHolder(GuiType.KIT_CLEAR_CONFIRM, match.getId()), 27,
-			Text.mm(UiColors.titleDanger("Xác nhận xóa bộ đồ")));
-		fillKitClearConfirmMenu(inventory);
+		fillKitPreviewMenu(match, kit, inventory);
 		player.openInventory(inventory);
 	}
 
@@ -355,6 +349,7 @@ public class GuiService {
 			case ACTION_MATCH_INFO_SETTINGS -> handleMatchInfoSettings(player, holder.matchId());
 			case ACTION_MATCH_INFO_CARDS -> handleMatchInfoCards(player, holder.matchId(), target);
 			case ACTION_MATCH_INFO_KIT -> handleMatchInfoKit(player, holder.matchId());
+			case ACTION_MATCH_INFO_START -> handleMatchInfoStart(player, holder.matchId());
 			case ACTION_MATCH_INFO_CLOSE -> player.closeInventory();
 			case ACTION_INVITE_PLAYER -> handleInvitePlayer(player, holder.matchId(), target);
 			case ACTION_INVITE_BACK -> handleBackToLobby(player, holder.matchId());
@@ -373,8 +368,8 @@ public class GuiService {
 			case ACTION_SETTINGS_RESET_CARDS -> handleResetCards(player, holder.matchId());
 			case ACTION_SETTINGS_SEED -> handleSeedPrompt(player, holder.matchId());
 			case ACTION_SETTINGS_SEED_CLEAR -> handleSeedClear(player, holder.matchId());
-			case ACTION_SETTINGS_KIT -> handleOpenKitEditor(player, holder.matchId());
-			case ACTION_SETTINGS_KIT_CLEAR -> handleOpenKitClearConfirm(player, holder.matchId());
+			case ACTION_SETTINGS_KIT_SELECT -> handleOpenKitPreview(player, holder.matchId(), target);
+			case ACTION_SETTINGS_KIT_PAGE_PREV, ACTION_SETTINGS_KIT_PAGE_NEXT -> handleOpenKitPage(player, holder.matchId(), target);
 			case ACTION_SETTINGS_CARDS -> handleMatchInfoCards(player, holder.matchId(), "0");
 			case ACTION_SETTINGS_BORDER_CHANGE -> handleBorderChange(player, holder.matchId(), parseDelta(target, 0));
 			case ACTION_SETTINGS_START_BORDER_CHANGE -> handleStartBorderChange(player, holder.matchId(), parseDelta(target, 0));
@@ -383,10 +378,11 @@ public class GuiService {
 			case ACTION_SPEEDRUNNER_RANDOM -> handleSpeedrunnerRandom(player, holder.matchId());
 			case ACTION_SPEEDRUNNER_PICK -> handleSpeedrunnerPick(player, holder.matchId(), target);
 			case ACTION_SPEEDRUNNER_BACK -> handleOpenSettings(player, holder.matchId());
-			case ACTION_KIT_CLEAR_CONFIRM -> handleKitClear(player, holder.matchId());
-			case ACTION_KIT_CLEAR_CANCEL -> handleOpenSettings(player, holder.matchId());
+			case ACTION_KIT_PREVIEW_SELECT -> handleSelectKit(player, holder.matchId(), target);
+			case ACTION_KIT_PREVIEW_BACK -> handleBackFromKitPreview(player, holder.matchId());
 			case ACTION_CARD_USE -> handleUseCard(player, holder.matchId(), target);
-			case ACTION_CARD_DRAW -> handleDrawCards(player, holder.matchId());
+			case ACTION_CARD_KEEP -> handleKeepCard(player, holder.matchId(), target);
+			case ACTION_CARD_DISCARD -> handleDiscardCard(player, holder.matchId(), target);
 			case ACTION_CARD_CLOSE -> player.closeInventory();
 			case ACTION_CARDS_INFO_CLOSE -> player.closeInventory();
 			case ACTION_CARDS_INFO_PREV, ACTION_CARDS_INFO_NEXT -> handleOpenCardsInfoPage(player, target);
@@ -473,13 +469,16 @@ public class GuiService {
 			List.of("<gray>Quay về phòng.</gray>"), ACTION_INVITE_BACK, null));
 	}
 
-	private void fillSettingsMenu(Match match, Inventory inventory, int page, int totalPages) {
+	private void fillSettingsMenu(Player player, Match match, Inventory inventory, int page, int totalPages) {
 		MatchSettings settings = match.getSettings();
 		MatchSettings defaults = matchSettingsService.createDefaults();
 		String seedText = formatSeedValue(settings.getWorldSeed(), defaults.getWorldSeed());
 		String defaultSeedText = formatSeedValue(defaults.getWorldSeed(), defaults.getWorldSeed());
-		int kitCount = ItemStackCodec.decodeList(settings.getSpeedrunnerKit()).size();
-		int defaultKitCount = ItemStackCodec.decodeList(defaults.getSpeedrunnerKit()).size();
+		String defaultKitId = resolveDefaultKitId(defaults);
+		String kitText = formatKitNameColored(settings, defaultKitId);
+		String defaultKitText = formatKitNameColored(defaults, defaultKitId);
+		int kitCount = kitService.resolveKitItems(settings).size();
+		int defaultKitCount = kitService.resolveKitItems(defaults).size();
 		int enabledCards = cardService.getEnabledCards(match).size();
 		int defaultEnabledCards = defaults.getEnabledCardIds().size();
 
@@ -596,22 +595,62 @@ public class GuiService {
 			)
 		));
 
+		List<SpeedrunnerKitDefinition> allKits = kitService.getKits();
+		int kitTotal = allKits.size();
+		boolean paginateKits = kitTotal > SETTINGS_KIT_PAGE_SIZE_FULL;
+		int kitsPerPage = paginateKits ? SETTINGS_KIT_PAGE_SIZE : SETTINGS_KIT_PAGE_SIZE_FULL;
+		int kitTotalPages = Math.max(1, (kitTotal + kitsPerPage - 1) / kitsPerPage);
+		int kitPage = getKitPage(player);
+		int safeKitPage = clamp(kitPage, 0, kitTotalPages - 1);
+		setKitPage(player, safeKitPage);
+		int kitStart = safeKitPage * kitsPerPage;
+		int kitEnd = Math.min(kitTotal, kitStart + kitsPerPage);
+		List<SpeedrunnerKitDefinition> kitPageItems = allKits.subList(kitStart, kitEnd);
+
+		List<OptionItem> kitOptions = new ArrayList<>();
+		if (paginateKits && safeKitPage > 0) {
+			kitOptions.add(buildPageOption(Material.ARROW, "<yellow>ℹ</yellow> Trang trước",
+				List.of("<gray>Xem trang trước.</gray>"), ACTION_SETTINGS_KIT_PAGE_PREV,
+				String.valueOf(safeKitPage - 1)));
+		}
+
+		String selectedKitId = settings.getSpeedrunnerKitId();
+		for (SpeedrunnerKitDefinition kit : kitPageItems) {
+			List<String> lore = new ArrayList<>(kit.getDescription());
+			lore.add(" ");
+			lore.add("<gray>Số vật phẩm: <white>" + kit.getItems().size() + "</white></gray>");
+			if (selectedKitId != null && kit.getId().equalsIgnoreCase(selectedKitId)) {
+				lore.add(" ");
+				lore.add("<#7fd36b>Đang chọn</#7fd36b>");
+			}
+			kitOptions.add(buildPreviewOption(kit.getIcon(), "<yellow>ℹ</yellow> " + kit.getName(), lore,
+				ACTION_SETTINGS_KIT_SELECT, kit.getId()));
+		}
+
+		if (paginateKits && safeKitPage < kitTotalPages - 1) {
+			kitOptions.add(buildPageOption(Material.ARROW, "<yellow>ℹ</yellow> Trang sau",
+				List.of("<gray>Xem trang sau.</gray>"), ACTION_SETTINGS_KIT_PAGE_NEXT,
+				String.valueOf(safeKitPage + 1)));
+		}
+
+		List<String> kitLore = new ArrayList<>();
+		kitLore.add("<gray>Hiện tại: " + kitText + "</gray>");
+		kitLore.add("<gray>Mặc định: " + defaultKitText + "</gray>");
+		kitLore.add(" ");
+		kitLore.add("<gray>Vật phẩm: <white>" + kitCount + "</white></gray>");
+		kitLore.add("<gray>Mặc định: <white>" + defaultKitCount + "</white></gray>");
+		if (paginateKits) {
+			kitLore.add("<gray>Trang: <white>" + (safeKitPage + 1) + "/" + kitTotalPages + "</white></gray>");
+		}
+		kitLore.add(" ");
+		kitLore.add("<gray>Bấm để về mặc định.</gray>");
+
 		rows.add(new SettingRow(
 			Material.CHEST,
 			"<yellow>ℹ</yellow> Bộ đồ speedrunner",
-			List.of(
-				"<gray>Hiện tại: " + formatCountValue(kitCount, defaultKitCount) + "</gray>",
-				"<gray>Mặc định: " + formatCountValue(defaultKitCount, defaultKitCount) + "</gray>",
-				" ",
-				"<gray>Bấm để về mặc định.</gray>"
-			),
+			kitLore,
 			ACTION_SETTINGS_RESET_KIT,
-			List.of(
-				buildOption(Material.CHEST, "<yellow>ℹ</yellow> Chỉnh bộ đồ",
-					List.of("<gray>Mở kho chỉnh sửa.</gray>"), ACTION_SETTINGS_KIT, null),
-				buildOption(Material.BARRIER, "<red>❌</red> Xóa bộ đồ",
-					List.of("<gray>Xóa toàn bộ vật phẩm.</gray>"), ACTION_SETTINGS_KIT_CLEAR, null)
-			)
+			kitOptions
 		));
 
 		rows.add(new SettingRow(
@@ -671,52 +710,104 @@ public class GuiService {
 		}
 	}
 
-	private void fillKitClearConfirmMenu(Inventory inventory) {
-		inventory.setItem(11, buildActionItem(Material.LIME_WOOL,
-			"<green>✔</green> Xác nhận",
-			List.of("<gray>Xóa toàn bộ bộ đồ speedrunner.</gray>"), ACTION_KIT_CLEAR_CONFIRM, null));
-
-		inventory.setItem(13, buildInfoItem(Material.PAPER,
-			"<yellow>ℹ</yellow> Lưu ý",
-			List.of("<gray>Thao tác này không thể hoàn tác.</gray>")));
-
-		inventory.setItem(15, buildActionItem(Material.RED_WOOL,
-			"<red>❌</red> Hủy",
-			List.of("<gray>Quay về cài đặt.</gray>"), ACTION_KIT_CLEAR_CANCEL, null));
-	}
-
 	private void fillCardsMenu(Match match, Inventory inventory) {
 		int points = match.getSpeedrunnerPoints();
-		List<CardDefinition> cards = cardService.getDrawnCards(match);
+		List<CardDefinition> poolCards = cardService.getDrawnCards(match);
+		List<CardDefinition> keptCards = cardService.getKeptCards(match);
 		inventory.setItem(4, buildInfoItem(Material.PAPER,
 			"<yellow>ℹ</yellow> Điểm hiện tại",
-			List.of("<gray>Bạn có <white>" + pointService.formatPoints(points) + "</white>.</gray>")));
-
-		inventory.setItem(22, buildActionItem(Material.EMERALD,
-			"<yellow>ℹ</yellow> Rút thẻ",
 			List.of(
-				"<gray>Tiêu tốn <white>" + pointService.formatPoints(cardService.getDrawCost()) + "</white>.</gray>",
-				"<gray>Nhận " + cardService.getDrawCount() + " thẻ mới.</gray>"),
-			ACTION_CARD_DRAW, null));
+				"<gray>Bạn có <white>" + pointService.formatPoints(points) + "</white>.</gray>",
+				"<gray>Thẻ mới: <white>" + poolCards.size() + "</white>/" + cardService.getPoolCount() + "</gray>"
+			)));
 
-		int[] slots = new int[] { 11, 13, 15 };
-		for (int i = 0; i < slots.length; i++) {
-			if (i >= cards.size()) {
+		inventory.setItem(8, buildInfoItem(Material.BOOK,
+			"<yellow>ℹ</yellow> Hướng dẫn",
+			List.of(
+				"<gray>● Chọn thẻ trong danh sách để giữ.</gray>",
+				" ",
+				"<gray>● Ô giữ đầy thì hãy bỏ thẻ bên dưới.</gray>"
+			)));
+
+		int[] poolSlots = new int[] { 0, 1, 2, 3, 5, 6, 7 };
+		for (int i = 0; i < poolSlots.length; i++) {
+			if (i >= poolCards.size()) {
 				break;
 			}
-			CardDefinition card = cards.get(i);
-			inventory.setItem(slots[i], cardService.buildCardItem(card, i, actionKey, targetKey, ACTION_CARD_USE));
+			CardDefinition card = poolCards.get(i);
+			inventory.setItem(poolSlots[i],
+				cardService.buildCardItem(card, i, actionKey, targetKey, ACTION_CARD_KEEP));
 		}
 
-		if (cards.isEmpty()) {
-			inventory.setItem(13, buildInfoItem(Material.PAPER,
-				"<yellow>ℹ</yellow> Chưa có thẻ",
-				List.of("<gray>Nhận thành tựu để rút thẻ.</gray>")));
+		int[] keptSlots = new int[] { 11, 13, 15 };
+		for (int i = 0; i < keptSlots.length; i++) {
+			if (i >= keptCards.size()) {
+				break;
+			}
+			CardDefinition card = keptCards.get(i);
+			if (card == null) {
+				continue;
+			}
+			inventory.setItem(keptSlots[i],
+				cardService.buildCardItem(card, i, actionKey, targetKey, ACTION_CARD_USE));
+		}
+
+		int[] discardSlots = new int[] { 20, 22, 24 };
+		for (int i = 0; i < discardSlots.length; i++) {
+			String label = "<red>❌</red> Bỏ thẻ ô " + (i + 1);
+			inventory.setItem(discardSlots[i], buildActionItem(Material.BARRIER, label,
+				List.of("<gray>Loại bỏ thẻ đang giữ ở ô này.</gray>"),
+				ACTION_CARD_DISCARD, String.valueOf(i)));
+		}
+
+		if (poolCards.isEmpty()) {
+			inventory.setItem(5, buildInfoItem(Material.PAPER,
+				"<yellow>ℹ</yellow> Chưa có thẻ mới",
+				List.of("<gray>Nhận thành tựu để mở 7 thẻ.</gray>")));
 		}
 
 		inventory.setItem(26, buildActionItem(Material.BARRIER,
 			"<red>❌</red> Đóng",
 			List.of("<gray>Đóng bảng thẻ bài.</gray>"), ACTION_CARD_CLOSE, null));
+	}
+
+	private void fillKitPreviewMenu(Match match, SpeedrunnerKitDefinition kit, Inventory inventory) {
+		ItemStack pane = buildInfoItem(Material.GRAY_STAINED_GLASS_PANE, " ", List.of(" "));
+		int[] frameSlots = new int[] {
+			0, 1, 2, 3, 4, 5, 6, 7, 8,
+			9, 17, 18, 26, 27, 35, 36, 44,
+			45, 46, 47, 48, 49, 50, 51, 52, 53
+		};
+		for (int slot : frameSlots) {
+			inventory.setItem(slot, pane);
+		}
+
+		List<String> infoLore = new ArrayList<>(kit.getDescription());
+		infoLore.add(" ");
+		infoLore.add("<gray>Số vật phẩm: <white>" + kit.getItems().size() + "</white></gray>");
+		inventory.setItem(4, buildInfoItem(kit.getIcon(),
+			"<yellow>ℹ</yellow> " + kit.getName(), infoLore));
+
+		int[] previewSlots = new int[] {
+			10, 11, 12, 13, 14, 15, 16,
+			19, 20, 21, 22, 23, 24, 25,
+			28, 29, 30, 31, 32, 33, 34,
+			37, 38, 39, 40, 41, 42, 43
+		};
+		List<ItemStack> items = kit.getItems();
+		for (int i = 0; i < previewSlots.length && i < items.size(); i++) {
+			ItemStack item = items.get(i);
+			if (item != null) {
+				inventory.setItem(previewSlots[i], item.clone());
+			}
+		}
+
+		inventory.setItem(45, buildActionItem(Material.ARROW,
+			"<yellow>ℹ</yellow> Quay lại",
+			List.of("<gray>Quay về cài đặt.</gray>"), ACTION_KIT_PREVIEW_BACK, null));
+		inventory.setItem(53, buildActionItem(Material.LIME_WOOL,
+			"<green>✔</green> Chọn bộ đồ",
+			List.of("<gray>Đặt bộ đồ này cho trận.</gray>"), ACTION_KIT_PREVIEW_SELECT, kit.getId()));
 	}
 
 	private void fillMatchInfoMenu(Player player, Match match, Inventory inventory) {
@@ -725,6 +816,14 @@ public class GuiService {
 		if (owner != null) {
 			ownerName = owner.getName();
 		}
+		MatchSettings settings = match.getSettings();
+		MatchSettings defaults = matchSettingsService.createDefaults();
+		String seedText = formatSeedValue(settings.getWorldSeed(), defaults.getWorldSeed());
+		String defaultKitId = resolveDefaultKitId(defaults);
+		String kitText = formatKitNameColored(settings, defaultKitId);
+		String defaultKitText = formatKitNameColored(defaults, defaultKitId);
+		int enabledCards = cardService.getEnabledCards(match).size();
+		int defaultEnabledCards = defaults.getEnabledCardIds().size();
 		boolean isOwner = match.getOwnerId().equals(player.getUniqueId());
 
 		ItemStack pane = buildInfoItem(Material.GRAY_STAINED_GLASS_PANE, " ", List.of(" "));
@@ -741,25 +840,36 @@ public class GuiService {
 			"<yellow>ℹ</yellow> Thông tin phòng",
 			List.of(
 				"<gray>Mã phòng: <white>" + match.getId() + "</white></gray>",
-				"<gray>Chủ phòng: <white>" + ownerName + "</white></gray>",
+				"<gray>Chủ phòng: <#7fd36b>" + ownerName + "</#7fd36b></gray>",
 				" ",
-				"<gray>Hiển thị: <white>" + formatVisibility(match.getSettings().getVisibility()) + "</white></gray>",
-				"<gray>Trạng thái: <white>" + formatState(match.getState()) + "</white></gray>",
+				"<gray>Hiển thị: " + formatVisibilityColored(match.getSettings().getVisibility()) + "</gray>",
+				"<gray>Trạng thái: " + formatStateColored(match.getState()) + "</gray>",
 				" ",
-				"<gray>Người chơi: <white>" + match.getLobbyPlayers().size() + "</white></gray>"
+				"<gray>Người chơi: <#7fd36b>" + match.getLobbyPlayers().size() + "</#7fd36b></gray>"
 			)));
 
-		int kitCount = ItemStackCodec.decodeList(match.getSettings().getSpeedrunnerKit()).size();
-		int enabledCards = cardService.getEnabledCards(match).size();
 		inventory.setItem(31, buildInfoItem(Material.MAP,
 			"<yellow>ℹ</yellow> Tổng quan",
 			List.of(
-				"<gray>Speedrunner: <white>" + formatSpeedrunner(match.getSettings()) + "</white></gray>",
-				"<gray>Viền tối đa: <white>" + match.getSettings().getWorldBorderLimit() + "</white></gray>",
+				"<gray>Speedrunner: " + formatSpeedrunnerColored(match.getSettings()) + "</gray>",
+				"<gray>Viền tối đa: "
+					+ formatNumericValue(settings.getWorldBorderLimit(), defaults.getWorldBorderLimit()) + "</gray>",
 				" ",
-				"<gray>Thẻ bật: <white>" + enabledCards + "</white></gray>",
-				"<gray>Bộ đồ: <white>" + kitCount + "</white></gray>"
+				"<gray>Thẻ bật: " + formatCountValue(enabledCards, defaultEnabledCards) + "</gray>",
+				"<gray>Bộ đồ: " + kitText + "</gray>"
 			)));
+
+		List<String> settingsOverview = List.of(
+			"<gray>● Hiển thị: " + formatVisibilityColored(settings.getVisibility()) + "</gray>",
+			"<gray>● Speedrunner: " + formatSpeedrunnerColored(settings) + "</gray>",
+			"<gray>● Seed: " + seedText + "</gray>",
+			"<gray>● Viền tối đa: "
+				+ formatNumericValue(settings.getWorldBorderLimit(), defaults.getWorldBorderLimit()) + "</gray>",
+			"<gray>● Viền ban đầu: "
+				+ formatNumericValue(settings.getStartingBorder(), defaults.getStartingBorder()) + "</gray>",
+			"<gray>● Thẻ bật: " + formatCountValue(enabledCards, defaultEnabledCards) + "</gray>",
+			"<gray>● Bộ đồ: " + kitText + "</gray>"
+		);
 
 		if (isOwner) {
 			inventory.setItem(10, buildActionItem(Material.PAPER,
@@ -769,10 +879,36 @@ public class GuiService {
 					" ",
 					"<gray>Quyền: <white>Chủ phòng</white></gray>"
 				), ACTION_MATCH_INFO_INVITE, null));
+			if (match.getState() == MatchState.LOBBY) {
+				inventory.setItem(28, buildActionItem(Material.LIME_WOOL,
+					"<green>✔</green> Bắt đầu trận",
+					List.of(
+						"<gray>Tạo thế giới và bắt đầu trận đấu.</gray>",
+						" ",
+						"<gray>Quyền: <white>Chủ phòng</white></gray>"
+					), ACTION_MATCH_INFO_START, null));
+			} else {
+				inventory.setItem(28, buildInfoItem(Material.GRAY_DYE,
+					"<yellow>ℹ</yellow> Bắt đầu trận",
+					List.of(
+						"<gray>Chỉ có thể bắt đầu ở sảnh.</gray>",
+						" ",
+						"<gray>Trạng thái: " + formatStateColored(match.getState()) + "</gray>"
+					)));
+			}
 			inventory.setItem(12, buildActionItem(Material.COMPARATOR,
 				"<yellow>ℹ</yellow> Cài đặt trận",
 				List.of(
 					"<gray>Điều chỉnh cài đặt phòng.</gray>",
+					" ",
+					"<gray>Tổng quan cài đặt:</gray>",
+					settingsOverview.get(0),
+					settingsOverview.get(1),
+					settingsOverview.get(2),
+					settingsOverview.get(3),
+					settingsOverview.get(4),
+					settingsOverview.get(5),
+					settingsOverview.get(6),
 					" ",
 					"<gray>Quyền: <white>Chủ phòng</white></gray>"
 				), ACTION_MATCH_INFO_SETTINGS, null));
@@ -786,7 +922,10 @@ public class GuiService {
 			inventory.setItem(16, buildActionItem(Material.CHEST,
 				"<yellow>ℹ</yellow> Bộ đồ speedrunner",
 				List.of(
-					"<gray>Chỉnh bộ đồ khởi đầu.</gray>",
+					"<gray>Bộ đồ hiện tại: " + kitText + "</gray>",
+					"<gray>Mặc định: " + defaultKitText + "</gray>",
+					" ",
+					"<gray>Bấm để chọn bộ đồ.</gray>",
 					" ",
 					"<gray>Quyền: <white>Chủ phòng</white></gray>"
 				), ACTION_MATCH_INFO_KIT, null));
@@ -798,10 +937,24 @@ public class GuiService {
 					" ",
 					"<gray>Trạng thái: <white>Chỉ xem</white></gray>"
 				)));
+			inventory.setItem(28, buildInfoItem(Material.GRAY_DYE,
+				"<yellow>ℹ</yellow> Bắt đầu trận",
+				List.of(
+					"<gray>Chỉ chủ phòng mới được bắt đầu.</gray>",
+					" ",
+					"<gray>Trạng thái: <white>Chỉ xem</white></gray>"
+				)));
 			inventory.setItem(12, buildInfoItem(Material.COMPARATOR,
 				"<yellow>ℹ</yellow> Cài đặt trận",
 				List.of(
 					"<gray>Chỉ chủ phòng mới có thể chỉnh.</gray>",
+					settingsOverview.get(0),
+					settingsOverview.get(1),
+					settingsOverview.get(2),
+					settingsOverview.get(3),
+					settingsOverview.get(4),
+					settingsOverview.get(5),
+					settingsOverview.get(6),
 					" ",
 					"<gray>Trạng thái: <white>Chỉ xem</white></gray>"
 				)));
@@ -815,7 +968,8 @@ public class GuiService {
 			inventory.setItem(16, buildInfoItem(Material.CHEST,
 				"<yellow>ℹ</yellow> Bộ đồ speedrunner",
 				List.of(
-					"<gray>Chỉ chủ phòng mới có thể chỉnh.</gray>",
+					"<gray>Bộ đồ hiện tại: " + kitText + "</gray>",
+					"<gray>Mặc định: " + defaultKitText + "</gray>",
 					" ",
 					"<gray>Trạng thái: <white>Chỉ xem</white></gray>"
 				)));
@@ -1123,7 +1277,32 @@ public class GuiService {
 			Text.msg(player, "<red>❌</red> Chỉ chủ phòng mới được chỉnh bộ đồ.");
 			return;
 		}
-		openKitEditor(player, match);
+		openSettingsMenu(player, match, getSettingsPageForRow(SETTINGS_ROW_KIT_INDEX));
+	}
+
+	private void handleMatchInfoStart(Player player, String matchId) {
+		Match match = matchManager.getMatch(matchId);
+		if (match == null) {
+			Text.msg(player, "<red>❌</red> Không tìm thấy phòng đấu.");
+			return;
+		}
+		if (!match.getOwnerId().equals(player.getUniqueId())) {
+			Text.msg(player, "<red>❌</red> Chỉ chủ phòng mới được bắt đầu trận đấu.");
+			return;
+		}
+		if (match.getState() != MatchState.LOBBY) {
+			Text.msg(player, "<red>❌</red> Trận đấu đã bắt đầu hoặc đang tạo thế giới.");
+			openMatchInfoMenu(player);
+			return;
+		}
+		boolean started = matchManager.startMatch(match);
+		if (started) {
+			Text.msg(player, "<green>✔</green> Đang tạo thế giới cho trận đấu...");
+			openMatchInfoMenu(player);
+			return;
+		}
+		Text.msg(player, "<red>❌</red> Không thể bắt đầu trận đấu lúc này.");
+		openMatchInfoMenu(player);
 	}
 
 	private void handleAdjustCard(Player player, String matchId, String target, boolean enable) {
@@ -1251,9 +1430,59 @@ public class GuiService {
 			return;
 		}
 		MatchSettings defaults = matchSettingsService.createDefaults();
-		match.getSettings().setSpeedrunnerKit(new ArrayList<>(defaults.getSpeedrunnerKit()));
+		String defaultKitId = resolveDefaultKitId(defaults);
+		kitService.applyKit(match.getSettings(), defaultKitId);
 		Text.msg(player, "<green>✔</green> Đã khôi phục bộ đồ mặc định.");
 		openSettingsMenu(player, match, getSettingsPage(player));
+	}
+
+	private void handleOpenKitPreview(Player player, String matchId, String kitId) {
+		Match match = requireSettingsMatch(player, matchId);
+		if (match == null || kitId == null || kitId.isBlank()) {
+			return;
+		}
+		SpeedrunnerKitDefinition kit = kitService.getKit(kitId);
+		if (kit == null) {
+			Text.msg(player, "<red>❌</red> Bộ đồ không hợp lệ.");
+			openSettingsMenu(player, match, getSettingsPage(player));
+			return;
+		}
+		kitPreviewPages.put(player.getUniqueId(), getSettingsPage(player));
+		openKitPreviewMenu(player, match, kit);
+	}
+
+	private void handleOpenKitPage(Player player, String matchId, String target) {
+		Match match = requireSettingsMatch(player, matchId);
+		if (match == null) {
+			return;
+		}
+		int page = parsePage(target, getKitPage(player));
+		setKitPage(player, page);
+		openSettingsMenu(player, match, getSettingsPage(player));
+	}
+
+	private void handleSelectKit(Player player, String matchId, String kitId) {
+		Match match = requireSettingsMatch(player, matchId);
+		if (match == null || kitId == null || kitId.isBlank()) {
+			return;
+		}
+		SpeedrunnerKitDefinition kit = kitService.getKit(kitId);
+		if (kit == null) {
+			Text.msg(player, "<red>❌</red> Bộ đồ không hợp lệ.");
+			openSettingsMenu(player, match, getSettingsPage(player));
+			return;
+		}
+		kitService.applyKit(match.getSettings(), kitId);
+		Text.msg(player, "<green>✔</green> Đã chọn bộ đồ <yellow>" + kit.getName() + "</yellow>.");
+		openSettingsMenu(player, match, consumeKitPreviewPage(player));
+	}
+
+	private void handleBackFromKitPreview(Player player, String matchId) {
+		Match match = requireSettingsMatch(player, matchId);
+		if (match == null) {
+			return;
+		}
+		openSettingsMenu(player, match, consumeKitPreviewPage(player));
 	}
 
 	private void handleResetBorder(Player player, String matchId) {
@@ -1348,31 +1577,6 @@ public class GuiService {
 		Text.msg(player, "<yellow>ℹ</yellow> Nhập seed vào chat. Gõ <white>huy</white> để hủy, <white>xoa</white> để xóa.");
 	}
 
-	private void handleOpenKitEditor(Player player, String matchId) {
-		Match match = requireSettingsMatch(player, matchId);
-		if (match == null) {
-			return;
-		}
-		openKitEditor(player, match);
-	}
-
-	private void handleOpenKitClearConfirm(Player player, String matchId) {
-		Match match = requireSettingsMatch(player, matchId);
-		if (match == null) {
-			return;
-		}
-		openKitClearConfirm(player, match);
-	}
-
-	private void handleKitClear(Player player, String matchId) {
-		Match match = requireSettingsMatch(player, matchId);
-		if (match == null) {
-			return;
-		}
-		match.getSettings().setSpeedrunnerKit(List.of());
-		Text.msg(player, "<green>✔</green> Đã xóa bộ đồ speedrunner.");
-		openSettingsMenu(player, match, getSettingsPage(player));
-	}
 
 	private void handleUseCard(Player player, String matchId, String indexText) {
 		Match match = requireSpeedrunnerMatch(player);
@@ -1385,26 +1589,37 @@ public class GuiService {
 		} catch (NumberFormatException ex) {
 			return;
 		}
-		List<CardDefinition> cards = match.getDrawnCards();
-		if (index < 0 || index >= cards.size()) {
-			return;
-		}
-		CardDefinition card = cards.get(index);
-		if (!cardService.canUseCard(match, card)) {
-			Text.msg(player, "<red>❌</red> Bạn không đủ điểm để dùng thẻ này.");
-			openCardsMenu(player, match);
-			return;
-		}
-		cardService.useCard(player, match, card);
+		cardService.useKeptCard(player, match, index);
 		openCardsMenu(player, match);
 	}
 
-	private void handleDrawCards(Player player, String matchId) {
+	private void handleKeepCard(Player player, String matchId, String indexText) {
 		Match match = requireSpeedrunnerMatch(player);
-		if (match == null) {
+		if (match == null || indexText == null || indexText.isBlank()) {
 			return;
 		}
-		cardService.drawCards(player, match);
+		int index;
+		try {
+			index = Integer.parseInt(indexText);
+		} catch (NumberFormatException ex) {
+			return;
+		}
+		cardService.keepCardFromPool(player, match, index);
+		openCardsMenu(player, match);
+	}
+
+	private void handleDiscardCard(Player player, String matchId, String indexText) {
+		Match match = requireSpeedrunnerMatch(player);
+		if (match == null || indexText == null || indexText.isBlank()) {
+			return;
+		}
+		int index;
+		try {
+			index = Integer.parseInt(indexText);
+		} catch (NumberFormatException ex) {
+			return;
+		}
+		cardService.discardKeptCard(player, match, index);
 		openCardsMenu(player, match);
 	}
 
@@ -1472,36 +1687,6 @@ public class GuiService {
 		openSettingsMenu(player, match, getSettingsPage(player));
 	}
 
-	public boolean isKitEditorInventory(Inventory inventory) {
-		return inventory != null && inventory.getHolder() instanceof GuiHolder holder
-			&& holder.type() == GuiType.KIT_EDITOR;
-	}
-
-	public void handleKitClose(Player player, Inventory inventory) {
-		if (player == null || inventory == null) {
-			return;
-		}
-		String matchId = kitEditors.remove(player.getUniqueId());
-		if (matchId == null) {
-			return;
-		}
-		Match match = matchManager.getMatch(matchId);
-		if (match == null) {
-			Text.msg(player, "<red>❌</red> Không tìm thấy phòng đấu.");
-			return;
-		}
-		List<ItemStack> items = new ArrayList<>();
-		for (ItemStack item : inventory.getContents()) {
-			if (item == null || item.getType() == Material.AIR) {
-				continue;
-			}
-			items.add(item.clone());
-		}
-		match.getSettings().setSpeedrunnerKit(ItemStackCodec.encodeList(items));
-		Text.msg(player, "<green>✔</green> Đã lưu bộ đồ speedrunner.");
-		openSettingsMenu(player, match, getSettingsPage(player));
-	}
-
 	private Match requireSpeedrunnerMatch(Player player) {
 		Match match = lobbyManager.getMatchForPlayer(player.getUniqueId());
 		if (match == null) {
@@ -1538,6 +1723,22 @@ public class GuiService {
 			case ENDING -> "Kết thúc";
 			case CLEANUP -> "Dọn dẹp";
 			case FINISHED -> "Đã xong";
+		};
+	}
+
+	private String formatStateColored(MatchState state) {
+		if (state == null) {
+			return "<gray>Không rõ</gray>";
+		}
+		return switch (state) {
+			case LOBBY -> "<#7fd36b>Chờ</#7fd36b>";
+			case WORLD_CREATING -> "<#ffd166>Tạo thế giới</#ffd166>";
+			case WORLD_READY -> "<#7fd36b>Sẵn sàng</#7fd36b>";
+			case RUN_PENDING -> "<#ffd166>Chờ bắt đầu</#ffd166>";
+			case RUNNING -> "<#36a8ff>Đang chạy</#36a8ff>";
+			case ENDING -> "<#ff6b6b>Kết thúc</#ff6b6b>";
+			case CLEANUP -> "<#ffd166>Dọn dẹp</#ffd166>";
+			case FINISHED -> "<#9aa0a6>Đã xong</#9aa0a6>";
 		};
 	}
 
@@ -1618,6 +1819,36 @@ public class GuiService {
 		return "<" + color + ">" + value + "</" + color + ">";
 	}
 
+	private String resolveDefaultKitId(MatchSettings defaults) {
+		if (defaults == null) {
+			return kitService.getDefaultKitId();
+		}
+		String kitId = defaults.getSpeedrunnerKitId();
+		return kitId == null || kitId.isBlank() ? kitService.getDefaultKitId() : kitId;
+	}
+
+	private String formatKitNameColored(MatchSettings settings, String defaultKitId) {
+		if (settings == null) {
+			return "<gray>Không rõ</gray>";
+		}
+		String kitId = settings.getSpeedrunnerKitId();
+		if (kitId == null || kitId.isBlank()) {
+			if (settings.getSpeedrunnerKit() != null && !settings.getSpeedrunnerKit().isEmpty()) {
+				return "<#ffd166>Tùy chỉnh</#ffd166>";
+			}
+			return "<#ff6b6b>Không có</#ff6b6b>";
+		}
+		SpeedrunnerKitDefinition kit = kitService.getKit(kitId);
+		if (kit == null) {
+			return "<#ff6b6b>Không rõ</#ff6b6b>";
+		}
+		String resolvedDefaultId = defaultKitId == null || defaultKitId.isBlank()
+			? kitService.getDefaultKitId()
+			: defaultKitId;
+		String color = kitId.equalsIgnoreCase(resolvedDefaultId) ? "#7fd36b" : "#ffd166";
+		return "<" + color + ">" + kit.getName() + "</" + color + ">";
+	}
+
 	private Match requireSettingsMatch(Player player, String matchId) {
 		Match match = matchManager.getMatch(matchId);
 		if (match == null) {
@@ -1643,11 +1874,38 @@ public class GuiService {
 		return (SETTINGS_TOTAL_ROWS + SETTINGS_ROWS_PER_PAGE - 1) / SETTINGS_ROWS_PER_PAGE;
 	}
 
+	private int getSettingsPageForRow(int rowIndex) {
+		int page = rowIndex <= 0 ? 0 : rowIndex / SETTINGS_ROWS_PER_PAGE;
+		return clamp(page, 0, Math.max(0, getSettingsPageCount() - 1));
+	}
+
 	private int getSettingsPage(Player player) {
 		if (player == null) {
 			return 0;
 		}
 		return settingsPages.getOrDefault(player.getUniqueId(), 0);
+	}
+
+	private int getKitPage(Player player) {
+		if (player == null) {
+			return 0;
+		}
+		return kitPages.getOrDefault(player.getUniqueId(), 0);
+	}
+
+	private void setKitPage(Player player, int page) {
+		if (player == null) {
+			return;
+		}
+		kitPages.put(player.getUniqueId(), Math.max(0, page));
+	}
+
+	private int consumeKitPreviewPage(Player player) {
+		if (player == null) {
+			return 0;
+		}
+		Integer page = kitPreviewPages.remove(player.getUniqueId());
+		return page == null ? getSettingsPage(player) : page;
 	}
 
 	private int parseDelta(String target, int fallback) {
@@ -2018,6 +2276,28 @@ public class GuiService {
 		return new OptionItem(icon, title, lore, action, target);
 	}
 
+	private OptionItem buildPreviewOption(Material icon, String title, List<String> details, String action,
+			String target) {
+		List<String> lore = new ArrayList<>();
+		if (details != null && !details.isEmpty()) {
+			lore.addAll(details);
+		}
+		lore.add(" ");
+		lore.add("<gray>Bấm để xem bộ đồ.</gray>");
+		return new OptionItem(icon, title, lore, action, target);
+	}
+
+	private OptionItem buildPageOption(Material icon, String title, List<String> details, String action,
+			String target) {
+		List<String> lore = new ArrayList<>();
+		if (details != null && !details.isEmpty()) {
+			lore.addAll(details);
+		}
+		lore.add(" ");
+		lore.add("<gray>Bấm để xem trang.</gray>");
+		return new OptionItem(icon, title, lore, action, target);
+	}
+
 	private record OptionItem(Material icon, String title, List<String> lore, String action, String target) {
 	}
 
@@ -2030,8 +2310,7 @@ public class GuiService {
 		INVITE,
 		SETTINGS,
 		SPEEDRUNNER,
-		KIT_EDITOR,
-		KIT_CLEAR_CONFIRM,
+		KIT_PREVIEW,
 		CARDS,
 		CARDS_INFO,
 		MATCH_INFO,

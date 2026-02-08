@@ -1,6 +1,5 @@
 package dev.belikhun.lunamanhunt.command;
 
-import dev.belikhun.lunamanhunt.model.card.CardDefinition;
 import dev.belikhun.lunamanhunt.model.match.Match;
 import dev.belikhun.lunamanhunt.model.match.MatchState;
 import dev.belikhun.lunamanhunt.service.card.CardService;
@@ -46,7 +45,7 @@ public class CardsCommand implements TabExecutor {
 				return handleUse(player, args);
 			}
 			case "draw", "rut" -> {
-				return handleDraw(player);
+				return handleDrawInfo(player);
 			}
 			default -> {
 				return handleList(player);
@@ -57,7 +56,7 @@ public class CardsCommand implements TabExecutor {
 	@Override
 	public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
 		if (args.length == 1) {
-			return List.of("use", "draw");
+			return List.of("use");
 		}
 		return List.of();
 	}
@@ -100,22 +99,23 @@ public class CardsCommand implements TabExecutor {
 			Text.msg(player, "<red>❌</red> Số thẻ không hợp lệ.");
 			return true;
 		}
-		List<CardDefinition> cards = match.getDrawnCards();
-		if (index < 1 || index > cards.size()) {
+		int maxSlots = cardService.getMaxSlots();
+		if (index < 1 || index > maxSlots) {
 			Text.msg(player, "<red>❌</red> Số thẻ không hợp lệ.");
 			return true;
 		}
-		CardDefinition card = cards.get(index - 1);
-		cardService.useCard(player, match, card);
+		cardService.useKeptCard(player, match, index - 1);
 		return true;
 	}
 
-	private boolean handleDraw(Player player) {
-		Match match = requireSpeedrunner(player);
-		if (match == null) {
+	private boolean handleDrawInfo(Player player) {
+		Match match = lobbyManager.getMatchForPlayer(player.getUniqueId());
+		if (match != null && match.getState() == MatchState.RUNNING) {
+			Text.msg(player, "<yellow>ℹ</yellow> Thẻ mới sẽ mở khi bạn đạt thành tựu.");
+			guiService.openCardsMenu(player, match);
 			return true;
 		}
-		cardService.drawCards(player, match);
+		Text.msg(player, "<yellow>ℹ</yellow> Thẻ mới sẽ mở khi bạn đạt thành tựu.");
 		return true;
 	}
 
