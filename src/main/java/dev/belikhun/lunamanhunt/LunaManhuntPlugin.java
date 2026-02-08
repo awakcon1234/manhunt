@@ -76,6 +76,7 @@ public final class LunaManhuntPlugin extends JavaPlugin {
         this.guiService.setLobbyItemService(lobbyItemService);
         this.lobbyTeleportService = new LobbyTeleportService(this, lobbyItemService);
         this.matchEndService = new MatchEndService(this, lobbyManager, multiverseService, lobbyTeleportService, cardService);
+        this.matchEndService.processQueuedWorlds();
         this.winConditionService = new WinConditionService(lobbyManager, persistenceManager.getProfileStore(),
             matchEndService);
         this.matchLifecycleService = new MatchLifecycleService(this, lobbyManager, matchManager, compassService,

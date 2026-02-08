@@ -9,6 +9,7 @@ import dev.belikhun.lunamanhunt.service.integration.MultiverseService;
 import dev.belikhun.lunamanhunt.service.lobby.LobbyManager;
 import dev.belikhun.lunamanhunt.service.spawn.LobbyTeleportService;
 import dev.belikhun.lunamanhunt.util.Text;
+import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.Bukkit;
 import org.bukkit.Color;
 import org.bukkit.GameMode;
@@ -21,6 +22,9 @@ import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitRunnable;
 
 import java.io.File;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
@@ -33,6 +37,7 @@ public class MatchEndService {
 	private final MultiverseService multiverseService;
 	private final LobbyTeleportService lobbyTeleportService;
 	private final CardService cardService;
+	private final File cleanupFile;
 	private final Map<String, UUID> awaitingPortal = new ConcurrentHashMap<>();
 
 	public MatchEndService(JavaPlugin plugin, LobbyManager lobbyManager, MultiverseService multiverseService,
@@ -42,6 +47,13 @@ public class MatchEndService {
 		this.multiverseService = Objects.requireNonNull(multiverseService, "multiverseService");
 		this.lobbyTeleportService = Objects.requireNonNull(lobbyTeleportService, "lobbyTeleportService");
 		this.cardService = Objects.requireNonNull(cardService, "cardService");
+		this.cleanupFile = new File(plugin.getDataFolder(), "cleanup-worlds.yml");
+	}
+
+	public void processQueuedWorlds() {
+		for (String worldName : loadQueuedWorlds()) {
+			deleteWorld(worldName);
+		}
 	}
 
 	public void endWithHunters(Match match, String message, Location deathLocation, boolean showSequence) {
@@ -271,13 +283,21 @@ public class MatchEndService {
 		if (worldName == null || worldName.isBlank()) {
 			return;
 		}
+		if (Bukkit.getServer().isStopping()) {
+			queueWorldCleanup(worldName);
+			return;
+		}
 		World world = Bukkit.getWorld(worldName);
 		if (world != null) {
 			Bukkit.unloadWorld(world, false);
 		}
-		File folder = new File(Bukkit.getWorldContainer(), worldName);
-		deleteFolder(folder);
 		removeWorldFromMultiverse(worldName);
+		File folder = new File(Bukkit.getWorldContainer(), worldName);
+		if (deleteFolder(folder)) {
+			removeQueuedWorld(worldName);
+		} else {
+			queueWorldCleanup(worldName);
+		}
 	}
 
 	private void removeWorldFromMultiverse(String worldName) {
@@ -294,21 +314,57 @@ public class MatchEndService {
 		}
 	}
 
-	private void deleteFolder(File folder) {
+	private boolean deleteFolder(File folder) {
 		if (folder == null || !folder.exists()) {
-			return;
+			return true;
 		}
 		File[] files = folder.listFiles();
 		if (files != null) {
 			for (File file : files) {
 				if (file.isDirectory()) {
-					deleteFolder(file);
+					if (!deleteFolder(file)) {
+						return false;
+					}
 				} else {
-					file.delete();
+					if (!file.delete()) {
+						return false;
+					}
 				}
 			}
 		}
-		folder.delete();
+		return folder.delete();
+	}
+
+	private void queueWorldCleanup(String worldName) {
+		if (worldName == null || worldName.isBlank()) {
+			return;
+		}
+		List<String> queued = loadQueuedWorlds();
+		if (!queued.contains(worldName)) {
+			queued.add(worldName);
+			saveQueuedWorlds(queued);
+		}
+	}
+
+	private void removeQueuedWorld(String worldName) {
+		List<String> queued = loadQueuedWorlds();
+		if (queued.remove(worldName)) {
+			saveQueuedWorlds(queued);
+		}
+	}
+
+	private List<String> loadQueuedWorlds() {
+		YamlConfiguration config = YamlConfiguration.loadConfiguration(cleanupFile);
+		return new ArrayList<>(config.getStringList("worlds"));
+	}
+
+	private void saveQueuedWorlds(List<String> worlds) {
+		YamlConfiguration config = new YamlConfiguration();
+		config.set("worlds", worlds);
+		try {
+			config.save(cleanupFile);
+		} catch (IOException ignored) {
+		}
 	}
 
 	private void broadcast(Match match, String message) {
