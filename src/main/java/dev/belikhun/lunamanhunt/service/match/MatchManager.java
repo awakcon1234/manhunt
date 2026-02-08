@@ -25,10 +25,15 @@ public class MatchManager {
 	private final Map<String, Match> matches = new ConcurrentHashMap<>();
 	private final MultiverseService multiverseService;
 	private final Logger logger;
+	private MatchLifecycleService lifecycleService;
 
 	public MatchManager(JavaPlugin plugin, MultiverseService multiverseService) {
 		this.multiverseService = Objects.requireNonNull(multiverseService, "multiverseService");
 		this.logger = plugin.getLogger();
+	}
+
+	public void setLifecycleService(MatchLifecycleService lifecycleService) {
+		this.lifecycleService = lifecycleService;
 	}
 
 	public Match createMatch(UUID ownerId, MatchSettings settings) {
@@ -121,7 +126,11 @@ public class MatchManager {
 			return;
 		}
 		match.setState(MatchState.WORLD_READY);
-		match.setState(MatchState.RUN_PENDING);
+		if (lifecycleService != null) {
+			lifecycleService.handleWorldsReady(match);
+		} else {
+			match.setState(MatchState.RUN_PENDING);
+		}
 	}
 
 	private void markMatchFailed(Match match) {

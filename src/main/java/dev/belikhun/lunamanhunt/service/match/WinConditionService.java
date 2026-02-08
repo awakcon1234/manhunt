@@ -2,7 +2,6 @@ package dev.belikhun.lunamanhunt.service.match;
 
 import dev.belikhun.lunamanhunt.model.match.Match;
 import dev.belikhun.lunamanhunt.model.match.MatchState;
-import dev.belikhun.lunamanhunt.model.match.MatchWinner;
 import dev.belikhun.lunamanhunt.service.lobby.LobbyManager;
 import dev.belikhun.lunamanhunt.service.persistence.ProfileStore;
 import dev.belikhun.lunamanhunt.util.Text;
@@ -14,14 +13,15 @@ import java.util.Set;
 import java.util.UUID;
 
 public class WinConditionService {
-	private final MatchManager matchManager;
 	private final LobbyManager lobbyManager;
 	private final ProfileStore profileStore;
+	private final MatchEndService matchEndService;
 
-	public WinConditionService(MatchManager matchManager, LobbyManager lobbyManager, ProfileStore profileStore) {
-		this.matchManager = Objects.requireNonNull(matchManager, "matchManager");
+	public WinConditionService(LobbyManager lobbyManager, ProfileStore profileStore,
+			MatchEndService matchEndService) {
 		this.lobbyManager = Objects.requireNonNull(lobbyManager, "lobbyManager");
 		this.profileStore = profileStore;
+		this.matchEndService = Objects.requireNonNull(matchEndService, "matchEndService");
 	}
 
 	public boolean handleHunterKill(Player killer, Player victim) {
@@ -102,15 +102,11 @@ public class WinConditionService {
 	}
 
 	private void endWithHunters(Match match, String message) {
-		match.setWinner(MatchWinner.HUNTERS);
-		matchManager.endMatch(match);
-		broadcastMatch(match, message);
+		matchEndService.endWithHunters(match, message);
 	}
 
 	private void endWithSpeedrunner(Match match) {
-		match.setWinner(MatchWinner.SPEEDRUNNER);
-		matchManager.endMatch(match);
-		broadcastMatch(match, "<green>✔</green> Speedrunner đã chiến thắng!");
+		matchEndService.endWithSpeedrunner(match, "<green>✔</green> Speedrunner đã chiến thắng!");
 		recordSpeedrunTime(match);
 	}
 

@@ -45,6 +45,9 @@ public class CardsCommand implements TabExecutor {
 			case "use", "dung" -> {
 				return handleUse(player, args);
 			}
+			case "draw", "rut" -> {
+				return handleDraw(player);
+			}
 			default -> {
 				return handleList(player);
 			}
@@ -54,7 +57,7 @@ public class CardsCommand implements TabExecutor {
 	@Override
 	public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
 		if (args.length == 1) {
-			return List.of("use");
+			return List.of("use", "draw");
 		}
 		return List.of();
 	}
@@ -94,6 +97,15 @@ public class CardsCommand implements TabExecutor {
 		}
 		CardDefinition card = cards.get(index - 1);
 		cardService.useCard(player, match, card);
+		return true;
+	}
+
+	private boolean handleDraw(Player player) {
+		Match match = requireSpeedrunner(player);
+		if (match == null) {
+			return true;
+		}
+		cardService.drawCards(player, match);
 		return true;
 	}
 

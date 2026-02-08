@@ -10,10 +10,8 @@ import dev.belikhun.lunamanhunt.util.Text;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.TextDecoration;
 import org.bukkit.Bukkit;
-import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
-import org.bukkit.World;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.InventoryHolder;
@@ -37,22 +35,24 @@ public class SpawnService {
 	private final LobbyManager lobbyManager;
 	private final MatchManager matchManager;
 	private final WinConditionService winConditionService;
+	private final LobbyTeleportService lobbyTeleportService;
 	private final NamespacedKey actionKey;
 	private final Map<UUID, String> pendingConfirm = new ConcurrentHashMap<>();
 
 	public SpawnService(JavaPlugin plugin, LobbyManager lobbyManager, MatchManager matchManager,
-			WinConditionService winConditionService) {
+			WinConditionService winConditionService, LobbyTeleportService lobbyTeleportService) {
 		this.plugin = Objects.requireNonNull(plugin, "plugin");
 		this.lobbyManager = Objects.requireNonNull(lobbyManager, "lobbyManager");
 		this.matchManager = Objects.requireNonNull(matchManager, "matchManager");
 		this.winConditionService = Objects.requireNonNull(winConditionService, "winConditionService");
+		this.lobbyTeleportService = Objects.requireNonNull(lobbyTeleportService, "lobbyTeleportService");
 		this.actionKey = new NamespacedKey(plugin, "lm_spawn_action");
 	}
 
 	public void handleCommand(Player player) {
 		Match match = lobbyManager.getMatchForPlayer(player.getUniqueId());
 		if (match == null) {
-			teleportToLobby(player, true);
+			lobbyTeleportService.teleportToLobby(player, true);
 			return;
 		}
 		if (requiresConfirm(match)) {
@@ -61,7 +61,7 @@ public class SpawnService {
 		}
 		LobbyActionResult result = lobbyManager.leave(player.getUniqueId(), true);
 		Text.msg(player, result.getMessage());
-		teleportToLobby(player, true);
+		lobbyTeleportService.teleportToLobby(player, true);
 	}
 
 	public boolean handleMenuClick(Player player, ItemStack item, String matchId) {
@@ -118,7 +118,7 @@ public class SpawnService {
 		Match match = matchManager.getMatch(matchId);
 		if (match == null) {
 			Text.msg(player, "<red>❌</red> Trận đấu không còn tồn tại.");
-			teleportToLobby(player, true);
+			lobbyTeleportService.teleportToLobby(player, true);
 			return;
 		}
 
@@ -130,7 +130,7 @@ public class SpawnService {
 			lobbyManager.leave(player.getUniqueId(), !inGame);
 		}
 
-		teleportToLobby(player, false);
+		lobbyTeleportService.teleportToLobby(player, false);
 		Text.msg(player, "<green>✔</green> Đã rời khỏi trận và về sảnh.");
 	}
 
@@ -151,39 +151,6 @@ public class SpawnService {
 		return match != null && playerId != null && playerId.equals(match.getSpeedrunnerId());
 	}
 
-	private void teleportToLobby(Player player, boolean announce) {
-		if (player == null) {
-			return;
-		}
-		Location spawn = resolveLobbySpawn(player);
-		player.teleport(spawn);
-		if (announce) {
-			Text.msg(player, "<green>✔</green> Đã dịch chuyển về sảnh.");
-		}
-	}
-
-	private Location resolveLobbySpawn(Player player) {
-		String worldName = plugin.getConfig().getString("lobby.spawn.world", "");
-		double x = plugin.getConfig().getDouble("lobby.spawn.x", Double.NaN);
-		double y = plugin.getConfig().getDouble("lobby.spawn.y", Double.NaN);
-		double z = plugin.getConfig().getDouble("lobby.spawn.z", Double.NaN);
-		float yaw = (float) plugin.getConfig().getDouble("lobby.spawn.yaw", 0.0);
-		float pitch = (float) plugin.getConfig().getDouble("lobby.spawn.pitch", 0.0);
-
-		World world = worldName == null || worldName.isBlank() ? null : Bukkit.getWorld(worldName);
-		if (world != null && !Double.isNaN(x) && !Double.isNaN(y) && !Double.isNaN(z)) {
-			return new Location(world, x, y, z, yaw, pitch);
-		}
-
-		List<World> worlds = Bukkit.getWorlds();
-		if (!worlds.isEmpty()) {
-			world = worlds.get(0);
-		}
-		if (world == null) {
-			world = player.getWorld();
-		}
-		return world.getSpawnLocation();
-	}
 
 	private Inventory buildConfirmInventory(String matchId) {
 		Inventory inventory = Bukkit.createInventory(new SpawnConfirmHolder(matchId), 27,

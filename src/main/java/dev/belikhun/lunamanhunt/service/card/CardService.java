@@ -53,6 +53,7 @@ import java.util.UUID;
 
 public class CardService {
 	private static final int DRAW_COUNT = 3;
+	private static final int DRAW_COST = 1;
 
 	private final JavaPlugin plugin;
 	private final LobbyManager lobbyManager;
@@ -71,6 +72,14 @@ public class CardService {
 
 	public List<CardDefinition> getCardPool() {
 		return cardPool;
+	}
+
+	public int getDrawCost() {
+		return DRAW_COST;
+	}
+
+	public int getDrawCount() {
+		return DRAW_COUNT;
 	}
 
 	public List<CardDefinition> getDrawnCards(Match match) {
@@ -152,10 +161,31 @@ public class CardService {
 			return;
 		}
 		addPoint(match, 1);
-		drawNewCards(match);
 		Text.msg(player, "<green>✔</green> Bạn nhận được " + pointService.formatPoints(1) + " từ thành tựu.");
-		Text.msg(player, "<yellow>ℹ</yellow> 3 thẻ mới đã được xáo lại.");
-		Text.msg(player, "<yellow>ℹ</yellow> Dùng <white>/cards</white> để xem và sử dụng thẻ.");
+		Text.msg(player, "<yellow>ℹ</yellow> Dùng <white>/cards draw</white> để rút thẻ.");
+	}
+
+	public boolean drawCards(Player player, Match match) {
+		if (player == null || match == null) {
+			return false;
+		}
+		if (match.getState() != MatchState.RUNNING) {
+			Text.msg(player, "<red>❌</red> Chỉ rút thẻ khi trận đang diễn ra.");
+			return false;
+		}
+		UUID speedrunnerId = match.getSpeedrunnerId();
+		if (speedrunnerId == null || !speedrunnerId.equals(player.getUniqueId())) {
+			Text.msg(player, "<red>❌</red> Chỉ speedrunner mới được rút thẻ.");
+			return false;
+		}
+		if (match.getSpeedrunnerPoints() < DRAW_COST) {
+			Text.msg(player, "<red>❌</red> Bạn không đủ điểm để rút thẻ.");
+			return false;
+		}
+		match.setSpeedrunnerPoints(match.getSpeedrunnerPoints() - DRAW_COST);
+		drawNewCards(match);
+		Text.msg(player, "<green>✔</green> Đã rút " + DRAW_COUNT + " thẻ với " + pointService.formatPoints(DRAW_COST) + ".");
+		return true;
 	}
 
 	public void sendCardList(Player player, Match match) {

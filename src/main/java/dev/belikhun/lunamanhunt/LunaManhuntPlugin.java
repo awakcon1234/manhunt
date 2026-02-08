@@ -6,9 +6,11 @@ import dev.belikhun.lunamanhunt.command.CardsCommand;
 import dev.belikhun.lunamanhunt.command.SpawnCommand;
 import dev.belikhun.lunamanhunt.listener.CardListener;
 import dev.belikhun.lunamanhunt.listener.CompassListener;
+import dev.belikhun.lunamanhunt.listener.EndPortalListener;
 import dev.belikhun.lunamanhunt.listener.GuiInputListener;
 import dev.belikhun.lunamanhunt.listener.GuiListener;
 import dev.belikhun.lunamanhunt.listener.MatchWinListener;
+import dev.belikhun.lunamanhunt.listener.RunStartListener;
 import dev.belikhun.lunamanhunt.listener.SpawnConfirmListener;
 import dev.belikhun.lunamanhunt.service.card.CardService;
 import dev.belikhun.lunamanhunt.service.compass.CompassService;
@@ -16,10 +18,13 @@ import dev.belikhun.lunamanhunt.service.gui.GuiService;
 import dev.belikhun.lunamanhunt.service.integration.MultiverseService;
 import dev.belikhun.lunamanhunt.service.lobby.LobbyManager;
 import dev.belikhun.lunamanhunt.service.match.MatchManager;
+import dev.belikhun.lunamanhunt.service.match.MatchEndService;
+import dev.belikhun.lunamanhunt.service.match.MatchLifecycleService;
 import dev.belikhun.lunamanhunt.service.match.MatchSettingsService;
 import dev.belikhun.lunamanhunt.service.match.WinConditionService;
 import dev.belikhun.lunamanhunt.service.persistence.PersistenceManager;
 import dev.belikhun.lunamanhunt.service.point.PointService;
+import dev.belikhun.lunamanhunt.service.spawn.LobbyTeleportService;
 import dev.belikhun.lunamanhunt.service.spawn.SpawnService;
 import org.bukkit.plugin.java.JavaPlugin;
 
@@ -35,6 +40,9 @@ public final class LunaManhuntPlugin extends JavaPlugin {
     private GuiService guiService;
     private CardService cardService;
     private PointService pointService;
+    private LobbyTeleportService lobbyTeleportService;
+    private MatchLifecycleService matchLifecycleService;
+    private MatchEndService matchEndService;
 
     @Override
     public void onEnable() {
@@ -44,9 +52,14 @@ public final class LunaManhuntPlugin extends JavaPlugin {
         this.multiverseService = new MultiverseService();
         this.matchManager = new MatchManager(this, multiverseService);
         this.lobbyManager = new LobbyManager(matchManager, matchSettingsService);
-        this.winConditionService = new WinConditionService(matchManager, lobbyManager, persistenceManager.getProfileStore());
+        this.lobbyTeleportService = new LobbyTeleportService(this);
+        this.matchEndService = new MatchEndService(this, lobbyManager, multiverseService, lobbyTeleportService);
+        this.winConditionService = new WinConditionService(lobbyManager, persistenceManager.getProfileStore(),
+            matchEndService);
         this.compassService = new CompassService(this, lobbyManager);
-        this.spawnService = new SpawnService(this, lobbyManager, matchManager, winConditionService);
+        this.matchLifecycleService = new MatchLifecycleService(lobbyManager, matchManager, compassService);
+        this.matchManager.setLifecycleService(matchLifecycleService);
+        this.spawnService = new SpawnService(this, lobbyManager, matchManager, winConditionService, lobbyTeleportService);
         this.pointService = new PointService();
         this.cardService = new CardService(this, lobbyManager, compassService, pointService);
         this.guiService = new GuiService(this, lobbyManager, matchManager, cardService, pointService);
@@ -57,6 +70,8 @@ public final class LunaManhuntPlugin extends JavaPlugin {
         getServer().getPluginManager().registerEvents(new GuiListener(guiService), this);
         getServer().getPluginManager().registerEvents(new GuiInputListener(this, guiService), this);
         getServer().getPluginManager().registerEvents(new CardListener(cardService), this);
+        getServer().getPluginManager().registerEvents(new RunStartListener(matchLifecycleService), this);
+        getServer().getPluginManager().registerEvents(new EndPortalListener(matchEndService), this);
         MatchCommand matchCommand = new MatchCommand(lobbyManager, matchManager, guiService);
         LmAdminCommand adminCommand = new LmAdminCommand(this, lobbyManager, matchManager);
         SpawnCommand spawnCommand = new SpawnCommand(spawnService);

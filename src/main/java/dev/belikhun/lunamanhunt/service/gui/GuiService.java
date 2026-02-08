@@ -77,6 +77,7 @@ public class GuiService {
 	private static final String ACTION_KIT_CLEAR_CANCEL = "kit_clear_cancel";
 
 	private static final String ACTION_CARD_USE = "card_use";
+	private static final String ACTION_CARD_DRAW = "card_draw";
 	private static final String ACTION_CARD_CLOSE = "card_close";
 
 	private final LobbyManager lobbyManager;
@@ -242,6 +243,7 @@ public class GuiService {
 			case ACTION_KIT_CLEAR_CONFIRM -> handleKitClear(player, holder.matchId());
 			case ACTION_KIT_CLEAR_CANCEL -> handleOpenSettings(player, holder.matchId());
 			case ACTION_CARD_USE -> handleUseCard(player, holder.matchId(), target);
+			case ACTION_CARD_DRAW -> handleDrawCards(player, holder.matchId());
 			case ACTION_CARD_CLOSE -> player.closeInventory();
 			default -> {
 			}
@@ -450,6 +452,13 @@ public class GuiService {
 		inventory.setItem(4, buildInfoItem(Material.PAPER,
 			"<yellow>ℹ</yellow> Điểm hiện tại",
 			List.of("<gray>Bạn có <white>" + pointService.formatPoints(points) + "</white>.</gray>")));
+
+		inventory.setItem(22, buildActionItem(Material.EMERALD,
+			"<yellow>ℹ</yellow> Rút thẻ",
+			List.of(
+				"<gray>Tiêu tốn <white>" + pointService.formatPoints(cardService.getDrawCost()) + "</white>.</gray>",
+				"<gray>Nhận " + cardService.getDrawCount() + " thẻ mới.</gray>"),
+			ACTION_CARD_DRAW, null));
 
 		int[] slots = new int[] { 11, 13, 15 };
 		for (int i = 0; i < slots.length; i++) {
@@ -755,6 +764,15 @@ public class GuiService {
 			return;
 		}
 		cardService.useCard(player, match, card);
+		openCardsMenu(player, match);
+	}
+
+	private void handleDrawCards(Player player, String matchId) {
+		Match match = requireSpeedrunnerMatch(player);
+		if (match == null) {
+			return;
+		}
+		cardService.drawCards(player, match);
 		openCardsMenu(player, match);
 	}
 
