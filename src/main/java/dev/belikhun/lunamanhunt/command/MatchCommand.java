@@ -7,6 +7,7 @@ import dev.belikhun.lunamanhunt.service.lobby.LobbyManager;
 import dev.belikhun.lunamanhunt.service.match.MatchManager;
 import dev.belikhun.lunamanhunt.service.gui.GuiService;
 import dev.belikhun.lunamanhunt.util.Text;
+import dev.belikhun.lunamanhunt.util.UiColors;
 import dev.belikhun.lunamanhunt.service.spawn.LobbyItemService;
 import org.bukkit.Bukkit;
 import org.bukkit.command.Command;
@@ -68,7 +69,8 @@ public class MatchCommand implements TabExecutor {
 			case "kit" -> handleKit(player, args);
 			case "gui", "menu" -> handleGui(player);
 			case "help" -> sendHelp(player);
-			default -> Text.msg(player, "<red>❌</red> Lệnh không hợp lệ. Dùng <yellow>/match help</yellow>.");
+			default -> Text.msg(player, "<red>❌</red> Lệnh không hợp lệ. Dùng "
+				+ UiColors.command("/match help") + ".");
 		}
 
 		return true;
@@ -121,7 +123,7 @@ public class MatchCommand implements TabExecutor {
 			return;
 		}
 		if (args.length < 2) {
-			Text.msg(player, "<red>❌</red> Dùng: <yellow>/match join <mã_phòng></yellow>.");
+			Text.msg(player, "<red>❌</red> Dùng: " + UiColors.command("/match join <mã_phòng>") + ".");
 			return;
 		}
 		LobbyActionResult result = lobbyManager.join(player.getUniqueId(), args[1]);
@@ -136,7 +138,7 @@ public class MatchCommand implements TabExecutor {
 			return;
 		}
 		if (args.length < 2) {
-			Text.msg(player, "<red>❌</red> Dùng: <yellow>/match invite <tên_người_chơi></yellow>.");
+			Text.msg(player, "<red>❌</red> Dùng: " + UiColors.command("/match invite <tên_người_chơi>") + ".");
 			return;
 		}
 		Player target = Bukkit.getPlayer(args[1]);
@@ -212,7 +214,7 @@ public class MatchCommand implements TabExecutor {
 			return;
 		}
 		if (args.length < 2) {
-			Text.msg(player, "<red>❌</red> Dùng: <yellow>/match seed <giá_trị|xoa></yellow>.");
+			Text.msg(player, "<red>❌</red> Dùng: " + UiColors.command("/match seed <giá_trị|xoa>") + ".");
 			return;
 		}
 		String value = String.join(" ", java.util.Arrays.copyOfRange(args, 1, args.length)).trim();
@@ -234,11 +236,11 @@ public class MatchCommand implements TabExecutor {
 			return;
 		}
 		if (args.length < 2) {
-			Text.msg(player, "<red>❌</red> Dùng: <yellow>/match kit xoa</yellow>.");
+			Text.msg(player, "<red>❌</red> Dùng: " + UiColors.command("/match kit xoa") + ".");
 			return;
 		}
 		if (!args[1].equalsIgnoreCase("xoa")) {
-			Text.msg(player, "<red>❌</red> Dùng: <yellow>/match kit xoa</yellow>.");
+			Text.msg(player, "<red>❌</red> Dùng: " + UiColors.command("/match kit xoa") + ".");
 			return;
 		}
 		match.getSettings().setSpeedrunnerKit(List.of());
@@ -249,16 +251,16 @@ public class MatchCommand implements TabExecutor {
 		if (!hasPerm(player, PERM_HELP)) {
 			return;
 		}
-		Text.msg(player, "<yellow>●</yellow> <white>/match create</white>");
-		Text.msg(player, "<yellow>●</yellow> <white>/match join <mã_phòng></white>");
-		Text.msg(player, "<yellow>●</yellow> <white>/match invite <tên_người_chơi></white>");
-		Text.msg(player, "<yellow>●</yellow> <white>/match accept</white>");
-		Text.msg(player, "<yellow>●</yellow> <white>/match decline</white>");
-		Text.msg(player, "<yellow>●</yellow> <white>/match start</white>");
-		Text.msg(player, "<yellow>●</yellow> <white>/match leave</white>");
-		Text.msg(player, "<yellow>●</yellow> <white>/match seed <giá_trị|xoa></white>");
-		Text.msg(player, "<yellow>●</yellow> <white>/match kit xoa</white>");
-		Text.msg(player, "<yellow>●</yellow> <white>/match gui</white>");
+		Text.msg(player, "<yellow>●</yellow> " + UiColors.command("/match create"));
+		Text.msg(player, "<yellow>●</yellow> " + UiColors.command("/match join <mã_phòng>"));
+		Text.msg(player, "<yellow>●</yellow> " + UiColors.command("/match invite <tên_người_chơi>"));
+		Text.msg(player, "<yellow>●</yellow> " + UiColors.command("/match accept"));
+		Text.msg(player, "<yellow>●</yellow> " + UiColors.command("/match decline"));
+		Text.msg(player, "<yellow>●</yellow> " + UiColors.command("/match start"));
+		Text.msg(player, "<yellow>●</yellow> " + UiColors.command("/match leave"));
+		Text.msg(player, "<yellow>●</yellow> " + UiColors.command("/match seed <giá_trị|xoa>"));
+		Text.msg(player, "<yellow>●</yellow> " + UiColors.command("/match kit xoa"));
+		Text.msg(player, "<yellow>●</yellow> " + UiColors.command("/match gui"));
 	}
 
 	private void sendInviteMessage(Player target, Match match) {
@@ -271,7 +273,8 @@ public class MatchCommand implements TabExecutor {
 			+ "<gray>Chọn: </gray>"
 			+ "<green><click:run_command:'/m accept'><hover:show_text:'<gray>Bấm để chấp nhận</gray>'><b>[CHẤP NHẬN]</b></hover></click></green> "
 			+ "<red><click:run_command:'/m decline'><hover:show_text:'<gray>Bấm để từ chối</gray>'><b>[TỪ CHỐI]</b></hover></click></red> "
-			+ "<gray>(/m accept | /m decline)</gray>"));
+			+ "<gray>(</gray>" + UiColors.command("/m accept") + "<gray> | </gray>"
+			+ UiColors.command("/m decline") + "<gray>)</gray>"));
 	}
 
 	private void handleGui(Player player) {

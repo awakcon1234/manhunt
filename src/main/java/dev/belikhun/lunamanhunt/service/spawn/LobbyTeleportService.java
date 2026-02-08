@@ -25,6 +25,7 @@ public class LobbyTeleportService {
 		}
 		Location spawn = resolveLobbySpawn(player);
 		player.teleport(spawn);
+		player.setRespawnLocation(spawn, true);
 		lobbyItemService.applyLobbyState(player);
 		if (announce) {
 			Text.msg(player, "<green>✔</green> Đã dịch chuyển về sảnh.");

@@ -5,6 +5,7 @@ import dev.belikhun.lunamanhunt.command.BasicCommandAdapter;
 import dev.belikhun.lunamanhunt.command.LmAdminCommand;
 import dev.belikhun.lunamanhunt.command.MatchCommand;
 import dev.belikhun.lunamanhunt.command.SpawnCommand;
+import dev.belikhun.lunamanhunt.listener.CardEffectListener;
 import dev.belikhun.lunamanhunt.listener.CardListener;
 import dev.belikhun.lunamanhunt.listener.CompassListener;
 import dev.belikhun.lunamanhunt.listener.EndPortalListener;
@@ -88,8 +89,10 @@ public final class LunaManhuntPlugin extends JavaPlugin {
         getServer().getPluginManager().registerEvents(new LobbyItemGuardListener(lobbyItemService), this);
         getServer().getPluginManager().registerEvents(new LobbyStateListener(lobbyItemService, lobbyTeleportService), this);
         getServer().getPluginManager().registerEvents(new CardListener(cardService), this);
+        getServer().getPluginManager().registerEvents(new CardEffectListener(cardService), this);
         getServer().getPluginManager().registerEvents(new RunStartListener(matchLifecycleService), this);
         getServer().getPluginManager().registerEvents(new EndPortalListener(matchEndService), this);
+        compassService.startAutoUpdate();
         MatchCommand matchCommand = new MatchCommand(lobbyManager, matchManager, guiService, lobbyItemService);
         LmAdminCommand adminCommand = new LmAdminCommand(this, lobbyManager, matchManager);
         SpawnCommand spawnCommand = new SpawnCommand(spawnService);

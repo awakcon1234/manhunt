@@ -20,7 +20,11 @@ public class LobbyStateListener implements Listener {
 
 	@EventHandler
 	public void onJoin(PlayerJoinEvent event) {
-		lobbyTeleportService.teleportToLobby(event.getPlayer(), false);
+		var player = event.getPlayer();
+		player.getInventory().clear();
+		player.getInventory().setArmorContents(null);
+		player.getInventory().setItemInOffHand(null);
+		lobbyTeleportService.teleportToLobby(player, false);
 	}
 
 	@EventHandler

@@ -34,6 +34,7 @@ import dev.belikhun.lunamanhunt.service.compass.CompassService;
 import dev.belikhun.lunamanhunt.service.lobby.LobbyManager;
 import dev.belikhun.lunamanhunt.service.point.PointService;
 import dev.belikhun.lunamanhunt.util.Text;
+import dev.belikhun.lunamanhunt.util.UiColors;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.TextDecoration;
 import org.bukkit.Bukkit;
@@ -44,6 +45,8 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.plugin.java.JavaPlugin;
+import org.bukkit.potion.PotionEffect;
+import org.bukkit.potion.PotionEffectType;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -52,6 +55,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Random;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -238,6 +242,34 @@ public class CardService {
 		return true;
 	}
 
+	public boolean usePoolCard(Player player, Match match, int poolIndex) {
+		if (player == null || match == null) {
+			return false;
+		}
+		if (match.getState() != MatchState.RUNNING) {
+			Text.msg(player, "<red>❌</red> Chỉ dùng thẻ khi trận đang diễn ra.");
+			return false;
+		}
+		UUID speedrunnerId = match.getSpeedrunnerId();
+		if (speedrunnerId == null || !speedrunnerId.equals(player.getUniqueId())) {
+			Text.msg(player, "<red>❌</red> Chỉ speedrunner mới được dùng thẻ.");
+			return false;
+		}
+		List<CardDefinition> pool = match.getDrawnCards();
+		if (poolIndex < 0 || poolIndex >= pool.size()) {
+			return false;
+		}
+		CardDefinition card = pool.get(poolIndex);
+		if (card == null) {
+			return false;
+		}
+		if (!applyCard(player, match, card)) {
+			return false;
+		}
+		pool.set(poolIndex, null);
+		return true;
+	}
+
 	public boolean keepCardFromPool(Player player, Match match, int poolIndex) {
 		if (player == null || match == null) {
 			return false;
@@ -322,10 +354,51 @@ public class CardService {
 		if (!card.apply(context)) {
 			return false;
 		}
+		if (card.getType() == CardType.CURSE) {
+			broadcastCurseUsed(match, player, card);
+		}
 		trackActiveCard(match, card);
 		match.setSpeedrunnerPoints(match.getSpeedrunnerPoints() - card.getCost());
 		Text.msg(player, "<green>✔</green> Đã dùng thẻ <yellow>" + card.getName() + "</yellow>.");
 		return true;
+	}
+
+	public void reapplyActiveCurseEffects(Player hunter) {
+		if (hunter == null) {
+			return;
+		}
+		Bukkit.getScheduler().runTaskLater(plugin, () -> applyActiveCurseEffects(hunter), 1L);
+	}
+
+	private void applyActiveCurseEffects(Player hunter) {
+		if (hunter == null) {
+			return;
+		}
+		Match match = lobbyManager.getMatchForPlayer(hunter.getUniqueId());
+		if (match == null || match.getState() != MatchState.RUNNING) {
+			return;
+		}
+		UUID speedrunnerId = match.getSpeedrunnerId();
+		if (speedrunnerId != null && speedrunnerId.equals(hunter.getUniqueId())) {
+			return;
+		}
+		List<ActiveCard> entries = activeCards.get(match.getId());
+		if (entries == null || entries.isEmpty()) {
+			return;
+		}
+		long now = System.currentTimeMillis();
+		for (ActiveCard entry : List.copyOf(entries)) {
+			CardDefinition card = entry.card();
+			if (card == null || card.getType() != CardType.CURSE || !card.isTimed()) {
+				continue;
+			}
+			long remainingMs = entry.expiresAtMillis() - now;
+			if (remainingMs <= 0L) {
+				continue;
+			}
+			int remainingSeconds = (int) Math.max(1L, (remainingMs + 999L) / 1000L);
+			applyCursePotion(hunter, card, remainingSeconds);
+		}
 	}
 
 	public void handleSpeedrunnerAdvancement(Player player) {
@@ -343,6 +416,7 @@ public class CardService {
 		addPoint(match, 1);
 		drawNewCards(match);
 		Text.msg(player, "<green>✔</green> Bạn nhận được " + pointService.formatPoints(1) + " từ thành tựu.");
+		Text.msg(player, "<yellow>ℹ</yellow> Dùng " + UiColors.command("/c") + " để sử dụng điểm.");
 		Text.msg(player, "<yellow>ℹ</yellow> Đã mở " + POOL_COUNT + " thẻ mới, hãy giữ vào ô thẻ.");
 	}
 
@@ -392,7 +466,8 @@ public class CardService {
 		if (meta != null) {
 			String rarityColor = formatCardRarityColor(card.getRarity());
 			String rarityIcon = formatCardRarityIcon(card.getRarity());
-			meta.displayName(mmNoItalic(rarityColor + rarityIcon + " <white>" + card.getName() + "</white>"));
+			String rarityColorClose = rarityColor.replace("<", "</");
+			meta.displayName(mmNoItalic(rarityColor + rarityIcon + " " + card.getName() + rarityColorClose));
 			List<String> lore = new ArrayList<>();
 			lore.add("");
 			lore.add("<gray>● <white>Loại thẻ: " + formatCardTypeDisplay(card.getType()) + "</white>");
@@ -525,23 +600,63 @@ public class CardService {
 		return speedrunnerId == null ? null : Bukkit.getPlayer(speedrunnerId);
 	}
 
+	private void broadcastCurseUsed(Match match, Player speedrunner, CardDefinition card) {
+		if (match == null || speedrunner == null || card == null) {
+			return;
+		}
+		String message = "<red>❌</red> Speedrunner <yellow>" + speedrunner.getName()
+			+ "</yellow> đã dùng lời nguyền <yellow>" + card.getName() + "</yellow>.";
+		Set<UUID> targets = match.getHunters();
+		if (targets == null || targets.isEmpty()) {
+			targets = match.getLobbyPlayers();
+		}
+		for (UUID id : Set.copyOf(targets)) {
+			if (speedrunner.getUniqueId().equals(id)) {
+				continue;
+			}
+			Player hunter = Bukkit.getPlayer(id);
+			if (hunter != null) {
+				Text.msg(hunter, message);
+			}
+		}
+	}
+
+	private void applyCursePotion(Player hunter, CardDefinition card, int remainingSeconds) {
+		if (hunter == null || card == null || remainingSeconds <= 0) {
+			return;
+		}
+		String cardId = normalizeCardId(card.getId());
+		if (cardId == null) {
+			return;
+		}
+		int duration = Math.max(1, remainingSeconds) * 20;
+		PotionEffect effect = switch (cardId) {
+			case "too_slow" -> new PotionEffect(PotionEffectType.SLOWNESS, duration, 1);
+			case "dizzy" -> new PotionEffect(PotionEffectType.NAUSEA, duration, 0);
+			case "blind" -> new PotionEffect(PotionEffectType.BLINDNESS, duration, 0);
+			case "hungry" -> new PotionEffect(PotionEffectType.HUNGER, duration, 0);
+			case "broken_hand" -> new PotionEffect(PotionEffectType.MINING_FATIGUE, duration, 0);
+			case "sonic" -> new PotionEffect(PotionEffectType.SPEED, duration, 99);
+			case "shining" -> new PotionEffect(PotionEffectType.GLOWING, duration, 0);
+			default -> null;
+		};
+		if (effect != null) {
+			hunter.addPotionEffect(effect);
+		}
+	}
+
 	private String formatCardDuration(int durationSeconds) {
 		if (durationSeconds <= 0) {
 			return "Không giới hạn";
 		}
-		int minutes = durationSeconds / 60;
-		int seconds = durationSeconds % 60;
-		if (minutes <= 0) {
-			return durationSeconds + " giây";
+		int totalSeconds = Math.max(0, durationSeconds);
+		int hours = totalSeconds / 3600;
+		int minutes = (totalSeconds % 3600) / 60;
+		int seconds = totalSeconds % 60;
+		if (hours > 0) {
+			return String.format("%d:%02d:%02d", hours, minutes, seconds);
 		}
-		if (seconds == 0) {
-			if (minutes % 60 == 0) {
-				int hours = minutes / 60;
-				return hours + " giờ";
-			}
-			return minutes + " phút";
-		}
-		return minutes + " phút " + seconds + " giây";
+		return String.format("%d:%02d", minutes, seconds);
 	}
 
 	private Component mmNoItalic(String miniMessage) {

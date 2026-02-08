@@ -28,6 +28,6 @@ public class GuiListener implements Listener {
 		}
 		event.setCancelled(true);
 		ItemStack item = event.getCurrentItem();
-		guiService.handleMenuClick(player, inventory, item);
+		guiService.handleMenuClick(player, inventory, item, event.getClick());
 	}
 }

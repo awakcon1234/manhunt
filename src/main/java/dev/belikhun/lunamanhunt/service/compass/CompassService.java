@@ -17,6 +17,7 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import org.bukkit.scheduler.BukkitTask;
 
 public class CompassService {
 	private final JavaPlugin plugin;
@@ -26,6 +27,7 @@ public class CompassService {
 	private final Map<UUID, UUID> compassTargets = new ConcurrentHashMap<>();
 	private final Map<UUID, Long> scrambledHunters = new ConcurrentHashMap<>();
 	private final java.util.Random random = new java.util.Random();
+	private BukkitTask autoUpdateTask;
 
 	public CompassService(JavaPlugin plugin, LobbyManager lobbyManager) {
 		this.plugin = Objects.requireNonNull(plugin, "plugin");
@@ -64,6 +66,18 @@ public class CompassService {
 		Text.msg(hunter, "<green>✔</green> Bạn đã nhận la bàn truy tìm.");
 	}
 
+	public void startAutoUpdate() {
+		stopAutoUpdate();
+		autoUpdateTask = Bukkit.getScheduler().runTaskTimer(plugin, this::updateAllForOnlinePlayers, 0L, 20L);
+	}
+
+	public void stopAutoUpdate() {
+		if (autoUpdateTask != null) {
+			autoUpdateTask.cancel();
+			autoUpdateTask = null;
+		}
+	}
+
 	public boolean updateCompass(ItemStack item, Player holder) {
 		if (item == null || holder == null) {
 			return false;
@@ -98,6 +112,12 @@ public class CompassService {
 		Player target = Bukkit.getPlayer(targetId);
 		if (target == null) {
 			return false;
+		}
+		if (!holder.getWorld().getUID().equals(target.getWorld().getUID())) {
+			meta.setLodestone(null);
+			meta.setLodestoneTracked(true);
+			item.setItemMeta(meta);
+			return true;
 		}
 
 		meta.setLodestone(target.getLocation());
@@ -163,6 +183,9 @@ public class CompassService {
 				continue;
 			}
 			for (ItemStack item : contents) {
+				if (!isTrackingCompass(item) || !canUseCompass(player, item)) {
+					continue;
+				}
 				updateCompass(item, player);
 			}
 		}

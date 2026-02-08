@@ -27,7 +27,7 @@ public class MatchWinListener implements Listener {
 		if (killer == null) {
 			return;
 		}
-		winConditionService.handleHunterKill(killer, victim);
+		winConditionService.handleHunterKill(killer, victim, victim.getLocation());
 	}
 
 	@EventHandler

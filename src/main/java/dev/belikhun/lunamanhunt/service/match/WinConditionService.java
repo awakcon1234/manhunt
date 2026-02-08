@@ -27,7 +27,7 @@ public class WinConditionService {
 		this.matchEndService = Objects.requireNonNull(matchEndService, "matchEndService");
 	}
 
-	public boolean handleHunterKill(Player killer, Player victim) {
+	public boolean handleHunterKill(Player killer, Player victim, org.bukkit.Location deathLocation) {
 		if (killer == null || victim == null) {
 			return false;
 		}
@@ -46,7 +46,7 @@ public class WinConditionService {
 			return false;
 		}
 
-		endWithHunters(match);
+		endWithHuntersByKill(match, deathLocation);
 		return true;
 	}
 
@@ -100,13 +100,14 @@ public class WinConditionService {
 		return speedrunnerId != null && speedrunnerId.equals(playerId);
 	}
 
-	private void endWithHunters(Match match) {
-		endWithHunters(match, "<green>✔</green> Thợ săn đã chiến thắng!");
+	private void endWithHuntersByKill(Match match, org.bukkit.Location deathLocation) {
+		recordMatchHistory(match, MatchWinner.HUNTERS);
+		matchEndService.endWithHunters(match, "<green>✔</green> Thợ săn đã chiến thắng!", deathLocation, true);
 	}
 
 	private void endWithHunters(Match match, String message) {
 		recordMatchHistory(match, MatchWinner.HUNTERS);
-		matchEndService.endWithHunters(match, message);
+		matchEndService.endWithHunters(match, message, null, false);
 	}
 
 	private void endWithSpeedrunner(Match match) {

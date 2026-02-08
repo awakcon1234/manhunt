@@ -25,7 +25,9 @@ import net.kyori.adventure.text.format.TextDecoration;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
+import org.bukkit.OfflinePlayer;
 import org.bukkit.entity.Player;
+import org.bukkit.event.inventory.ClickType;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.InventoryHolder;
 import org.bukkit.inventory.ItemStack;
@@ -35,12 +37,14 @@ import org.bukkit.persistence.PersistentDataContainer;
 import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.plugin.java.JavaPlugin;
 
+import java.text.NumberFormat;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Locale;
 import java.util.Objects;
 import java.util.UUID;
 
@@ -61,7 +65,13 @@ public class GuiService {
 	private static final String ACTION_MATCH_INFO_CARDS = "match_info_cards";
 	private static final String ACTION_MATCH_INFO_KIT = "match_info_kit";
 	private static final String ACTION_MATCH_INFO_START = "match_info_start";
+	private static final String ACTION_MATCH_INFO_LEAVE = "match_info_leave";
 	private static final String ACTION_MATCH_INFO_CLOSE = "match_info_close";
+	private static final String ACTION_MATCH_INFO_PLAYERS = "match_info_players";
+	private static final String ACTION_MATCH_PLAYERS_BACK = "match_players_back";
+	private static final String ACTION_MATCH_PLAYERS_PREV = "match_players_prev";
+	private static final String ACTION_MATCH_PLAYERS_NEXT = "match_players_next";
+	private static final String ACTION_MATCH_PLAYER_PROFILE = "match_player_profile";
 
 	private static final String ACTION_INVITE_PLAYER = "invite_player";
 	private static final String ACTION_INVITE_BACK = "invite_back";
@@ -116,6 +126,7 @@ public class GuiService {
 	private static final String ACTION_PROFILE_HISTORY_NEXT = "profile_history_next";
 
 	private static final int HISTORY_PAGE_SIZE = 45;
+	private static final int MATCH_PLAYERS_PAGE_SIZE = 45;
 	private static final int CARDS_INFO_PAGE_SIZE = 45;
 	private static final int CARDS_ADJUST_PAGE_SIZE = 20;
 	private static final int SETTINGS_ROWS_PER_PAGE = 4;
@@ -153,6 +164,7 @@ public class GuiService {
 	private final java.util.Map<UUID, Integer> settingsPages = new java.util.concurrent.ConcurrentHashMap<>();
 	private final java.util.Map<UUID, Integer> kitPages = new java.util.concurrent.ConcurrentHashMap<>();
 	private final java.util.Map<UUID, Integer> kitPreviewPages = new java.util.concurrent.ConcurrentHashMap<>();
+	private final java.util.Map<UUID, UUID> profileViewTargets = new java.util.concurrent.ConcurrentHashMap<>();
 
 	public GuiService(JavaPlugin plugin, LobbyManager lobbyManager, MatchManager matchManager, CardService cardService,
 			PointService pointService, ProfileStore profileStore,
@@ -294,18 +306,29 @@ public class GuiService {
 		if (player == null) {
 			return;
 		}
-		PlayerProfile profile = profileStore.load(player.getUniqueId());
+		openProfileMenu(player, player.getUniqueId());
+	}
+
+	public void openProfileMenu(Player viewer, UUID targetId) {
+		if (viewer == null) {
+			return;
+		}
+		UUID resolvedId = targetId == null ? viewer.getUniqueId() : targetId;
+		profileViewTargets.put(viewer.getUniqueId(), resolvedId);
+		PlayerProfile profile = profileStore.load(resolvedId);
+		String targetName = resolvePlayerName(resolvedId);
 		Inventory inventory = Bukkit.createInventory(new GuiHolder(GuiType.PROFILE, null), 27,
-			Text.mm(UiColors.titlePrimary("Hồ sơ") + " " + UiColors.titleSecondary(player.getName())));
-		fillProfileMenu(player, profile, inventory);
-		player.openInventory(inventory);
+			Text.mm(UiColors.titlePrimary("Hồ sơ") + " " + UiColors.titleSecondary(targetName)));
+		fillProfileMenu(viewer, profile, inventory, resolvedId);
+		viewer.openInventory(inventory);
 	}
 
 	public void openProfileHistoryMenu(Player player, int page) {
 		if (player == null) {
 			return;
 		}
-		PlayerProfile profile = profileStore.load(player.getUniqueId());
+		UUID targetId = resolveProfileTarget(player);
+		PlayerProfile profile = profileStore.load(targetId);
 		int totalPages = getHistoryPageCount(profile.getMatchHistory().size());
 		int safePage = clamp(page, 0, Math.max(0, totalPages - 1));
 		Inventory inventory = Bukkit.createInventory(new GuiHolder(GuiType.PROFILE_HISTORY, null), 54,
@@ -315,11 +338,25 @@ public class GuiService {
 		player.openInventory(inventory);
 	}
 
+	public void openMatchPlayersMenu(Player player, Match match, int page) {
+		if (player == null || match == null) {
+			return;
+		}
+		List<UUID> players = getSortedMatchPlayers(match);
+		int totalPages = getMatchPlayersPageCount(players.size());
+		int safePage = clamp(page, 0, Math.max(0, totalPages - 1));
+		Inventory inventory = Bukkit.createInventory(new GuiHolder(GuiType.MATCH_PLAYERS, match.getId()), 54,
+			Text.mm(UiColors.titlePrimary("Người chơi trong phòng") + " "
+				+ UiColors.titleSecondary("- Trang " + (safePage + 1) + "/" + Math.max(1, totalPages))));
+		fillMatchPlayersMenu(match, players, inventory, safePage, totalPages);
+		player.openInventory(inventory);
+	}
+
 	public boolean isGuiInventory(Inventory inventory) {
 		return inventory != null && inventory.getHolder() instanceof GuiHolder;
 	}
 
-	public boolean handleMenuClick(Player player, Inventory inventory, ItemStack item) {
+	public boolean handleMenuClick(Player player, Inventory inventory, ItemStack item, ClickType clickType) {
 		if (player == null || inventory == null || item == null) {
 			return false;
 		}
@@ -350,7 +387,12 @@ public class GuiService {
 			case ACTION_MATCH_INFO_CARDS -> handleMatchInfoCards(player, holder.matchId(), target);
 			case ACTION_MATCH_INFO_KIT -> handleMatchInfoKit(player, holder.matchId());
 			case ACTION_MATCH_INFO_START -> handleMatchInfoStart(player, holder.matchId());
+			case ACTION_MATCH_INFO_PLAYERS -> handleMatchInfoPlayers(player, holder.matchId(), target);
+			case ACTION_MATCH_INFO_LEAVE -> handleMatchInfoLeave(player);
 			case ACTION_MATCH_INFO_CLOSE -> player.closeInventory();
+			case ACTION_MATCH_PLAYERS_BACK -> handleMatchPlayersBack(player, holder.matchId());
+			case ACTION_MATCH_PLAYERS_PREV, ACTION_MATCH_PLAYERS_NEXT -> handleMatchPlayersPage(player, holder.matchId(), target);
+			case ACTION_MATCH_PLAYER_PROFILE -> handleOpenMatchPlayerProfile(player, target);
 			case ACTION_INVITE_PLAYER -> handleInvitePlayer(player, holder.matchId(), target);
 			case ACTION_INVITE_BACK -> handleBackToLobby(player, holder.matchId());
 			case ACTION_SETTINGS_VISIBILITY_PUBLIC -> handleVisibilitySet(player, holder.matchId(), MatchVisibility.PUBLIC);
@@ -381,7 +423,13 @@ public class GuiService {
 			case ACTION_KIT_PREVIEW_SELECT -> handleSelectKit(player, holder.matchId(), target);
 			case ACTION_KIT_PREVIEW_BACK -> handleBackFromKitPreview(player, holder.matchId());
 			case ACTION_CARD_USE -> handleUseCard(player, holder.matchId(), target);
-			case ACTION_CARD_KEEP -> handleKeepCard(player, holder.matchId(), target);
+			case ACTION_CARD_KEEP -> {
+				if (clickType == ClickType.RIGHT || clickType == ClickType.SHIFT_RIGHT) {
+					handleKeepCard(player, holder.matchId(), target);
+				} else {
+					handleUsePoolCard(player, holder.matchId(), target);
+				}
+			}
 			case ACTION_CARD_DISCARD -> handleDiscardCard(player, holder.matchId(), target);
 			case ACTION_CARD_CLOSE -> player.closeInventory();
 			case ACTION_CARDS_INFO_CLOSE -> player.closeInventory();
@@ -392,7 +440,7 @@ public class GuiService {
 			case ACTION_CARDS_ADJUST_CLOSE -> handleCardsAdjustClose(player, holder.matchId());
 			case ACTION_PROFILE_CLOSE -> player.closeInventory();
 			case ACTION_PROFILE_HISTORY_OPEN -> openProfileHistoryMenu(player, 0);
-			case ACTION_PROFILE_HISTORY_BACK -> openProfileMenu(player);
+			case ACTION_PROFILE_HISTORY_BACK -> openProfileMenu(player, resolveProfileTarget(player));
 			case ACTION_PROFILE_HISTORY_PREV, ACTION_PROFILE_HISTORY_NEXT -> handleOpenHistoryPage(player, target);
 			default -> {
 			}
@@ -714,15 +762,20 @@ public class GuiService {
 		int points = match.getSpeedrunnerPoints();
 		List<CardDefinition> poolCards = cardService.getDrawnCards(match);
 		List<CardDefinition> keptCards = cardService.getKeptCards(match);
-		ItemStack pane = buildInfoItem(Material.LIGHT_GRAY_STAINED_GLASS_PANE, " ", List.of(" "));
+		ItemStack pane = buildInfoItem(Material.GRAY_STAINED_GLASS_PANE, " ", List.of(" "));
 		for (int slot = 0; slot < inventory.getSize(); slot++) {
 			inventory.setItem(slot, pane);
+		}
+
+		int[] keptSlots = new int[] { 38, 40, 42 };
+		for (int slot : keptSlots) {
+			inventory.setItem(slot, null);
 		}
 
 		inventory.setItem(8, buildInfoItem(Material.BOOK,
 			"<yellow>ℹ</yellow> Hướng dẫn",
 			List.of(
-				"<gray>● Chọn thẻ ở hàng 3 để giữ.</gray>",
+				"<gray>● Hàng 3: trái dùng ngay, phải để giữ.</gray>",
 				" ",
 				"<gray>● Thẻ đang giữ nằm ở hàng 5.</gray>",
 				"<gray>● Ô đầy thì bấm nút bỏ thẻ ở hàng 6.</gray>"
@@ -734,11 +787,12 @@ public class GuiService {
 				break;
 			}
 			CardDefinition card = poolCards.get(i);
+			if (card == null) {
+				continue;
+			}
 			inventory.setItem(poolSlots[i],
 				cardService.buildCardItem(card, i, actionKey, targetKey, ACTION_CARD_KEEP));
 		}
-
-		int[] keptSlots = new int[] { 38, 40, 42 };
 		for (int i = 0; i < keptSlots.length; i++) {
 			if (i >= keptCards.size()) {
 				break;
@@ -859,7 +913,7 @@ public class GuiService {
 				"<gray>Hiển thị: " + formatVisibilityColored(match.getSettings().getVisibility()) + "</gray>",
 				"<gray>Trạng thái: " + formatStateColored(match.getState()) + "</gray>",
 				" ",
-				"<gray>Người chơi: <#7fd36b>" + match.getLobbyPlayers().size() + "</#7fd36b></gray>"
+				"<gray>Người chơi: <#7fd36b>" + formatNumber(match.getLobbyPlayers().size()) + "</#7fd36b></gray>"
 			)));
 
 		inventory.setItem(31, buildInfoItem(Material.MAP,
@@ -872,6 +926,10 @@ public class GuiService {
 				"<gray>Thẻ bật: " + formatCountValue(enabledCards, defaultEnabledCards) + "</gray>",
 				"<gray>Bộ đồ: " + kitText + "</gray>"
 			)));
+
+		inventory.setItem(34, buildActionItem(Material.PLAYER_HEAD,
+			"<yellow>ℹ</yellow> Người chơi",
+			buildMatchPlayersLore(match), ACTION_MATCH_INFO_PLAYERS, "0"));
 
 		List<String> settingsOverview = List.of(
 			"<gray>● Hiển thị: " + formatVisibilityColored(settings.getVisibility()) + "</gray>",
@@ -943,6 +1001,13 @@ public class GuiService {
 					" ",
 					"<gray>Quyền: <white>Chủ phòng</white></gray>"
 				), ACTION_MATCH_INFO_KIT, null));
+			inventory.setItem(46, buildActionItem(Material.RED_WOOL,
+				"<red>❌</red> Giải tán phòng",
+				List.of(
+					"<gray>Rời khỏi phòng và giải tán phòng đấu.</gray>",
+					" ",
+					"<gray>Dùng: " + UiColors.command("/match leave") + "</gray>"
+				), ACTION_MATCH_INFO_LEAVE, null));
 		} else {
 			inventory.setItem(10, buildInfoItem(Material.PAPER,
 				"<yellow>ℹ</yellow> Mời người chơi",
@@ -987,6 +1052,13 @@ public class GuiService {
 					" ",
 					"<gray>Trạng thái: <white>Chỉ xem</white></gray>"
 				)));
+			inventory.setItem(46, buildActionItem(Material.OAK_DOOR,
+				"<yellow>ℹ</yellow> Rời phòng",
+				List.of(
+					"<gray>Rời khỏi phòng hiện tại.</gray>",
+					" ",
+					"<gray>Dùng: " + UiColors.command("/match leave") + "</gray>"
+				), ACTION_MATCH_INFO_LEAVE, null));
 		}
 
 		inventory.setItem(49, buildActionItem(Material.BARRIER,
@@ -1076,11 +1148,12 @@ public class GuiService {
 			List.of("<gray>Đóng danh sách thẻ.</gray>"), ACTION_CARDS_INFO_CLOSE, null));
 	}
 
-	private void fillProfileMenu(Player player, PlayerProfile profile, Inventory inventory) {
-		if (player == null || profile == null || inventory == null) {
+	private void fillProfileMenu(Player viewer, PlayerProfile profile, Inventory inventory, UUID targetId) {
+		if (viewer == null || profile == null || inventory == null) {
 			return;
 		}
-		inventory.setItem(13, buildProfileSummaryItem(player, profile));
+		OfflinePlayer target = targetId == null ? viewer : Bukkit.getOfflinePlayer(targetId);
+		inventory.setItem(13, buildProfileSummaryItem(target, profile));
 		inventory.setItem(15, buildHistorySummaryItem(profile));
 		inventory.setItem(22, buildActionItem(Material.BARRIER,
 			"<red>❌</red> Đóng",
@@ -1125,6 +1198,46 @@ public class GuiService {
 		inventory.setItem(49, buildActionItem(Material.BARRIER,
 			"<red>❌</red> Quay lại",
 			List.of("<gray>Quay về hồ sơ.</gray>"), ACTION_PROFILE_HISTORY_BACK, null));
+	}
+
+	private void fillMatchPlayersMenu(Match match, List<UUID> players, Inventory inventory, int page, int totalPages) {
+		if (match == null || inventory == null || players == null) {
+			return;
+		}
+		int start = page * MATCH_PLAYERS_PAGE_SIZE;
+		int end = Math.min(players.size(), start + MATCH_PLAYERS_PAGE_SIZE);
+		int slot = 0;
+		for (int i = start; i < end; i++) {
+			UUID playerId = players.get(i);
+			String name = resolvePlayerName(playerId);
+			inventory.setItem(slot++, buildMatchPlayerItem(playerId, name));
+		}
+		if (players.isEmpty()) {
+			inventory.setItem(22, buildInfoItem(Material.PAPER,
+				"<yellow>ℹ</yellow> Không có người chơi",
+				List.of("<gray>Phòng đang trống.</gray>")));
+		}
+
+		if (page > 0) {
+			inventory.setItem(45, buildActionItem(Material.ARROW,
+				"<yellow>ℹ</yellow> Trang trước",
+				List.of("<gray>Xem trang trước.</gray>"), ACTION_MATCH_PLAYERS_PREV,
+				String.valueOf(page - 1)));
+		}
+		if (page < totalPages - 1) {
+			inventory.setItem(53, buildActionItem(Material.ARROW,
+				"<yellow>ℹ</yellow> Trang sau",
+				List.of("<gray>Xem trang tiếp theo.</gray>"), ACTION_MATCH_PLAYERS_NEXT,
+				String.valueOf(page + 1)));
+		}
+
+		inventory.setItem(49, buildActionItem(Material.BARRIER,
+			"<red>❌</red> Quay lại",
+			List.of("<gray>Quay về thông tin phòng.</gray>"), ACTION_MATCH_PLAYERS_BACK, null));
+
+		inventory.setItem(47, buildInfoItem(Material.PAPER,
+			"<yellow>ℹ</yellow> Tổng số",
+			List.of("<gray>Người chơi: <white>" + formatNumber(players.size()) + "</white></gray>")));
 	}
 
 	private void fillSpeedrunnerMenu(Match match, Inventory inventory) {
@@ -1230,7 +1343,8 @@ public class GuiService {
 			+ "<gray>Chọn: </gray>"
 			+ "<green><click:run_command:'/m accept'><hover:show_text:'<gray>Bấm để chấp nhận</gray>'><b>[CHẤP NHẬN]</b></hover></click></green> "
 			+ "<red><click:run_command:'/m decline'><hover:show_text:'<gray>Bấm để từ chối</gray>'><b>[TỪ CHỐI]</b></hover></click></red> "
-			+ "<gray>(/m accept | /m decline)</gray>"));
+			+ "<gray>(</gray>" + UiColors.command("/m accept") + "<gray> | </gray>"
+			+ UiColors.command("/m decline") + "<gray>)</gray>"));
 	}
 
 	private void handleOpenSettings(Player player, String matchId) {
@@ -1335,6 +1449,53 @@ public class GuiService {
 		}
 		Text.msg(player, "<red>❌</red> Không thể bắt đầu trận đấu lúc này.");
 		openMatchInfoMenu(player);
+	}
+
+	private void handleMatchInfoPlayers(Player player, String matchId, String target) {
+		Match match = matchManager.getMatch(matchId);
+		if (match == null) {
+			Text.msg(player, "<red>❌</red> Không tìm thấy phòng đấu.");
+			return;
+		}
+		int page = parsePage(target, 0);
+		openMatchPlayersMenu(player, match, page);
+	}
+
+	private void handleMatchPlayersPage(Player player, String matchId, String target) {
+		Match match = matchManager.getMatch(matchId);
+		if (match == null) {
+			player.closeInventory();
+			return;
+		}
+		int page = parsePage(target, 0);
+		openMatchPlayersMenu(player, match, page);
+	}
+
+	private void handleMatchPlayersBack(Player player, String matchId) {
+		openMatchInfoMenu(player);
+	}
+
+	private void handleOpenMatchPlayerProfile(Player player, String target) {
+		if (player == null || target == null || target.isBlank()) {
+			return;
+		}
+		UUID targetId;
+		try {
+			targetId = UUID.fromString(target);
+		} catch (IllegalArgumentException ex) {
+			return;
+		}
+		openProfileMenu(player, targetId);
+	}
+
+	private void handleMatchInfoLeave(Player player) {
+		if (player == null) {
+			return;
+		}
+		LobbyActionResult result = lobbyManager.leave(player.getUniqueId());
+		Text.msg(player, result.getMessage());
+		updateLobbyItems(player);
+		openMainMenu(player);
 	}
 
 	private void handleAdjustCard(Player player, String matchId, String target, boolean enable) {
@@ -1640,6 +1801,21 @@ public class GuiService {
 		openCardsMenu(player, match);
 	}
 
+	private void handleUsePoolCard(Player player, String matchId, String indexText) {
+		Match match = requireSpeedrunnerMatch(player);
+		if (match == null || indexText == null || indexText.isBlank()) {
+			return;
+		}
+		int index;
+		try {
+			index = Integer.parseInt(indexText);
+		} catch (NumberFormatException ex) {
+			return;
+		}
+		cardService.usePoolCard(player, match, index);
+		openCardsMenu(player, match);
+	}
+
 	private void handleDiscardCard(Player player, String matchId, String indexText) {
 		Match match = requireSpeedrunnerMatch(player);
 		if (match == null || indexText == null || indexText.isBlank()) {
@@ -1809,15 +1985,20 @@ public class GuiService {
 
 	private String formatNumericValue(int value, int defaultValue) {
 		String color = value == defaultValue ? "#7fd36b" : "#ffd166";
-		return "<" + color + ">" + value + "</" + color + ">";
+		return "<" + color + ">" + formatNumber(value) + "</" + color + ">";
 	}
 
 	private String formatCountValue(int value, int defaultValue) {
 		if (value <= 0) {
-			return "<#ff6b6b>" + value + "</#ff6b6b>";
+			return "<#ff6b6b>" + formatNumber(value) + "</#ff6b6b>";
 		}
 		String color = value == defaultValue ? "#7fd36b" : "#ffd166";
-		return "<" + color + ">" + value + "</" + color + ">";
+		return "<" + color + ">" + formatNumber(value) + "</" + color + ">";
+	}
+
+	private String formatNumber(int value) {
+		NumberFormat format = NumberFormat.getIntegerInstance(Locale.of("vi", "VN"));
+		return format.format(value);
 	}
 
 	private String resolveDefaultKitId(MatchSettings defaults) {
@@ -1951,7 +2132,7 @@ public class GuiService {
 			meta.lore(mmNoItalic(List.of(
 				"<gray>Chủ phòng: <white>" + ownerName + "</white></gray>",
 				"<gray>Hiển thị: <white>" + formatVisibility(match.getSettings().getVisibility()) + "</white></gray>",
-				"<gray>Người chơi: <white>" + match.getLobbyPlayers().size() + "</white></gray>",
+				"<gray>Người chơi: <white>" + formatNumber(match.getLobbyPlayers().size()) + "</white></gray>",
 				"<gray>Bấm để tham gia.</gray>"
 			)));
 			meta.getPersistentDataContainer().set(actionKey, PersistentDataType.STRING, ACTION_MATCH_JOIN);
@@ -2010,15 +2191,15 @@ public class GuiService {
 			.toList();
 	}
 
-	private ItemStack buildProfileSummaryItem(Player player, PlayerProfile profile) {
+	private ItemStack buildProfileSummaryItem(OfflinePlayer player, PlayerProfile profile) {
 		ItemStack item = new ItemStack(Material.PLAYER_HEAD);
 		ItemMeta meta = item.getItemMeta();
 		String bestTime = formatDuration(profile.getBestTimeMillis());
 		List<String> lore = List.of(
 			"<gray>Thành tích tốt nhất: <white>" + bestTime + "</white></gray>",
-			"<gray>Số lần thắng: <white>" + profile.getTotalWins() + "</white></gray>",
-			"<gray>Số lần thua: <white>" + profile.getTotalLosses() + "</white></gray>",
-			"<gray>Số lần chạy: <white>" + profile.getRunTimesMillis().size() + "</white></gray>"
+			"<gray>Số lần thắng: <white>" + formatNumber(profile.getTotalWins()) + "</white></gray>",
+			"<gray>Số lần thua: <white>" + formatNumber(profile.getTotalLosses()) + "</white></gray>",
+			"<gray>Số lần chạy: <white>" + formatNumber(profile.getRunTimesMillis().size()) + "</white></gray>"
 		);
 		if (meta instanceof SkullMeta skullMeta) {
 			skullMeta.setOwningPlayer(player);
@@ -2095,11 +2276,92 @@ public class GuiService {
 		}
 	}
 
+	private UUID resolveProfileTarget(Player viewer) {
+		if (viewer == null) {
+			return null;
+		}
+		UUID viewerId = viewer.getUniqueId();
+		return profileViewTargets.getOrDefault(viewerId, viewerId);
+	}
+
+	private List<UUID> getSortedMatchPlayers(Match match) {
+		if (match == null) {
+			return List.of();
+		}
+		List<UUID> players = new ArrayList<>(match.getLobbyPlayers());
+		players.sort((left, right) -> resolvePlayerName(left).compareToIgnoreCase(resolvePlayerName(right)));
+		return players;
+	}
+
+	private List<String> buildMatchPlayersLore(Match match) {
+		List<UUID> players = getSortedMatchPlayers(match);
+		List<String> lore = new ArrayList<>();
+		lore.add("<gray>Tổng số: <white>" + formatNumber(players.size()) + "</white></gray>");
+		lore.add(" ");
+		lore.add("<gray>Danh sách:</gray>");
+		if (players.isEmpty()) {
+			lore.add("<gray>● <white>Chưa có người chơi</white></gray>");
+		} else {
+			int maxShown = 8;
+			int shown = Math.min(maxShown, players.size());
+			for (int i = 0; i < shown; i++) {
+				lore.add("<gray>● <white>" + resolvePlayerName(players.get(i)) + "</white></gray>");
+			}
+			if (players.size() > maxShown) {
+				int remaining = players.size() - maxShown;
+				lore.add("<gray>● <white>+" + formatNumber(remaining) + " người nữa</white></gray>");
+			}
+		}
+		lore.add(" ");
+		lore.add("<gray>Bấm để xem đầy đủ.</gray>");
+		return lore;
+	}
+
+	private ItemStack buildMatchPlayerItem(UUID playerId, String name) {
+		ItemStack item = new ItemStack(Material.PLAYER_HEAD);
+		ItemMeta meta = item.getItemMeta();
+		if (meta instanceof SkullMeta skullMeta) {
+			OfflinePlayer offline = Bukkit.getOfflinePlayer(playerId);
+			skullMeta.setOwningPlayer(offline);
+			skullMeta.displayName(mmNoItalic("<yellow>" + name + "</yellow>"));
+			skullMeta.lore(mmNoItalic(List.of(
+				"<gray>Bấm để xem hồ sơ.</gray>"
+			)));
+			skullMeta.getPersistentDataContainer().set(actionKey, PersistentDataType.STRING, ACTION_MATCH_PLAYER_PROFILE);
+			skullMeta.getPersistentDataContainer().set(targetKey, PersistentDataType.STRING, playerId.toString());
+			item.setItemMeta(skullMeta);
+		} else if (meta != null) {
+			meta.displayName(mmNoItalic("<yellow>" + name + "</yellow>"));
+			meta.lore(mmNoItalic(List.of("<gray>Bấm để xem hồ sơ.</gray>")));
+			meta.getPersistentDataContainer().set(actionKey, PersistentDataType.STRING, ACTION_MATCH_PLAYER_PROFILE);
+			meta.getPersistentDataContainer().set(targetKey, PersistentDataType.STRING, playerId.toString());
+			item.setItemMeta(meta);
+		}
+		return item;
+	}
+
+	private String resolvePlayerName(UUID playerId) {
+		Player online = Bukkit.getPlayer(playerId);
+		if (online != null && online.getName() != null && !online.getName().isBlank()) {
+			return online.getName();
+		}
+		OfflinePlayer offline = Bukkit.getOfflinePlayer(playerId);
+		String name = offline == null ? null : offline.getName();
+		return name == null || name.isBlank() ? "Người chơi" : name;
+	}
+
 	private int getHistoryPageCount(int totalEntries) {
 		if (totalEntries <= 0) {
 			return 0;
 		}
 		return (totalEntries + HISTORY_PAGE_SIZE - 1) / HISTORY_PAGE_SIZE;
+	}
+
+	private int getMatchPlayersPageCount(int totalEntries) {
+		if (totalEntries <= 0) {
+			return 0;
+		}
+		return (totalEntries + MATCH_PLAYERS_PAGE_SIZE - 1) / MATCH_PLAYERS_PAGE_SIZE;
 	}
 
 	private int getCardsInfoPageCount(int totalEntries) {
@@ -2315,6 +2577,7 @@ public class GuiService {
 		CARDS,
 		CARDS_INFO,
 		MATCH_INFO,
+		MATCH_PLAYERS,
 		CARDS_ADJUST,
 		PROFILE,
 		PROFILE_HISTORY

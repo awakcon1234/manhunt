@@ -10,7 +10,9 @@ import dev.belikhun.lunamanhunt.service.compass.CompassService;
 import dev.belikhun.lunamanhunt.service.kit.SpeedrunnerKitService;
 import dev.belikhun.lunamanhunt.service.lobby.LobbyManager;
 import dev.belikhun.lunamanhunt.util.Text;
+import dev.belikhun.lunamanhunt.util.UiColors;
 import org.bukkit.Bukkit;
+import org.bukkit.GameRules;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.Sound;
@@ -77,6 +79,7 @@ public class MatchLifecycleService {
 		if (bukkitWorld == null) {
 			return;
 		}
+		applyWorldRule(bukkitWorld);
 		String label = formatWorldLabel(bukkitWorld.getEnvironment());
 		String seed = String.valueOf(bukkitWorld.getSeed());
 		broadcast(match, "<green>✔</green> Thế giới <yellow>" + label + "</yellow> đã tạo xong. Seed: <white>" + seed + "</white>.");
@@ -152,6 +155,7 @@ public class MatchLifecycleService {
 		Player speedrunner = Bukkit.getPlayer(match.getSpeedrunnerId());
 		if (speedrunner != null) {
 			Text.msg(speedrunner, "<green>✔</green> Bạn nhận được <white>1</white> điểm khởi đầu và <white>7</white> thẻ mới.");
+			Text.msg(speedrunner, "<yellow>ℹ</yellow> Dùng " + UiColors.command("/c") + " để sử dụng điểm.");
 		}
 		playMatchStartSound(match);
 		broadcast(match, "<green>✔</green> Trận đấu bắt đầu. Chúc may mắn!");
@@ -227,11 +231,31 @@ public class MatchLifecycleService {
 		border.setSize(match.getSettings().getWorldBorderLimit());
 	}
 
+	private void applyWorldRule(World world) {
+		if (world == null) {
+			return;
+		}
+		world.setGameRule(GameRules.IMMEDIATE_RESPAWN, true);
+		world.setGameRule(GameRules.LOCATOR_BAR, false);
+	}
+
 	private void teleportPlayers(Match match, Location spawn) {
 		for (UUID id : Set.copyOf(match.getLobbyPlayers())) {
 			Player player = Bukkit.getPlayer(id);
 			if (player != null) {
 				player.teleport(spawn);
+			}
+		}
+	}
+
+	private void setMatchRespawnPoint(Match match, Location spawn) {
+		if (match == null || spawn == null) {
+			return;
+		}
+		for (UUID id : Set.copyOf(match.getLobbyPlayers())) {
+			Player player = Bukkit.getPlayer(id);
+			if (player != null) {
+				player.setRespawnLocation(spawn, true);
 			}
 		}
 	}
@@ -396,6 +420,7 @@ public class MatchLifecycleService {
 		Location spawn = overworld.getSpawnLocation();
 		applyWorldBorder(overworld, spawn, match.getSettings());
 		teleportPlayers(match, spawn);
+		setMatchRespawnPoint(match, spawn);
 		clearLobbyItems(match);
 		setGameMode(match, GameMode.ADVENTURE);
 		giveSpeedrunnerKit(match, match.getSpeedrunnerId());

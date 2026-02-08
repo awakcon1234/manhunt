@@ -19,6 +19,7 @@ commands:
   cards:
     description: "Quản lý thẻ bài"
     usage: "/cards"
+    aliases: ["c"]
 
 permissions:
   lunamanhunt.match:

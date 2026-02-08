@@ -4,6 +4,7 @@ public final class UiColors {
 	public static final String TITLE_PRIMARY = "#1f2a3a";
 	public static final String TITLE_SECONDARY = "#3a4756";
 	public static final String TITLE_DANGER = "#3a1f1f";
+	public static final String COMMAND_HIGHLIGHT = "#59c3ff";
 
 	private UiColors() {
 	}
@@ -18,6 +19,18 @@ public final class UiColors {
 
 	public static String titleDanger(String text) {
 		return wrap(TITLE_DANGER, text);
+	}
+
+	public static String command(String command) {
+		if (command == null || command.isBlank()) {
+			return "";
+		}
+		String display = command.replace("<", "\\<").replace(">", "\\>");
+		String styled = wrap(COMMAND_HIGHLIGHT, display);
+		return "<click:suggest_command:'" + command + "'>"
+			+ "<hover:show_text:'<gray>Bấm để dán lệnh </gray>" + styled + "'>"
+			+ styled
+			+ "</hover></click>";
 	}
 
 	public static String wrap(String hex, String text) {

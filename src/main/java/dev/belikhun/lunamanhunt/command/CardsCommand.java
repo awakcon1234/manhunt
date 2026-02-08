@@ -89,7 +89,7 @@ public class CardsCommand implements TabExecutor {
 			return true;
 		}
 		if (args.length < 2) {
-			Text.msg(player, "<red>❌</red> Dùng: <yellow>/cards use <số_thẻ></yellow>.");
+			Text.msg(player, "<red>❌</red> Dùng: <yellow>/c use <số_thẻ></yellow>.");
 			return true;
 		}
 		int index;

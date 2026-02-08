@@ -6,6 +6,11 @@ import dev.belikhun.lunamanhunt.model.match.MatchState;
 import dev.belikhun.lunamanhunt.model.match.MatchVisibility;
 import dev.belikhun.lunamanhunt.service.match.MatchSettingsService;
 import dev.belikhun.lunamanhunt.service.match.MatchManager;
+import dev.belikhun.lunamanhunt.util.Text;
+
+import org.bukkit.Bukkit;
+import org.bukkit.OfflinePlayer;
+import org.bukkit.entity.Player;
 
 import java.util.Map;
 import java.util.Objects;
@@ -89,6 +94,7 @@ public class LobbyManager {
 
 		match.getLobbyPlayers().add(playerId);
 		playerMatchIndex.put(playerId, match.getId());
+		announceMemberJoined(match, playerId);
 		return LobbyActionResult.ok("<green>✔</green> Đã tham gia phòng <yellow>" + match.getId() + "</yellow>.", match);
 	}
 
@@ -113,6 +119,7 @@ public class LobbyManager {
 		match.getLobbyPlayers().remove(playerId);
 		match.getInvitedPlayers().remove(playerId);
 		match.getHunters().remove(playerId);
+		announceMemberLeft(match, playerId);
 
 		if (allowDisband && match.getOwnerId().equals(playerId)) {
 			disbandMatch(match);
@@ -124,6 +131,53 @@ public class LobbyManager {
 		}
 
 		return LobbyActionResult.ok("<green>✔</green> Đã rời phòng.", match);
+	}
+
+	private void announceMemberJoined(Match match, UUID playerId) {
+		if (match == null || playerId == null) {
+			return;
+		}
+		String name = resolvePlayerName(playerId);
+		int count = match.getLobbyPlayers().size();
+		broadcastLobby(match, "<yellow>ℹ</yellow> <yellow>" + name
+			+ "</yellow> đã vào phòng. <gray>(" + count + " người)</gray>");
+	}
+
+	private void announceMemberLeft(Match match, UUID playerId) {
+		if (match == null || playerId == null) {
+			return;
+		}
+		String name = resolvePlayerName(playerId);
+		int count = match.getLobbyPlayers().size();
+		broadcastLobby(match, "<yellow>ℹ</yellow> <yellow>" + name
+			+ "</yellow> đã rời phòng. <gray>(" + count + " người)</gray>");
+	}
+
+	private void broadcastLobby(Match match, String message) {
+		if (match == null || message == null) {
+			return;
+		}
+		Set<UUID> members = new java.util.HashSet<>(match.getLobbyPlayers());
+		members.addAll(match.getHunters());
+		if (match.getSpeedrunnerId() != null) {
+			members.add(match.getSpeedrunnerId());
+		}
+		for (UUID memberId : Set.copyOf(members)) {
+			Player member = Bukkit.getPlayer(memberId);
+			if (member != null) {
+				Text.msg(member, message);
+			}
+		}
+	}
+
+	private String resolvePlayerName(UUID playerId) {
+		Player online = Bukkit.getPlayer(playerId);
+		if (online != null && online.getName() != null && !online.getName().isBlank()) {
+			return online.getName();
+		}
+		OfflinePlayer offline = Bukkit.getOfflinePlayer(playerId);
+		String name = offline == null ? null : offline.getName();
+		return name == null || name.isBlank() ? "Người chơi" : name;
 	}
 
 	public LobbyActionResult disbandMatch(Match match) {

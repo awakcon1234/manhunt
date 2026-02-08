@@ -44,13 +44,18 @@ public class MatchEndService {
 		this.cardService = Objects.requireNonNull(cardService, "cardService");
 	}
 
-	public void endWithHunters(Match match, String message) {
+	public void endWithHunters(Match match, String message, Location deathLocation, boolean showSequence) {
 		if (match == null) {
 			return;
 		}
 		match.setWinner(MatchWinner.HUNTERS);
+		match.setState(MatchState.ENDING);
 		broadcast(match, message);
-		finishMatch(match);
+		if (!showSequence) {
+			finishMatch(match, true);
+			return;
+		}
+		startHunterWinSequence(match, deathLocation);
 	}
 
 	public void endWithSpeedrunner(Match match, String message) {
@@ -83,7 +88,7 @@ public class MatchEndService {
 		if (expected == null || !expected.equals(player.getUniqueId())) {
 			return;
 		}
-		finishMatch(match);
+		finishMatch(match, false);
 	}
 
 	public void forceCleanup(Match match) {
@@ -162,7 +167,65 @@ public class MatchEndService {
 		firework.setFireworkMeta(meta);
 	}
 
-	private void finishMatch(Match match) {
+	private void startHunterWinSequence(Match match, Location deathLocation) {
+		if (match == null) {
+			return;
+		}
+		Location center = resolveHunterWinLocation(match, deathLocation);
+		for (UUID id : Set.copyOf(match.getLobbyPlayers())) {
+			Player player = Bukkit.getPlayer(id);
+			if (player == null) {
+				continue;
+			}
+			player.setGameMode(GameMode.SPECTATOR);
+			if (center != null) {
+				player.teleport(center);
+			}
+		}
+		startHunterFireworks(match, center);
+		new BukkitRunnable() {
+			@Override
+			public void run() {
+				finishMatch(match, true);
+			}
+		}.runTaskLater(plugin, 20L * 10);
+	}
+
+	private Location resolveHunterWinLocation(Match match, Location deathLocation) {
+		if (deathLocation != null) {
+			return deathLocation.clone();
+		}
+		MatchWorlds worlds = match.getWorlds();
+		World overworld = worlds == null ? null : Bukkit.getWorld(worlds.getOverworldName());
+		return overworld == null ? null : overworld.getSpawnLocation();
+	}
+
+	private void startHunterFireworks(Match match, Location center) {
+		if (match == null || center == null) {
+			return;
+		}
+		World world = center.getWorld();
+		if (world == null) {
+			return;
+		}
+		new BukkitRunnable() {
+			private int ticks = 0;
+
+			@Override
+			public void run() {
+				if (ticks >= 200) {
+					cancel();
+					return;
+				}
+				for (int i = 0; i < 4; i++) {
+					spawnFirework(world, center, 10);
+				}
+				ticks += 10;
+			}
+		}.runTaskTimer(plugin, 0L, 10L);
+	}
+
+	private void finishMatch(Match match, boolean clearInventory) {
 		awaitingPortal.remove(match.getId());
 		cardService.clearActiveCards(match);
 		match.setState(MatchState.CLEANUP);
@@ -173,6 +236,12 @@ public class MatchEndService {
 			if (player != null) {
 				if (player.getGameMode() == GameMode.SPECTATOR) {
 					player.setGameMode(GameMode.SURVIVAL);
+				}
+				if (clearInventory) {
+					player.getInventory().clear();
+					player.getInventory().setArmorContents(null);
+					player.getInventory().setItemInOffHand(null);
+					player.getInventory().setExtraContents(null);
 				}
 				lobbyTeleportService.teleportToLobby(player, false);
 			}
