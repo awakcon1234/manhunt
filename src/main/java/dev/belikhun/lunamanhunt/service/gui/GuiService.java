@@ -2130,9 +2130,10 @@ public class GuiService {
 		if (meta != null) {
 			meta.displayName(mmNoItalic("<yellow>Mã phòng: <white>" + match.getId() + "</white></yellow>"));
 			meta.lore(mmNoItalic(List.of(
-				"<gray>Chủ phòng: <white>" + ownerName + "</white></gray>",
-				"<gray>Hiển thị: <white>" + formatVisibility(match.getSettings().getVisibility()) + "</white></gray>",
-				"<gray>Người chơi: <white>" + formatNumber(match.getLobbyPlayers().size()) + "</white></gray>",
+				"<gray>● Chủ phòng: <#7fd36b>" + ownerName + "</#7fd36b></gray>",
+				"<gray>● Hiển thị: " + formatVisibilityColored(match.getSettings().getVisibility()) + "</gray>",
+				"<gray>● Người chơi: <white>" + formatNumber(match.getLobbyPlayers().size()) + "</white></gray>",
+				" ",
 				"<gray>Bấm để tham gia.</gray>"
 			)));
 			meta.getPersistentDataContainer().set(actionKey, PersistentDataType.STRING, ACTION_MATCH_JOIN);

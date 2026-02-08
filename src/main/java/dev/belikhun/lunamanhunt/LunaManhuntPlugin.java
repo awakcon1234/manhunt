@@ -35,6 +35,8 @@ import dev.belikhun.lunamanhunt.service.spawn.LobbyItemService;
 import dev.belikhun.lunamanhunt.service.spawn.LobbyTeleportService;
 import dev.belikhun.lunamanhunt.service.spawn.SpawnService;
 import io.papermc.paper.plugin.lifecycle.event.types.LifecycleEvents;
+import org.bukkit.permissions.Permission;
+import org.bukkit.permissions.PermissionDefault;
 import org.bukkit.plugin.java.JavaPlugin;
 
 public final class LunaManhuntPlugin extends JavaPlugin {
@@ -58,6 +60,7 @@ public final class LunaManhuntPlugin extends JavaPlugin {
     @Override
     public void onEnable() {
         saveDefaultConfig();
+        registerCardPermissions();
         this.kitService = new SpeedrunnerKitService(new SpeedrunnerKitStore());
         this.matchSettingsService = new MatchSettingsService(this, kitService);
         this.persistenceManager = new PersistenceManager(this, matchSettingsService);
@@ -102,14 +105,35 @@ public final class LunaManhuntPlugin extends JavaPlugin {
         BasicCommandAdapter adminAdapter = new BasicCommandAdapter("lm", adminCommand);
         BasicCommandAdapter spawnAdapter = new BasicCommandAdapter("spawn", spawnCommand);
         BasicCommandAdapter cardsAdapter = new BasicCommandAdapter("cards", cardsCommand);
+        BasicCommandAdapter cardsAliasAdapter = new BasicCommandAdapter("c", cardsCommand);
         getLifecycleManager().registerEventHandler(LifecycleEvents.COMMANDS, event -> {
             event.registrar().register("match", matchAdapter);
             event.registrar().register("m", matchAliasAdapter);
             event.registrar().register("lm", adminAdapter);
             event.registrar().register("spawn", spawnAdapter);
             event.registrar().register("cards", cardsAdapter);
+            event.registrar().register("c", cardsAliasAdapter);
         });
         getLogger().info("LunaManhunt enabled");
+    }
+
+    private void registerCardPermissions() {
+        registerPermission("lunamanhunt.cards", "Xem thẻ bài", PermissionDefault.TRUE);
+        registerPermission("lunamanhunt.cards.use", "Dùng thẻ bài", PermissionDefault.TRUE);
+    }
+
+    private void registerPermission(String node, String description, PermissionDefault defaultValue) {
+        var pluginManager = getServer().getPluginManager();
+        Permission permission = pluginManager.getPermission(node);
+        if (permission == null) {
+            permission = new Permission(node, description, defaultValue);
+            pluginManager.addPermission(permission);
+            return;
+        }
+        permission.setDefault(defaultValue);
+        if ((permission.getDescription() == null || permission.getDescription().isBlank()) && description != null) {
+            permission.setDescription(description);
+        }
     }
 
     @Override
