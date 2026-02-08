@@ -62,7 +62,7 @@ public final class LunaManhuntPlugin extends JavaPlugin {
         this.pointService = new PointService();
         this.cardService = new CardService(this, lobbyManager, compassService, pointService);
         this.guiService = new GuiService(this, lobbyManager, matchManager, cardService, pointService,
-            persistenceManager.getProfileStore());
+            persistenceManager.getProfileStore(), matchSettingsService);
         this.lobbyItemService = new LobbyItemService(this, lobbyManager, guiService);
         this.guiService.setLobbyItemService(lobbyItemService);
         this.lobbyTeleportService = new LobbyTeleportService(this, lobbyItemService);
