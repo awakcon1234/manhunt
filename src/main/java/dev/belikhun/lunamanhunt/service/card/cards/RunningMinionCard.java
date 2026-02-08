@@ -22,7 +22,12 @@ public class RunningMinionCard extends BaseCard {
 		if (speedrunner == null) {
 			return false;
 		}
-		AttributeInstance scale = speedrunner.getAttribute(Attribute.GENERIC_SCALE);
+		Attribute scaleAttribute = resolveScaleAttribute();
+		if (scaleAttribute == null) {
+			Text.msg(speedrunner, "<red>❌</red> Không thể thay đổi kích thước lúc này.");
+			return false;
+		}
+		AttributeInstance scale = speedrunner.getAttribute(scaleAttribute);
 		if (scale == null) {
 			Text.msg(speedrunner, "<red>❌</red> Không thể thay đổi kích thước lúc này.");
 			return false;
@@ -30,11 +35,23 @@ public class RunningMinionCard extends BaseCard {
 		double original = scale.getBaseValue();
 		scale.setBaseValue(0.5D);
 		context.runLater(() -> {
-			AttributeInstance current = speedrunner.getAttribute(Attribute.GENERIC_SCALE);
+			AttributeInstance current = speedrunner.getAttribute(scaleAttribute);
 			if (current != null) {
 				current.setBaseValue(original);
 			}
 		}, 20L * 120L);
 		return true;
+	}
+
+	private Attribute resolveScaleAttribute() {
+		try {
+			return Attribute.valueOf("GENERIC_SCALE");
+		} catch (IllegalArgumentException ignored) {
+		}
+		try {
+			return Attribute.valueOf("SCALE");
+		} catch (IllegalArgumentException ignored) {
+		}
+		return null;
 	}
 }

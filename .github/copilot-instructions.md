@@ -4,6 +4,9 @@
 - Java/Gradle/Groovy: **tab indent** (tab width=4)
 - YAML: **spaces only** (see .editorconfig)
 
+## GUI UX rules
+- **Scannable UI text**: add blank spacer lines between logical sections in GUI item lore
+
 ## Big Picture
 - Plugin entry point wires services and listeners in [src/main/java/dev/belikhun/lunamanhunt/LunaManhuntPlugin.java](src/main/java/dev/belikhun/lunamanhunt/LunaManhuntPlugin.java).
 - Match lifecycle lives in [src/main/java/dev/belikhun/lunamanhunt/service/match/MatchManager.java](src/main/java/dev/belikhun/lunamanhunt/service/match/MatchManager.java) and drives `MatchState` transitions.
@@ -39,4 +42,5 @@
 
 ## Build/Run
 - Build with `./gradlew build` (Paper API + Multiverse are compileOnly).
+- Always run `./gradlew shadowJar` after completing a task to verify build errors.
 - No automated tests are defined yet.

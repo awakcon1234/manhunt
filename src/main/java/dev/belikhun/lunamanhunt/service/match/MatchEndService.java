@@ -83,6 +83,22 @@ public class MatchEndService {
 		finishMatch(match);
 	}
 
+	public void forceCleanup(Match match) {
+		if (match == null) {
+			return;
+		}
+		awaitingPortal.remove(match.getId());
+		match.setState(MatchState.CLEANUP);
+		match.setEndedAtMillis(System.currentTimeMillis());
+		cleanupWorlds(match);
+		match.getHunters().clear();
+		match.getDrawnCards().clear();
+		match.setSpeedrunnerPoints(0);
+		match.setSpeedrunnerId(null);
+		match.setState(MatchState.FINISHED);
+		lobbyManager.disbandMatch(match);
+	}
+
 	private void teleportHuntersToEnd(Match match) {
 		MatchWorlds worlds = match.getWorlds();
 		World endWorld = worlds == null ? null : Bukkit.getWorld(worlds.getEndName());

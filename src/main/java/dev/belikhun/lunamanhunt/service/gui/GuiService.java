@@ -6,13 +6,18 @@ import dev.belikhun.lunamanhunt.model.match.MatchState;
 import dev.belikhun.lunamanhunt.model.match.MatchVisibility;
 import dev.belikhun.lunamanhunt.model.match.SpeedrunnerSelection;
 import dev.belikhun.lunamanhunt.model.card.CardDefinition;
+import dev.belikhun.lunamanhunt.model.match.MatchWinner;
+import dev.belikhun.lunamanhunt.model.profile.MatchHistoryEntry;
+import dev.belikhun.lunamanhunt.model.profile.PlayerProfile;
 import dev.belikhun.lunamanhunt.service.card.CardService;
 import dev.belikhun.lunamanhunt.service.lobby.LobbyActionResult;
 import dev.belikhun.lunamanhunt.service.lobby.LobbyManager;
 import dev.belikhun.lunamanhunt.service.match.MatchManager;
+import dev.belikhun.lunamanhunt.service.persistence.ProfileStore;
 import dev.belikhun.lunamanhunt.service.point.PointService;
 import dev.belikhun.lunamanhunt.util.ItemStackCodec;
 import dev.belikhun.lunamanhunt.util.Text;
+import dev.belikhun.lunamanhunt.util.UiColors;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.TextDecoration;
 import org.bukkit.Bukkit;
@@ -28,6 +33,9 @@ import org.bukkit.persistence.PersistentDataContainer;
 import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.plugin.java.JavaPlugin;
 
+import java.time.Instant;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -79,29 +87,42 @@ public class GuiService {
 	private static final String ACTION_CARD_USE = "card_use";
 	private static final String ACTION_CARD_DRAW = "card_draw";
 	private static final String ACTION_CARD_CLOSE = "card_close";
+	private static final String ACTION_CARDS_INFO_CLOSE = "cards_info_close";
+	private static final String ACTION_CARDS_INFO_PREV = "cards_info_prev";
+	private static final String ACTION_CARDS_INFO_NEXT = "cards_info_next";
+	private static final String ACTION_PROFILE_CLOSE = "profile_close";
+	private static final String ACTION_PROFILE_HISTORY_OPEN = "profile_history_open";
+	private static final String ACTION_PROFILE_HISTORY_BACK = "profile_history_back";
+	private static final String ACTION_PROFILE_HISTORY_PREV = "profile_history_prev";
+	private static final String ACTION_PROFILE_HISTORY_NEXT = "profile_history_next";
+
+	private static final int HISTORY_PAGE_SIZE = 45;
+	private static final int CARDS_INFO_PAGE_SIZE = 45;
 
 	private final LobbyManager lobbyManager;
 	private final MatchManager matchManager;
 	private final CardService cardService;
 	private final PointService pointService;
+	private final ProfileStore profileStore;
 	private final NamespacedKey actionKey;
 	private final NamespacedKey targetKey;
 	private final java.util.Map<UUID, String> seedInputs = new java.util.concurrent.ConcurrentHashMap<>();
 	private final java.util.Map<UUID, String> kitEditors = new java.util.concurrent.ConcurrentHashMap<>();
 
 	public GuiService(JavaPlugin plugin, LobbyManager lobbyManager, MatchManager matchManager, CardService cardService,
-			PointService pointService) {
+			PointService pointService, ProfileStore profileStore) {
 		this.lobbyManager = Objects.requireNonNull(lobbyManager, "lobbyManager");
 		this.matchManager = Objects.requireNonNull(matchManager, "matchManager");
 		this.cardService = Objects.requireNonNull(cardService, "cardService");
 		this.pointService = Objects.requireNonNull(pointService, "pointService");
+		this.profileStore = Objects.requireNonNull(profileStore, "profileStore");
 		this.actionKey = new NamespacedKey(plugin, ACTION_KEY);
 		this.targetKey = new NamespacedKey(plugin, TARGET_KEY);
 	}
 
 	public void openMainMenu(Player player) {
 		Inventory inventory = Bukkit.createInventory(new GuiHolder(GuiType.MAIN, null), 54,
-			Text.mm("<gold>LunaManhunt</gold> <white>- Phòng đấu</white>"));
+			Text.mm(UiColors.titlePrimary("LunaManhunt") + " " + UiColors.titleSecondary("- Phòng đấu")));
 		fillMainMenu(player, inventory);
 		player.openInventory(inventory);
 	}
@@ -112,7 +133,7 @@ public class GuiService {
 			return;
 		}
 		Inventory inventory = Bukkit.createInventory(new GuiHolder(GuiType.LOBBY, match.getId()), 27,
-			Text.mm("<gold>Phòng</gold> <white>" + match.getId() + "</white>"));
+			Text.mm(UiColors.titlePrimary("Phòng") + " " + UiColors.titleSecondary(match.getId())));
 		fillLobbyMenu(player, match, inventory);
 		player.openInventory(inventory);
 	}
@@ -123,7 +144,7 @@ public class GuiService {
 			return;
 		}
 		Inventory inventory = Bukkit.createInventory(new GuiHolder(GuiType.INVITE, match.getId()), 54,
-			Text.mm("<gold>Mời người chơi</gold>"));
+			Text.mm(UiColors.titlePrimary("Mời người chơi")));
 		fillInviteMenu(player, match, inventory);
 		player.openInventory(inventory);
 	}
@@ -134,7 +155,7 @@ public class GuiService {
 			return;
 		}
 		Inventory inventory = Bukkit.createInventory(new GuiHolder(GuiType.SETTINGS, match.getId()), 27,
-			Text.mm("<gold>Cài đặt phòng</gold>"));
+			Text.mm(UiColors.titlePrimary("Cài đặt phòng")));
 		fillSettingsMenu(match, inventory);
 		player.openInventory(inventory);
 	}
@@ -145,7 +166,7 @@ public class GuiService {
 			return;
 		}
 		Inventory inventory = Bukkit.createInventory(new GuiHolder(GuiType.SPEEDRUNNER, match.getId()), 54,
-			Text.mm("<gold>Chọn speedrunner</gold>"));
+			Text.mm(UiColors.titlePrimary("Chọn speedrunner")));
 		fillSpeedrunnerMenu(match, inventory);
 		player.openInventory(inventory);
 	}
@@ -156,7 +177,7 @@ public class GuiService {
 			return;
 		}
 		Inventory inventory = Bukkit.createInventory(new GuiHolder(GuiType.KIT_EDITOR, match.getId()), 54,
-			Text.mm("<gold>Bộ đồ speedrunner</gold>"));
+			Text.mm(UiColors.titlePrimary("Bộ đồ speedrunner")));
 		List<ItemStack> items = ItemStackCodec.decodeList(match.getSettings().getSpeedrunnerKit());
 		for (int i = 0; i < inventory.getSize() && i < items.size(); i++) {
 			inventory.setItem(i, items.get(i));
@@ -172,7 +193,7 @@ public class GuiService {
 			return;
 		}
 		Inventory inventory = Bukkit.createInventory(new GuiHolder(GuiType.KIT_CLEAR_CONFIRM, match.getId()), 27,
-			Text.mm("<red>Xác nhận xóa bộ đồ</red>"));
+			Text.mm(UiColors.titleDanger("Xác nhận xóa bộ đồ")));
 		fillKitClearConfirmMenu(inventory);
 		player.openInventory(inventory);
 	}
@@ -183,8 +204,47 @@ public class GuiService {
 			return;
 		}
 		Inventory inventory = Bukkit.createInventory(new GuiHolder(GuiType.CARDS, match.getId()), 27,
-			Text.mm("<gold>Thẻ bài</gold>"));
+			Text.mm(UiColors.titlePrimary("Thẻ bài")));
 		fillCardsMenu(match, inventory);
+		player.openInventory(inventory);
+	}
+
+	public void openCardsInfoMenu(Player player, int page) {
+		if (player == null) {
+			return;
+		}
+		List<CardDefinition> pool = cardService.getCardPool();
+		int totalPages = getCardsInfoPageCount(pool.size());
+		int safePage = clamp(page, 0, Math.max(0, totalPages - 1));
+		Inventory inventory = Bukkit.createInventory(new GuiHolder(GuiType.CARDS_INFO, null), 54,
+			Text.mm(UiColors.titlePrimary("Danh sách thẻ") + " "
+				+ UiColors.titleSecondary("- Trang " + (safePage + 1) + "/" + Math.max(1, totalPages))));
+		fillCardsInfoMenu(pool, inventory, safePage, totalPages);
+		player.openInventory(inventory);
+	}
+
+	public void openProfileMenu(Player player) {
+		if (player == null) {
+			return;
+		}
+		PlayerProfile profile = profileStore.load(player.getUniqueId());
+		Inventory inventory = Bukkit.createInventory(new GuiHolder(GuiType.PROFILE, null), 27,
+			Text.mm(UiColors.titlePrimary("Hồ sơ") + " " + UiColors.titleSecondary(player.getName())));
+		fillProfileMenu(player, profile, inventory);
+		player.openInventory(inventory);
+	}
+
+	public void openProfileHistoryMenu(Player player, int page) {
+		if (player == null) {
+			return;
+		}
+		PlayerProfile profile = profileStore.load(player.getUniqueId());
+		int totalPages = getHistoryPageCount(profile.getMatchHistory().size());
+		int safePage = clamp(page, 0, Math.max(0, totalPages - 1));
+		Inventory inventory = Bukkit.createInventory(new GuiHolder(GuiType.PROFILE_HISTORY, null), 54,
+			Text.mm(UiColors.titlePrimary("Lịch sử") + " "
+				+ UiColors.titleSecondary("- Trang " + (safePage + 1) + "/" + Math.max(1, totalPages))));
+		fillProfileHistoryMenu(profile, inventory, safePage, totalPages);
 		player.openInventory(inventory);
 	}
 
@@ -245,6 +305,12 @@ public class GuiService {
 			case ACTION_CARD_USE -> handleUseCard(player, holder.matchId(), target);
 			case ACTION_CARD_DRAW -> handleDrawCards(player, holder.matchId());
 			case ACTION_CARD_CLOSE -> player.closeInventory();
+			case ACTION_CARDS_INFO_CLOSE -> player.closeInventory();
+			case ACTION_CARDS_INFO_PREV, ACTION_CARDS_INFO_NEXT -> handleOpenCardsInfoPage(player, target);
+			case ACTION_PROFILE_CLOSE -> player.closeInventory();
+			case ACTION_PROFILE_HISTORY_OPEN -> openProfileHistoryMenu(player, 0);
+			case ACTION_PROFILE_HISTORY_BACK -> openProfileMenu(player);
+			case ACTION_PROFILE_HISTORY_PREV, ACTION_PROFILE_HISTORY_NEXT -> handleOpenHistoryPage(player, target);
 			default -> {
 			}
 		}
@@ -478,6 +544,91 @@ public class GuiService {
 		inventory.setItem(26, buildActionItem(Material.BARRIER,
 			"<red>❌</red> Đóng",
 			List.of("<gray>Đóng bảng thẻ bài.</gray>"), ACTION_CARD_CLOSE, null));
+	}
+
+	private void fillCardsInfoMenu(List<CardDefinition> pool, Inventory inventory, int page, int totalPages) {
+		if (pool == null || inventory == null) {
+			return;
+		}
+		int start = page * CARDS_INFO_PAGE_SIZE;
+		int end = Math.min(pool.size(), start + CARDS_INFO_PAGE_SIZE);
+		int slot = 0;
+		for (int i = start; i < end; i++) {
+			inventory.setItem(slot++, cardService.buildCardInfoItem(pool.get(i)));
+		}
+		if (pool.isEmpty()) {
+			inventory.setItem(22, buildInfoItem(Material.PAPER,
+				"<yellow>ℹ</yellow> Chưa có thẻ",
+				List.of("<gray>Danh sách thẻ đang trống.</gray>")));
+		}
+
+		if (page > 0) {
+			inventory.setItem(45, buildActionItem(Material.ARROW,
+				"<yellow>ℹ</yellow> Trang trước",
+				List.of("<gray>Xem trang trước.</gray>"), ACTION_CARDS_INFO_PREV,
+				String.valueOf(page - 1)));
+		}
+		if (page < totalPages - 1) {
+			inventory.setItem(53, buildActionItem(Material.ARROW,
+				"<yellow>ℹ</yellow> Trang sau",
+				List.of("<gray>Xem trang tiếp theo.</gray>"), ACTION_CARDS_INFO_NEXT,
+				String.valueOf(page + 1)));
+		}
+
+		inventory.setItem(49, buildActionItem(Material.BARRIER,
+			"<red>❌</red> Đóng",
+			List.of("<gray>Đóng danh sách thẻ.</gray>"), ACTION_CARDS_INFO_CLOSE, null));
+	}
+
+	private void fillProfileMenu(Player player, PlayerProfile profile, Inventory inventory) {
+		if (player == null || profile == null || inventory == null) {
+			return;
+		}
+		inventory.setItem(13, buildProfileSummaryItem(player, profile));
+		inventory.setItem(15, buildHistorySummaryItem(profile));
+		inventory.setItem(22, buildActionItem(Material.BARRIER,
+			"<red>❌</red> Đóng",
+			List.of("<gray>Đóng hồ sơ.</gray>"), ACTION_PROFILE_CLOSE, null));
+	}
+
+	private void fillProfileHistoryMenu(PlayerProfile profile, Inventory inventory, int page, int totalPages) {
+		if (profile == null || inventory == null) {
+			return;
+		}
+		List<MatchHistoryEntry> history = profile.getMatchHistory();
+		List<MatchHistoryEntry> ordered = new ArrayList<>(history.size());
+		for (int i = history.size() - 1; i >= 0; i--) {
+			ordered.add(history.get(i));
+		}
+		if (ordered.isEmpty()) {
+			inventory.setItem(22, buildInfoItem(Material.PAPER,
+				"<yellow>ℹ</yellow> Chưa có trận đấu",
+				List.of("<gray>Hãy chơi để ghi lại lịch sử.</gray>")));
+		}
+
+		int start = page * HISTORY_PAGE_SIZE;
+		int end = Math.min(ordered.size(), start + HISTORY_PAGE_SIZE);
+		int slot = 0;
+		for (int i = start; i < end; i++) {
+			inventory.setItem(slot++, buildHistoryEntryItem(ordered.get(i)));
+		}
+
+		if (page > 0) {
+			inventory.setItem(45, buildActionItem(Material.ARROW,
+				"<yellow>ℹ</yellow> Trang trước",
+				List.of("<gray>Xem trang trước.</gray>"), ACTION_PROFILE_HISTORY_PREV,
+				String.valueOf(page - 1)));
+		}
+		if (page < totalPages - 1) {
+			inventory.setItem(53, buildActionItem(Material.ARROW,
+				"<yellow>ℹ</yellow> Trang sau",
+				List.of("<gray>Xem trang tiếp theo.</gray>"), ACTION_PROFILE_HISTORY_NEXT,
+				String.valueOf(page + 1)));
+		}
+
+		inventory.setItem(49, buildActionItem(Material.BARRIER,
+			"<red>❌</red> Quay lại",
+			List.of("<gray>Quay về hồ sơ.</gray>"), ACTION_PROFILE_HISTORY_BACK, null));
 	}
 
 	private void fillSpeedrunnerMenu(Match match, Inventory inventory) {
@@ -1051,6 +1202,192 @@ public class GuiService {
 			.toList();
 	}
 
+	private ItemStack buildProfileSummaryItem(Player player, PlayerProfile profile) {
+		ItemStack item = new ItemStack(Material.PLAYER_HEAD);
+		ItemMeta meta = item.getItemMeta();
+		String bestTime = formatDuration(profile.getBestTimeMillis());
+		List<String> lore = List.of(
+			"<gray>Thành tích tốt nhất: <white>" + bestTime + "</white></gray>",
+			"<gray>Số lần thắng: <white>" + profile.getTotalWins() + "</white></gray>",
+			"<gray>Số lần thua: <white>" + profile.getTotalLosses() + "</white></gray>",
+			"<gray>Số lần chạy: <white>" + profile.getRunTimesMillis().size() + "</white></gray>"
+		);
+		if (meta instanceof SkullMeta skullMeta) {
+			skullMeta.setOwningPlayer(player);
+			skullMeta.displayName(mmNoItalic("<yellow>Hồ sơ cá nhân</yellow>"));
+			skullMeta.lore(mmNoItalic(lore));
+			item.setItemMeta(skullMeta);
+		} else if (meta != null) {
+			meta.displayName(mmNoItalic("<yellow>Hồ sơ cá nhân</yellow>"));
+			meta.lore(mmNoItalic(lore));
+			item.setItemMeta(meta);
+		}
+		return item;
+	}
+
+	private ItemStack buildHistorySummaryItem(PlayerProfile profile) {
+		List<MatchHistoryEntry> history = profile.getMatchHistory();
+		List<String> lore = new ArrayList<>();
+		int shown = 0;
+		for (int i = history.size() - 1; i >= 0 && shown < 5; i--) {
+			MatchHistoryEntry entry = history.get(i);
+			long timeMillis = entry.getEndedAtMillis() > 0 ? entry.getEndedAtMillis()
+				: entry.getStartedAtMillis();
+			lore.add("<gray>● <white>" + safeText(entry.getMatchId(), "?") + "</white> - "
+				+ formatHistoryOutcome(entry) + "</gray>");
+			lore.add("<gray>  " + formatRelativeTime(timeMillis) + "</gray>");
+			shown++;
+		}
+		if (lore.isEmpty()) {
+			lore.add("<gray>Chưa có trận đấu.</gray>");
+		}
+		lore.add("<gray>Bấm để xem đầy đủ.</gray>");
+		return buildActionItem(Material.BOOK,
+			"<yellow>Lịch sử trận đấu</yellow>",
+			lore, ACTION_PROFILE_HISTORY_OPEN, null);
+	}
+
+	private ItemStack buildHistoryEntryItem(MatchHistoryEntry entry) {
+		String matchId = safeText(entry.getMatchId(), "Không rõ");
+		String role = formatHistoryRole(entry.getRole());
+		String outcome = formatHistoryOutcome(entry);
+		String winner = formatHistoryWinner(entry.getWinner());
+		String duration = formatDuration(entry.getDurationMillis());
+		String timestamp = formatTimestamp(entry.getEndedAtMillis() > 0 ? entry.getEndedAtMillis()
+			: entry.getStartedAtMillis());
+		return buildInfoItem(Material.PAPER,
+			"<yellow>Trận <white>" + matchId + "</white></yellow>",
+			List.of(
+				"<gray>Vai trò: <white>" + role + "</white></gray>",
+				"<gray>Kết quả: " + outcome + "</gray>",
+				"<gray>Bên thắng: <white>" + winner + "</white></gray>",
+				"<gray>Thời gian: <white>" + duration + "</white></gray>",
+				"<gray>Thời điểm: <white>" + timestamp + "</white></gray>"
+			));
+	}
+
+	private void handleOpenHistoryPage(Player player, String target) {
+		int page = parsePage(target, 0);
+		openProfileHistoryMenu(player, page);
+	}
+
+	private void handleOpenCardsInfoPage(Player player, String target) {
+		int page = parsePage(target, 0);
+		openCardsInfoMenu(player, page);
+	}
+
+	private int parsePage(String target, int fallback) {
+		if (target == null || target.isBlank()) {
+			return fallback;
+		}
+		try {
+			return Integer.parseInt(target);
+		} catch (NumberFormatException ex) {
+			return fallback;
+		}
+	}
+
+	private int getHistoryPageCount(int totalEntries) {
+		if (totalEntries <= 0) {
+			return 0;
+		}
+		return (totalEntries + HISTORY_PAGE_SIZE - 1) / HISTORY_PAGE_SIZE;
+	}
+
+	private int getCardsInfoPageCount(int totalEntries) {
+		if (totalEntries <= 0) {
+			return 0;
+		}
+		return (totalEntries + CARDS_INFO_PAGE_SIZE - 1) / CARDS_INFO_PAGE_SIZE;
+	}
+
+	private String formatHistoryOutcome(MatchHistoryEntry entry) {
+		return entry != null && entry.isWon() ? "<green>Thắng</green>" : "<red>Thua</red>";
+	}
+
+	private String formatHistoryRole(String role) {
+		if (role == null) {
+			return "Không rõ";
+		}
+		if (role.equalsIgnoreCase("SPEEDRUNNER")) {
+			return "Speedrunner";
+		}
+		if (role.equalsIgnoreCase("HUNTER")) {
+			return "Thợ săn";
+		}
+		return role;
+	}
+
+	private String formatHistoryWinner(MatchWinner winner) {
+		if (winner == null) {
+			return "Không rõ";
+		}
+		return switch (winner) {
+			case SPEEDRUNNER -> "Speedrunner";
+			case HUNTERS -> "Thợ săn";
+		};
+	}
+
+	private String safeText(String value, String fallback) {
+		return value == null || value.isBlank() ? fallback : value;
+	}
+
+	private String formatDuration(long millis) {
+		if (millis <= 0L) {
+			return "Chưa có";
+		}
+		long totalSeconds = millis / 1000L;
+		long hours = totalSeconds / 3600L;
+		long minutes = (totalSeconds % 3600L) / 60L;
+		long seconds = totalSeconds % 60L;
+		if (hours > 0) {
+			return String.format("%d:%02d:%02d", hours, minutes, seconds);
+		}
+		return String.format("%d:%02d", minutes, seconds);
+	}
+
+	private String formatTimestamp(long millis) {
+		if (millis <= 0L) {
+			return "Chưa rõ";
+		}
+		DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm")
+			.withZone(ZoneId.systemDefault());
+		return formatter.format(Instant.ofEpochMilli(millis));
+	}
+
+	private String formatRelativeTime(long millis) {
+		if (millis <= 0L) {
+			return "Không rõ";
+		}
+		long now = System.currentTimeMillis();
+		long deltaSeconds = Math.max(0L, (now - millis) / 1000L);
+		if (deltaSeconds < 60) {
+			return "Vừa xong";
+		}
+		long minutes = deltaSeconds / 60L;
+		if (minutes < 60) {
+			return minutes + " phút trước";
+		}
+		long hours = minutes / 60L;
+		if (hours < 24) {
+			return hours + " giờ trước";
+		}
+		long days = hours / 24L;
+		if (days < 7) {
+			return days + " ngày trước";
+		}
+		long weeks = days / 7L;
+		if (weeks < 4) {
+			return weeks + " tuần trước";
+		}
+		long months = days / 30L;
+		if (months < 12) {
+			return months + " tháng trước";
+		}
+		long years = days / 365L;
+		return years + " năm trước";
+	}
+
 	public enum GuiType {
 		MAIN,
 		LOBBY,
@@ -1059,7 +1396,10 @@ public class GuiService {
 		SPEEDRUNNER,
 		KIT_EDITOR,
 		KIT_CLEAR_CONFIRM,
-		CARDS
+		CARDS,
+		CARDS_INFO,
+		PROFILE,
+		PROFILE_HISTORY
 	}
 
 	public record GuiHolder(GuiType type, String matchId) implements InventoryHolder {

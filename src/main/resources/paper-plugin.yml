@@ -3,5 +3,7 @@ version: ${version}
 main: dev.belikhun.lunamanhunt.LunaManhuntPlugin
 api-version: "1.21"
 author: Belikhun
-depend:
-  - Multiverse-Core
+dependencies:
+  server:
+    Multiverse-Core:
+      required: true

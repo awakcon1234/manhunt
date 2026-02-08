@@ -1,14 +1,17 @@
 package dev.belikhun.lunamanhunt;
 
+import dev.belikhun.lunamanhunt.command.CardsCommand;
+import dev.belikhun.lunamanhunt.command.BasicCommandAdapter;
 import dev.belikhun.lunamanhunt.command.LmAdminCommand;
 import dev.belikhun.lunamanhunt.command.MatchCommand;
-import dev.belikhun.lunamanhunt.command.CardsCommand;
 import dev.belikhun.lunamanhunt.command.SpawnCommand;
 import dev.belikhun.lunamanhunt.listener.CardListener;
 import dev.belikhun.lunamanhunt.listener.CompassListener;
 import dev.belikhun.lunamanhunt.listener.EndPortalListener;
 import dev.belikhun.lunamanhunt.listener.GuiInputListener;
 import dev.belikhun.lunamanhunt.listener.GuiListener;
+import dev.belikhun.lunamanhunt.listener.LobbyHotbarListener;
+import dev.belikhun.lunamanhunt.listener.LobbyStateListener;
 import dev.belikhun.lunamanhunt.listener.MatchWinListener;
 import dev.belikhun.lunamanhunt.listener.RunStartListener;
 import dev.belikhun.lunamanhunt.listener.SpawnConfirmListener;
@@ -24,8 +27,10 @@ import dev.belikhun.lunamanhunt.service.match.MatchSettingsService;
 import dev.belikhun.lunamanhunt.service.match.WinConditionService;
 import dev.belikhun.lunamanhunt.service.persistence.PersistenceManager;
 import dev.belikhun.lunamanhunt.service.point.PointService;
+import dev.belikhun.lunamanhunt.service.spawn.LobbyItemService;
 import dev.belikhun.lunamanhunt.service.spawn.LobbyTeleportService;
 import dev.belikhun.lunamanhunt.service.spawn.SpawnService;
+import io.papermc.paper.plugin.lifecycle.event.types.LifecycleEvents;
 import org.bukkit.plugin.java.JavaPlugin;
 
 public final class LunaManhuntPlugin extends JavaPlugin {
@@ -41,6 +46,7 @@ public final class LunaManhuntPlugin extends JavaPlugin {
     private CardService cardService;
     private PointService pointService;
     private LobbyTeleportService lobbyTeleportService;
+    private LobbyItemService lobbyItemService;
     private MatchLifecycleService matchLifecycleService;
     private MatchEndService matchEndService;
 
@@ -52,23 +58,27 @@ public final class LunaManhuntPlugin extends JavaPlugin {
         this.multiverseService = new MultiverseService();
         this.matchManager = new MatchManager(this, multiverseService);
         this.lobbyManager = new LobbyManager(matchManager, matchSettingsService);
-        this.lobbyTeleportService = new LobbyTeleportService(this);
+        this.compassService = new CompassService(this, lobbyManager);
+        this.pointService = new PointService();
+        this.cardService = new CardService(this, lobbyManager, compassService, pointService);
+        this.guiService = new GuiService(this, lobbyManager, matchManager, cardService, pointService,
+            persistenceManager.getProfileStore());
+        this.lobbyItemService = new LobbyItemService(this, lobbyManager, guiService);
+        this.lobbyTeleportService = new LobbyTeleportService(this, lobbyItemService);
         this.matchEndService = new MatchEndService(this, lobbyManager, multiverseService, lobbyTeleportService);
         this.winConditionService = new WinConditionService(lobbyManager, persistenceManager.getProfileStore(),
             matchEndService);
-        this.compassService = new CompassService(this, lobbyManager);
         this.matchLifecycleService = new MatchLifecycleService(lobbyManager, matchManager, compassService);
         this.matchManager.setLifecycleService(matchLifecycleService);
         this.spawnService = new SpawnService(this, lobbyManager, matchManager, winConditionService, lobbyTeleportService);
-        this.pointService = new PointService();
-        this.cardService = new CardService(this, lobbyManager, compassService, pointService);
-        this.guiService = new GuiService(this, lobbyManager, matchManager, cardService, pointService);
 
         getServer().getPluginManager().registerEvents(new MatchWinListener(winConditionService), this);
         getServer().getPluginManager().registerEvents(new CompassListener(compassService), this);
         getServer().getPluginManager().registerEvents(new SpawnConfirmListener(spawnService), this);
         getServer().getPluginManager().registerEvents(new GuiListener(guiService), this);
         getServer().getPluginManager().registerEvents(new GuiInputListener(this, guiService), this);
+        getServer().getPluginManager().registerEvents(new LobbyHotbarListener(lobbyItemService), this);
+        getServer().getPluginManager().registerEvents(new LobbyStateListener(lobbyItemService, lobbyTeleportService), this);
         getServer().getPluginManager().registerEvents(new CardListener(cardService), this);
         getServer().getPluginManager().registerEvents(new RunStartListener(matchLifecycleService), this);
         getServer().getPluginManager().registerEvents(new EndPortalListener(matchEndService), this);
@@ -76,27 +86,28 @@ public final class LunaManhuntPlugin extends JavaPlugin {
         LmAdminCommand adminCommand = new LmAdminCommand(this, lobbyManager, matchManager);
         SpawnCommand spawnCommand = new SpawnCommand(spawnService);
         CardsCommand cardsCommand = new CardsCommand(lobbyManager, cardService, guiService);
-        if (getCommand("match") != null) {
-            getCommand("match").setExecutor(matchCommand);
-            getCommand("match").setTabCompleter(matchCommand);
-        }
-        if (getCommand("lm") != null) {
-            getCommand("lm").setExecutor(adminCommand);
-            getCommand("lm").setTabCompleter(adminCommand);
-        }
-        if (getCommand("spawn") != null) {
-            getCommand("spawn").setExecutor(spawnCommand);
-            getCommand("spawn").setTabCompleter(spawnCommand);
-        }
-        if (getCommand("cards") != null) {
-            getCommand("cards").setExecutor(cardsCommand);
-            getCommand("cards").setTabCompleter(cardsCommand);
-        }
+        BasicCommandAdapter matchAdapter = new BasicCommandAdapter("match", matchCommand);
+        BasicCommandAdapter matchAliasAdapter = new BasicCommandAdapter("m", matchCommand);
+        BasicCommandAdapter adminAdapter = new BasicCommandAdapter("lm", adminCommand);
+        BasicCommandAdapter spawnAdapter = new BasicCommandAdapter("spawn", spawnCommand);
+        BasicCommandAdapter cardsAdapter = new BasicCommandAdapter("cards", cardsCommand);
+        getLifecycleManager().registerEventHandler(LifecycleEvents.COMMANDS, event -> {
+            event.registrar().register("match", matchAdapter);
+            event.registrar().register("m", matchAliasAdapter);
+            event.registrar().register("lm", adminAdapter);
+            event.registrar().register("spawn", spawnAdapter);
+            event.registrar().register("cards", cardsAdapter);
+        });
         getLogger().info("LunaManhunt enabled");
     }
 
     @Override
     public void onDisable() {
+        if (matchEndService != null && matchManager != null) {
+            for (var match : java.util.Set.copyOf(matchManager.getMatches())) {
+                matchEndService.forceCleanup(match);
+            }
+        }
         getLogger().info("LunaManhunt disabled");
     }
 
@@ -119,4 +130,5 @@ public final class LunaManhuntPlugin extends JavaPlugin {
     public PersistenceManager getPersistenceManager() {
         return persistenceManager;
     }
+
 }

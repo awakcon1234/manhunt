@@ -8,6 +8,7 @@ public class PlayerProfile {
     private final UUID playerId;
     private long bestTimeMillis;
     private final List<Long> runTimesMillis = new ArrayList<>();
+    private final List<MatchHistoryEntry> matchHistory = new ArrayList<>();
     private int totalWins;
     private int totalLosses;
 
@@ -29,6 +30,10 @@ public class PlayerProfile {
 
     public List<Long> getRunTimesMillis() {
         return runTimesMillis;
+    }
+
+    public List<MatchHistoryEntry> getMatchHistory() {
+        return matchHistory;
     }
 
     public int getTotalWins() {

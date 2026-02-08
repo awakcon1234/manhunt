@@ -2,6 +2,9 @@ package dev.belikhun.lunamanhunt.service.match;
 
 import dev.belikhun.lunamanhunt.model.match.Match;
 import dev.belikhun.lunamanhunt.model.match.MatchState;
+import dev.belikhun.lunamanhunt.model.match.MatchWinner;
+import dev.belikhun.lunamanhunt.model.profile.MatchHistoryEntry;
+import dev.belikhun.lunamanhunt.model.profile.PlayerProfile;
 import dev.belikhun.lunamanhunt.service.lobby.LobbyManager;
 import dev.belikhun.lunamanhunt.service.persistence.ProfileStore;
 import dev.belikhun.lunamanhunt.util.Text;
@@ -102,12 +105,14 @@ public class WinConditionService {
 	}
 
 	private void endWithHunters(Match match, String message) {
+		recordMatchHistory(match, MatchWinner.HUNTERS);
 		matchEndService.endWithHunters(match, message);
 	}
 
 	private void endWithSpeedrunner(Match match) {
-		matchEndService.endWithSpeedrunner(match, "<green>✔</green> Speedrunner đã chiến thắng!");
 		recordSpeedrunTime(match);
+		recordMatchHistory(match, MatchWinner.SPEEDRUNNER);
+		matchEndService.endWithSpeedrunner(match, "<green>✔</green> Speedrunner đã chiến thắng!");
 	}
 
 	private void recordSpeedrunTime(Match match) {
@@ -126,9 +131,42 @@ public class WinConditionService {
 			if (profile.getBestTimeMillis() <= 0 || elapsed < profile.getBestTimeMillis()) {
 				profile.setBestTimeMillis(elapsed);
 			}
-			profile.setTotalWins(profile.getTotalWins() + 1);
 			profileStore.save(profile);
 		} catch (Exception ignored) {
+		}
+	}
+
+	private void recordMatchHistory(Match match, MatchWinner winner) {
+		if (profileStore == null || match == null || winner == null) {
+			return;
+		}
+		UUID speedrunnerId = match.getSpeedrunnerId();
+		Long startedAt = match.getStartedAtMillis();
+		long start = startedAt == null ? match.getCreatedAtMillis() : startedAt;
+		long endedAt = System.currentTimeMillis();
+		long duration = Math.max(0L, endedAt - start);
+		for (UUID playerId : Set.copyOf(match.getLobbyPlayers())) {
+			boolean isSpeedrunner = speedrunnerId != null && speedrunnerId.equals(playerId);
+			boolean won = winner == MatchWinner.SPEEDRUNNER ? isSpeedrunner : !isSpeedrunner;
+			try {
+				PlayerProfile profile = profileStore.load(playerId);
+				MatchHistoryEntry entry = new MatchHistoryEntry();
+				entry.setMatchId(match.getId());
+				entry.setWinner(winner);
+				entry.setRole(isSpeedrunner ? "SPEEDRUNNER" : "HUNTER");
+				entry.setWon(won);
+				entry.setStartedAtMillis(start);
+				entry.setEndedAtMillis(endedAt);
+				entry.setDurationMillis(duration);
+				profile.getMatchHistory().add(entry);
+				if (won) {
+					profile.setTotalWins(profile.getTotalWins() + 1);
+				} else {
+					profile.setTotalLosses(profile.getTotalLosses() + 1);
+				}
+				profileStore.save(profile);
+			} catch (Exception ignored) {
+			}
 		}
 	}
 

@@ -207,6 +207,15 @@ public class CardService {
 
 	public ItemStack buildCardItem(CardDefinition card, int index, NamespacedKey actionKey, NamespacedKey targetKey,
 			String actionValue) {
+		return buildCardItemInternal(card, actionKey, targetKey, actionValue, index);
+	}
+
+	public ItemStack buildCardInfoItem(CardDefinition card) {
+		return buildCardItemInternal(card, null, null, null, null);
+	}
+
+	private ItemStack buildCardItemInternal(CardDefinition card, NamespacedKey actionKey, NamespacedKey targetKey,
+			String actionValue, Integer index) {
 		Material material = card.getIcon() != null
 			? card.getIcon()
 			: (card.getType() == CardType.POWER_UP ? Material.GLOWSTONE_DUST : Material.FERMENTED_SPIDER_EYE);
@@ -217,18 +226,25 @@ public class CardService {
 			String rarityIcon = formatCardRarityIcon(card.getRarity());
 			meta.displayName(mmNoItalic(rarityColor + rarityIcon + " <white>" + card.getName() + "</white>"));
 			List<String> lore = new ArrayList<>();
+			lore.add("");
 			lore.add("<gray>● <white>Loại thẻ: " + formatCardTypeDisplay(card.getType()) + "</white>");
 			lore.add("<gray>● <white>Độ hiếm: " + formatCardRarityDisplay(card.getRarity()) + "</white>");
 			lore.add("<gray>● <white>Chi phí: " + pointService.formatPoints(card.getCost()) + "</white>");
+			lore.add("");
 			List<String> descriptionLines = wrapCardDescription(card.getDescription());
 			lore.add("<color:#36a8ff>▍</color> <white>" + descriptionLines.get(0) + "</white>");
 			if (descriptionLines.size() > 1) {
 				lore.add("<color:#36a8ff>▍</color> <white>" + descriptionLines.get(1) + "</white>");
 			}
-			lore.add("<dark_gray>#" + card.getId() + "</dark_gray>");
+			lore.add("");
+			lore.add("<dark_gray>#card/" + card.getId() + "</dark_gray>");
 			meta.lore(mmNoItalic(lore));
-			meta.getPersistentDataContainer().set(actionKey, PersistentDataType.STRING, actionValue);
-			meta.getPersistentDataContainer().set(targetKey, PersistentDataType.STRING, String.valueOf(index));
+			if (actionKey != null && actionValue != null) {
+				meta.getPersistentDataContainer().set(actionKey, PersistentDataType.STRING, actionValue);
+				if (targetKey != null && index != null) {
+					meta.getPersistentDataContainer().set(targetKey, PersistentDataType.STRING, String.valueOf(index));
+				}
+			}
 			item.setItemMeta(meta);
 		}
 		return item;

@@ -48,7 +48,7 @@ public class MatchCommand implements TabExecutor {
 		}
 
 		if (args.length == 0) {
-			sendHelp(player);
+			handleGui(player);
 			return true;
 		}
 

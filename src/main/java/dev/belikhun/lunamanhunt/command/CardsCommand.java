@@ -63,11 +63,21 @@ public class CardsCommand implements TabExecutor {
 	}
 
 	private boolean handleList(Player player) {
-		Match match = requireSpeedrunner(player);
-		if (match == null) {
+		if (!hasPerm(player, PERM_BASE)) {
 			return true;
 		}
-		guiService.openCardsMenu(player, match);
+		Match match = lobbyManager.getMatchForPlayer(player.getUniqueId());
+		if (match == null) {
+			guiService.openCardsInfoMenu(player, 0);
+			return true;
+		}
+		if (match.getState() == MatchState.RUNNING
+				&& match.getSpeedrunnerId() != null
+				&& match.getSpeedrunnerId().equals(player.getUniqueId())) {
+			guiService.openCardsMenu(player, match);
+			return true;
+		}
+		guiService.openCardsInfoMenu(player, 0);
 		return true;
 	}
 

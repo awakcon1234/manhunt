@@ -12,9 +12,11 @@ import java.util.Objects;
 
 public class LobbyTeleportService {
 	private final JavaPlugin plugin;
+	private final LobbyItemService lobbyItemService;
 
-	public LobbyTeleportService(JavaPlugin plugin) {
+	public LobbyTeleportService(JavaPlugin plugin, LobbyItemService lobbyItemService) {
 		this.plugin = Objects.requireNonNull(plugin, "plugin");
+		this.lobbyItemService = Objects.requireNonNull(lobbyItemService, "lobbyItemService");
 	}
 
 	public void teleportToLobby(Player player, boolean announce) {
@@ -23,6 +25,7 @@ public class LobbyTeleportService {
 		}
 		Location spawn = resolveLobbySpawn(player);
 		player.teleport(spawn);
+		lobbyItemService.applyLobbyState(player);
 		if (announce) {
 			Text.msg(player, "<green>✔</green> Đã dịch chuyển về sảnh.");
 		}

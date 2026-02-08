@@ -1,5 +1,6 @@
 plugins {
     `java-library`
+    id("com.github.johnrengelman.shadow") version "8.1.1"
 }
 
 group = "dev.belikhun.lunamanhunt"
@@ -16,7 +17,7 @@ repositories {
 }
 
 dependencies {
-    compileOnly("io.papermc.paper:paper-api:1.21.1-R0.1-SNAPSHOT")
+    compileOnly("io.papermc.paper:paper-api:1.21.11-R0.1-SNAPSHOT")
     compileOnly("org.mvplugins.multiverse.core:multiverse-core:5.5.2")
 }
 
@@ -24,4 +25,12 @@ tasks.processResources {
     filesMatching(listOf("plugin.yml", "paper-plugin.yml")) {
         expand("version" to project.version)
     }
+}
+
+tasks.shadowJar {
+    archiveClassifier.set("shadow")
+}
+
+tasks.build {
+    dependsOn(tasks.shadowJar)
 }
