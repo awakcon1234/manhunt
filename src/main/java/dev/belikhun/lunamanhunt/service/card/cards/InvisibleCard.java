@@ -11,11 +11,16 @@ import org.bukkit.potion.PotionEffectType;
 public class InvisibleCard extends BaseCard {
 	public InvisibleCard() {
 		super("invisible", "Tàng hình", CardType.EFFECT, CardRarity.UNCOMMON, 2,
-			"Tàng hình trong 1 phút.", Material.POTION);
+			"Tàng hình trong 1 phút.", Material.POTION, 60);
 	}
 
 	@Override
 	public boolean apply(CardContext context) {
 		return context.applyPotionToSpeedrunner(new PotionEffect(PotionEffectType.INVISIBILITY, 20 * 60, 0));
+	}
+
+	@Override
+	public boolean clear(CardContext context) {
+		return context.clearPotionFromSpeedrunner(PotionEffectType.INVISIBILITY);
 	}
 }

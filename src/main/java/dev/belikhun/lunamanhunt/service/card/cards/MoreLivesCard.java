@@ -11,11 +11,16 @@ import org.bukkit.potion.PotionEffectType;
 public class MoreLivesCard extends BaseCard {
 	public MoreLivesCard() {
 		super("more_lives", "Thêm 1 tim", CardType.POWER_UP, CardRarity.UNCOMMON, 1,
-			"Tăng 1 tim trong 2 phút.", Material.GOLDEN_APPLE);
+			"Tăng 1 tim trong 2 phút.", Material.GOLDEN_APPLE, 120);
 	}
 
 	@Override
 	public boolean apply(CardContext context) {
 		return context.applyPotionToSpeedrunner(new PotionEffect(PotionEffectType.HEALTH_BOOST, 20 * 120, 0));
+	}
+
+	@Override
+	public boolean clear(CardContext context) {
+		return context.clearPotionFromSpeedrunner(PotionEffectType.HEALTH_BOOST);
 	}
 }

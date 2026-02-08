@@ -9,6 +9,7 @@ import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.potion.PotionEffect;
+import org.bukkit.potion.PotionEffectType;
 
 import java.util.Set;
 import java.util.UUID;
@@ -62,6 +63,21 @@ public class CardContext {
 			return false;
 		}
 		return applyToHunters(target -> target.addPotionEffect(effect));
+	}
+
+	public boolean clearPotionFromSpeedrunner(PotionEffectType type) {
+		if (speedrunner == null || type == null) {
+			return false;
+		}
+		speedrunner.removePotionEffect(type);
+		return true;
+	}
+
+	public boolean clearPotionFromHunters(PotionEffectType type) {
+		if (type == null) {
+			return false;
+		}
+		return applyToHunters(target -> target.removePotionEffect(type));
 	}
 
 	public boolean applyToHunters(Consumer<Player> action) {

@@ -11,11 +11,16 @@ import org.bukkit.potion.PotionEffectType;
 public class YearnForTheMinesCard extends BaseCard {
 	public YearnForTheMinesCard() {
 		super("yearn_for_mines", "Nhớ mỏ", CardType.EFFECT, CardRarity.COMMON, 1,
-			"Đào nhanh trong 1 phút.", Material.IRON_PICKAXE);
+			"Đào nhanh trong 1 phút.", Material.IRON_PICKAXE, 60);
 	}
 
 	@Override
 	public boolean apply(CardContext context) {
 		return context.applyPotionToSpeedrunner(new PotionEffect(PotionEffectType.HASTE, 20 * 60, 0));
+	}
+
+	@Override
+	public boolean clear(CardContext context) {
+		return context.clearPotionFromSpeedrunner(PotionEffectType.HASTE);
 	}
 }

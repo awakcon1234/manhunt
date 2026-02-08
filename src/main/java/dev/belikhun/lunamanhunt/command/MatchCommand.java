@@ -7,6 +7,7 @@ import dev.belikhun.lunamanhunt.service.lobby.LobbyManager;
 import dev.belikhun.lunamanhunt.service.match.MatchManager;
 import dev.belikhun.lunamanhunt.service.gui.GuiService;
 import dev.belikhun.lunamanhunt.util.Text;
+import dev.belikhun.lunamanhunt.service.spawn.LobbyItemService;
 import org.bukkit.Bukkit;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
@@ -33,11 +34,14 @@ public class MatchCommand implements TabExecutor {
 	private final LobbyManager lobbyManager;
 	private final MatchManager matchManager;
 	private final GuiService guiService;
+	private final LobbyItemService lobbyItemService;
 
-	public MatchCommand(LobbyManager lobbyManager, MatchManager matchManager, GuiService guiService) {
+	public MatchCommand(LobbyManager lobbyManager, MatchManager matchManager, GuiService guiService,
+			LobbyItemService lobbyItemService) {
 		this.lobbyManager = Objects.requireNonNull(lobbyManager, "lobbyManager");
 		this.matchManager = Objects.requireNonNull(matchManager, "matchManager");
 		this.guiService = Objects.requireNonNull(guiService, "guiService");
+		this.lobbyItemService = Objects.requireNonNull(lobbyItemService, "lobbyItemService");
 	}
 
 	@Override
@@ -107,6 +111,7 @@ public class MatchCommand implements TabExecutor {
 		}
 		Match match = lobbyManager.createMatch(player.getUniqueId());
 		Text.msg(player, "<green>✔</green> Đã tạo phòng <yellow>" + match.getId() + "</yellow>.");
+		lobbyItemService.applyLobbyStateIfEligible(player);
 	}
 
 	private void handleJoin(Player player, String[] args) {
@@ -119,6 +124,9 @@ public class MatchCommand implements TabExecutor {
 		}
 		LobbyActionResult result = lobbyManager.join(player.getUniqueId(), args[1]);
 		Text.msg(player, result.getMessage());
+		if (result.isSuccess()) {
+			lobbyItemService.applyLobbyStateIfEligible(player);
+		}
 	}
 
 	private void handleInvite(Player player, String[] args) {
@@ -177,6 +185,7 @@ public class MatchCommand implements TabExecutor {
 		}
 		LobbyActionResult result = lobbyManager.leave(player.getUniqueId());
 		Text.msg(player, result.getMessage());
+		lobbyItemService.applyLobbyStateIfEligible(player);
 	}
 
 	private void handleSeed(Player player, String[] args) {
@@ -237,6 +246,11 @@ public class MatchCommand implements TabExecutor {
 
 	private void handleGui(Player player) {
 		if (!hasPerm(player, PERM_GUI)) {
+			return;
+		}
+		Match match = lobbyManager.getMatchForPlayer(player.getUniqueId());
+		if (match != null && match.getState() == MatchState.LOBBY) {
+			guiService.openMatchInfoMenu(player);
 			return;
 		}
 		guiService.openMainMenu(player);

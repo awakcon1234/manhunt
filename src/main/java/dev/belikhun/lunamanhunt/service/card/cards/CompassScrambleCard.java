@@ -11,7 +11,7 @@ import org.bukkit.Material;
 public class CompassScrambleCard extends BaseCard {
 	public CompassScrambleCard() {
 		super("compass_scramble", "Không thể tìm thấy", CardType.EFFECT, CardRarity.RARE, 2,
-			"Làm nhiễu la bàn thợ săn trong 1 phút.", Material.ENDER_PEARL);
+			"Làm nhiễu la bàn thợ săn trong 1 phút.", Material.ENDER_PEARL, 60);
 	}
 
 	@Override
@@ -22,6 +22,17 @@ public class CompassScrambleCard extends BaseCard {
 			return false;
 		}
 		compassService.scrambleHunters(match, 20L * 60L);
+		return true;
+	}
+
+	@Override
+	public boolean clear(CardContext context) {
+		CompassService compassService = context.getCompassService();
+		Match match = context.getMatch();
+		if (compassService == null || match == null) {
+			return false;
+		}
+		compassService.clearScramble(match);
 		return true;
 	}
 }

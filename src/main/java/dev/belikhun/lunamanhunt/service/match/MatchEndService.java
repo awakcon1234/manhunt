@@ -4,6 +4,7 @@ import dev.belikhun.lunamanhunt.model.match.Match;
 import dev.belikhun.lunamanhunt.model.match.MatchState;
 import dev.belikhun.lunamanhunt.model.match.MatchWinner;
 import dev.belikhun.lunamanhunt.model.match.MatchWorlds;
+import dev.belikhun.lunamanhunt.service.card.CardService;
 import dev.belikhun.lunamanhunt.service.integration.MultiverseService;
 import dev.belikhun.lunamanhunt.service.lobby.LobbyManager;
 import dev.belikhun.lunamanhunt.service.spawn.LobbyTeleportService;
@@ -31,14 +32,16 @@ public class MatchEndService {
 	private final LobbyManager lobbyManager;
 	private final MultiverseService multiverseService;
 	private final LobbyTeleportService lobbyTeleportService;
+	private final CardService cardService;
 	private final Map<String, UUID> awaitingPortal = new ConcurrentHashMap<>();
 
 	public MatchEndService(JavaPlugin plugin, LobbyManager lobbyManager, MultiverseService multiverseService,
-			LobbyTeleportService lobbyTeleportService) {
+			LobbyTeleportService lobbyTeleportService, CardService cardService) {
 		this.plugin = Objects.requireNonNull(plugin, "plugin");
 		this.lobbyManager = Objects.requireNonNull(lobbyManager, "lobbyManager");
 		this.multiverseService = Objects.requireNonNull(multiverseService, "multiverseService");
 		this.lobbyTeleportService = Objects.requireNonNull(lobbyTeleportService, "lobbyTeleportService");
+		this.cardService = Objects.requireNonNull(cardService, "cardService");
 	}
 
 	public void endWithHunters(Match match, String message) {
@@ -88,6 +91,7 @@ public class MatchEndService {
 			return;
 		}
 		awaitingPortal.remove(match.getId());
+		cardService.clearActiveCards(match);
 		match.setState(MatchState.CLEANUP);
 		match.setEndedAtMillis(System.currentTimeMillis());
 		cleanupWorlds(match);
@@ -159,6 +163,7 @@ public class MatchEndService {
 
 	private void finishMatch(Match match) {
 		awaitingPortal.remove(match.getId());
+		cardService.clearActiveCards(match);
 		match.setState(MatchState.CLEANUP);
 		match.setEndedAtMillis(System.currentTimeMillis());
 

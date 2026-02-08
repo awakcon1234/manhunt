@@ -11,11 +11,16 @@ import org.bukkit.potion.PotionEffectType;
 public class RegenCard extends BaseCard {
 	public RegenCard() {
 		super("regen", "Hồi phục", CardType.POWER_UP, CardRarity.UNCOMMON, 2,
-			"Hồi máu trong 10 giây.", Material.GHAST_TEAR);
+			"Hồi máu trong 10 giây.", Material.GHAST_TEAR, 10);
 	}
 
 	@Override
 	public boolean apply(CardContext context) {
 		return context.applyPotionToSpeedrunner(new PotionEffect(PotionEffectType.REGENERATION, 20 * 10, 0));
+	}
+
+	@Override
+	public boolean clear(CardContext context) {
+		return context.clearPotionFromSpeedrunner(PotionEffectType.REGENERATION);
 	}
 }

@@ -11,11 +11,16 @@ import org.bukkit.potion.PotionEffectType;
 public class HunterBlindnessCard extends BaseCard {
 	public HunterBlindnessCard() {
 		super("hunter_blindness", "Mù tạm thời", CardType.EFFECT, CardRarity.RARE, 3,
-			"Làm mù thợ săn trong 6 giây.", Material.INK_SAC);
+			"Làm mù thợ săn trong 6 giây.", Material.INK_SAC, 6);
 	}
 
 	@Override
 	public boolean apply(CardContext context) {
 		return context.applyPotionToHunters(new PotionEffect(PotionEffectType.BLINDNESS, 20 * 6, 0));
+	}
+
+	@Override
+	public boolean clear(CardContext context) {
+		return context.clearPotionFromHunters(PotionEffectType.BLINDNESS);
 	}
 }

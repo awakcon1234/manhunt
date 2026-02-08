@@ -11,11 +11,16 @@ import org.bukkit.potion.PotionEffectType;
 public class ResistanceCard extends BaseCard {
 	public ResistanceCard() {
 		super("resistance", "Kháng sát thương", CardType.POWER_UP, CardRarity.RARE, 3,
-			"Giảm sát thương trong 20 giây.", Material.SHIELD);
+			"Giảm sát thương trong 20 giây.", Material.SHIELD, 20);
 	}
 
 	@Override
 	public boolean apply(CardContext context) {
 		return context.applyPotionToSpeedrunner(new PotionEffect(PotionEffectType.RESISTANCE, 20 * 20, 0));
+	}
+
+	@Override
+	public boolean clear(CardContext context) {
+		return context.clearPotionFromSpeedrunner(PotionEffectType.RESISTANCE);
 	}
 }

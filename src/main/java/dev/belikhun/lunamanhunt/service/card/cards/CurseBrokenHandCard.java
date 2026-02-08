@@ -11,11 +11,16 @@ import org.bukkit.potion.PotionEffectType;
 public class CurseBrokenHandCard extends BaseCard {
 	public CurseBrokenHandCard() {
 		super("broken_hand", "Tay gãy", CardType.CURSE, CardRarity.UNCOMMON, 2,
-			"Mỏi tay trong 30 giây.", Material.WOODEN_PICKAXE);
+			"Mỏi tay trong 30 giây.", Material.WOODEN_PICKAXE, 30);
 	}
 
 	@Override
 	public boolean apply(CardContext context) {
 		return context.applyPotionToHunters(new PotionEffect(PotionEffectType.MINING_FATIGUE, 20 * 30, 0));
+	}
+
+	@Override
+	public boolean clear(CardContext context) {
+		return context.clearPotionFromHunters(PotionEffectType.MINING_FATIGUE);
 	}
 }

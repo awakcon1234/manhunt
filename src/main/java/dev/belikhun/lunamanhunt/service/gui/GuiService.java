@@ -15,6 +15,7 @@ import dev.belikhun.lunamanhunt.service.lobby.LobbyManager;
 import dev.belikhun.lunamanhunt.service.match.MatchManager;
 import dev.belikhun.lunamanhunt.service.persistence.ProfileStore;
 import dev.belikhun.lunamanhunt.service.point.PointService;
+import dev.belikhun.lunamanhunt.service.spawn.LobbyItemService;
 import dev.belikhun.lunamanhunt.util.ItemStackCodec;
 import dev.belikhun.lunamanhunt.util.Text;
 import dev.belikhun.lunamanhunt.util.UiColors;
@@ -60,12 +61,6 @@ public class GuiService {
 	private static final String ACTION_MATCH_INFO_KIT = "match_info_kit";
 	private static final String ACTION_MATCH_INFO_CLOSE = "match_info_close";
 
-	private static final String ACTION_LOBBY_START = "lobby_start";
-	private static final String ACTION_LOBBY_INVITE = "lobby_invite";
-	private static final String ACTION_LOBBY_SETTINGS = "lobby_settings";
-	private static final String ACTION_LOBBY_LEAVE = "lobby_leave";
-	private static final String ACTION_LOBBY_BACK = "lobby_back";
-
 	private static final String ACTION_INVITE_PLAYER = "invite_player";
 	private static final String ACTION_INVITE_BACK = "invite_back";
 
@@ -76,6 +71,7 @@ public class GuiService {
 	private static final String ACTION_SETTINGS_SEED = "settings_seed";
 	private static final String ACTION_SETTINGS_KIT = "settings_kit";
 	private static final String ACTION_SETTINGS_KIT_CLEAR = "settings_kit_clear";
+	private static final String ACTION_SETTINGS_CARDS = "settings_cards";
 	private static final String ACTION_SETTINGS_BORDER_DOWN = "settings_border_down";
 	private static final String ACTION_SETTINGS_BORDER_UP = "settings_border_up";
 	private static final String ACTION_SETTINGS_START_BORDER_DOWN = "settings_start_border_down";
@@ -130,6 +126,7 @@ public class GuiService {
 	private final CardService cardService;
 	private final PointService pointService;
 	private final ProfileStore profileStore;
+	private LobbyItemService lobbyItemService;
 	private final NamespacedKey actionKey;
 	private final NamespacedKey targetKey;
 	private final java.util.Map<UUID, String> seedInputs = new java.util.concurrent.ConcurrentHashMap<>();
@@ -146,21 +143,14 @@ public class GuiService {
 		this.targetKey = new NamespacedKey(plugin, TARGET_KEY);
 	}
 
-	public void openMainMenu(Player player) {
-		Inventory inventory = Bukkit.createInventory(new GuiHolder(GuiType.MAIN, null), 54,
-			Text.mm(UiColors.titlePrimary("LunaManhunt") + " " + UiColors.titleSecondary("- Phòng đấu")));
-		fillMainMenu(player, inventory);
-		player.openInventory(inventory);
+	public void setLobbyItemService(LobbyItemService lobbyItemService) {
+		this.lobbyItemService = lobbyItemService;
 	}
 
-	public void openLobbyMenu(Player player, Match match) {
-		if (match == null) {
-			Text.msg(player, "<red>❌</red> Không tìm thấy phòng đấu.");
-			return;
-		}
-		Inventory inventory = Bukkit.createInventory(new GuiHolder(GuiType.LOBBY, match.getId()), 27,
-			Text.mm(UiColors.titlePrimary("Phòng") + " " + UiColors.titleSecondary(match.getId())));
-		fillLobbyMenu(player, match, inventory);
+	public void openMainMenu(Player player) {
+		Inventory inventory = Bukkit.createInventory(new GuiHolder(GuiType.MAIN, null), 54,
+			Text.mm(UiColors.titlePrimary("Phòng đấu")));
+		fillMainMenu(player, inventory);
 		player.openInventory(inventory);
 	}
 
@@ -180,7 +170,7 @@ public class GuiService {
 			Text.msg(player, "<red>❌</red> Không tìm thấy phòng đấu.");
 			return;
 		}
-		Inventory inventory = Bukkit.createInventory(new GuiHolder(GuiType.SETTINGS, match.getId()), 27,
+		Inventory inventory = Bukkit.createInventory(new GuiHolder(GuiType.SETTINGS, match.getId()), 54,
 			Text.mm(UiColors.titlePrimary("Cài đặt phòng")));
 		fillSettingsMenu(match, inventory);
 		player.openInventory(inventory);
@@ -244,7 +234,7 @@ public class GuiService {
 			Text.msg(player, "<red>❌</red> Bạn chưa ở trong sảnh phòng nào.");
 			return;
 		}
-		Inventory inventory = Bukkit.createInventory(new GuiHolder(GuiType.MATCH_INFO, match.getId()), 27,
+		Inventory inventory = Bukkit.createInventory(new GuiHolder(GuiType.MATCH_INFO, match.getId()), 54,
 			Text.mm(UiColors.titlePrimary("Thông tin phòng")));
 		fillMatchInfoMenu(player, match, inventory);
 		player.openInventory(inventory);
@@ -338,11 +328,6 @@ public class GuiService {
 			case ACTION_MATCH_INFO_CARDS -> handleMatchInfoCards(player, holder.matchId(), target);
 			case ACTION_MATCH_INFO_KIT -> handleMatchInfoKit(player, holder.matchId());
 			case ACTION_MATCH_INFO_CLOSE -> player.closeInventory();
-			case ACTION_LOBBY_START -> handleStart(player, holder.matchId());
-			case ACTION_LOBBY_INVITE -> handleOpenInvite(player, holder.matchId());
-			case ACTION_LOBBY_SETTINGS -> handleOpenSettings(player, holder.matchId());
-			case ACTION_LOBBY_LEAVE -> handleLeave(player, holder.matchId());
-			case ACTION_LOBBY_BACK -> openMainMenu(player);
 			case ACTION_INVITE_PLAYER -> handleInvitePlayer(player, holder.matchId(), target);
 			case ACTION_INVITE_BACK -> handleBackToLobby(player, holder.matchId());
 			case ACTION_SETTINGS_VISIBILITY -> handleVisibilityToggle(player, holder.matchId());
@@ -352,6 +337,7 @@ public class GuiService {
 			case ACTION_SETTINGS_SEED -> handleSeedPrompt(player, holder.matchId());
 			case ACTION_SETTINGS_KIT -> handleOpenKitEditor(player, holder.matchId());
 			case ACTION_SETTINGS_KIT_CLEAR -> handleOpenKitClearConfirm(player, holder.matchId());
+			case ACTION_SETTINGS_CARDS -> handleMatchInfoCards(player, holder.matchId(), "0");
 			case ACTION_SETTINGS_BORDER_DOWN -> handleBorderChange(player, holder.matchId(), -100);
 			case ACTION_SETTINGS_BORDER_UP -> handleBorderChange(player, holder.matchId(), 100);
 			case ACTION_SETTINGS_START_BORDER_DOWN -> handleStartBorderChange(player, holder.matchId(), -1);
@@ -409,43 +395,6 @@ public class GuiService {
 			List.of("<gray>Đóng bảng chọn.</gray>"), ACTION_MAIN_CLOSE, null));
 	}
 
-	private void fillLobbyMenu(Player player, Match match, Inventory inventory) {
-		inventory.setItem(4, buildInfoItem(Material.BOOK,
-			"<yellow>ℹ</yellow> Thông tin phòng",
-			List.of(
-				"<gray>Mã phòng: <white>" + match.getId() + "</white></gray>",
-				"<gray>Trạng thái: <white>" + formatState(match.getState()) + "</white></gray>",
-				"<gray>Người chơi: <white>" + match.getLobbyPlayers().size() + "</white></gray>"
-			)));
-
-		inventory.setItem(10, buildActionItem(Material.COMPARATOR,
-			"<yellow>ℹ</yellow> Cài đặt",
-			List.of("<gray>Chỉnh cấu hình phòng.</gray>"), ACTION_LOBBY_SETTINGS, null));
-
-		inventory.setItem(12, buildActionItem(Material.PAPER,
-			"<yellow>ℹ</yellow> Mời người chơi",
-			List.of("<gray>Mời người chơi vào phòng.</gray>"), ACTION_LOBBY_INVITE, null));
-
-		boolean isOwner = match.getOwnerId().equals(player.getUniqueId());
-		if (isOwner) {
-			inventory.setItem(14, buildActionItem(Material.LIME_WOOL,
-				"<green>✔</green> Bắt đầu",
-				List.of("<gray>Bắt đầu trận đấu.</gray>"), ACTION_LOBBY_START, null));
-		} else {
-			inventory.setItem(14, buildInfoItem(Material.GRAY_WOOL,
-				"<yellow>ℹ</yellow> Chờ chủ phòng",
-				List.of("<gray>Chỉ chủ phòng mới được bắt đầu.</gray>")));
-		}
-
-		inventory.setItem(16, buildActionItem(Material.RED_WOOL,
-			"<red>❌</red> Rời phòng",
-			List.of("<gray>Rời khỏi phòng hiện tại.</gray>"), ACTION_LOBBY_LEAVE, null));
-
-		inventory.setItem(22, buildActionItem(Material.ARROW,
-			"<yellow>ℹ</yellow> Quay lại",
-			List.of("<gray>Quay về danh sách phòng.</gray>"), ACTION_LOBBY_BACK, null));
-	}
-
 	private void fillInviteMenu(Player player, Match match, Inventory inventory) {
 		List<Player> candidates = new ArrayList<>();
 		for (Player online : Bukkit.getOnlinePlayers()) {
@@ -480,7 +429,7 @@ public class GuiService {
 
 		inventory.setItem(49, buildActionItem(Material.CLOCK,
 			"<yellow>ℹ</yellow> Làm mới",
-			List.of("<gray>Cập nhật danh sách.</gray>"), ACTION_LOBBY_INVITE, null));
+			List.of("<gray>Cập nhật danh sách.</gray>"), ACTION_MATCH_INFO_INVITE, null));
 
 		inventory.setItem(53, buildActionItem(Material.ARROW,
 			"<yellow>ℹ</yellow> Quay lại",
@@ -493,63 +442,93 @@ public class GuiService {
 			? "Chưa đặt"
 			: settings.getWorldSeed();
 		int kitCount = ItemStackCodec.decodeList(settings.getSpeedrunnerKit()).size();
+		int enabledCards = cardService.getEnabledCards(match).size();
+
+		ItemStack pane = buildInfoItem(Material.GRAY_STAINED_GLASS_PANE, " ", List.of(" "));
+		int[] frameSlots = new int[] {
+			0, 1, 2, 3, 4, 5, 6, 7, 8,
+			9, 17, 18, 26, 27, 35, 36, 44,
+			45, 46, 47, 48, 49, 50, 51, 52, 53
+		};
+		for (int slot : frameSlots) {
+			inventory.setItem(slot, pane);
+		}
 
 		inventory.setItem(4, buildInfoItem(Material.BOOK,
 			"<yellow>ℹ</yellow> Thông tin cài đặt",
 			List.of(
 				"<gray>Hiển thị: <white>" + formatVisibility(settings.getVisibility()) + "</white></gray>",
 				"<gray>Speedrunner: <white>" + formatSpeedrunner(settings) + "</white></gray>",
+				" ",
 				"<gray>Viền tối đa: <white>" + settings.getWorldBorderLimit() + "</white></gray>",
 				"<gray>Viền ban đầu: <white>" + settings.getStartingBorder() + "</white></gray>",
+				" ",
+				"<gray>Thẻ bật: <white>" + enabledCards + "</white></gray>",
+				"<gray>Bộ đồ: <white>" + kitCount + "</white></gray>",
 				"<gray>Seed: <white>" + seedText + "</white></gray>"
 			)));
 
-		inventory.setItem(10, buildActionItem(Material.NAME_TAG,
+		inventory.setItem(19, buildActionItem(Material.NAME_TAG,
 			"<yellow>ℹ</yellow> Hiển thị",
 			List.of("<gray>Bấm để đổi chế độ hiển thị.</gray>"), ACTION_SETTINGS_VISIBILITY, null));
 
-		inventory.setItem(12, buildActionItem(Material.COMPASS,
-			"<yellow>ℹ</yellow> Speedrunner ngẫu nhiên",
-			List.of("<gray>Bấm để chọn ngẫu nhiên.</gray>"), ACTION_SETTINGS_SPEEDRUNNER_RANDOM, null));
-
-		inventory.setItem(13, buildActionItem(Material.PLAYER_HEAD,
-			"<yellow>ℹ</yellow> Chọn speedrunner",
-			List.of("<gray>Bấm để chọn người chơi.</gray>"), ACTION_SETTINGS_SPEEDRUNNER_PICK, null));
-
-		inventory.setItem(14, buildActionItem(Material.PLAYER_HEAD,
-			"<yellow>ℹ</yellow> Speedrunner là bạn",
-			List.of("<gray>Bấm để chọn chính bạn.</gray>"), ACTION_SETTINGS_SPEEDRUNNER_ME, null));
-
-		inventory.setItem(16, buildActionItem(Material.PAPER,
+		inventory.setItem(21, buildActionItem(Material.PAPER,
 			"<yellow>ℹ</yellow> Seed",
 			List.of("<gray>Bấm để nhập seed bằng chat.</gray>"), ACTION_SETTINGS_SEED, null));
 
-		inventory.setItem(15, buildActionItem(Material.CHEST,
+		inventory.setItem(23, buildActionItem(Material.EMERALD,
+			"<yellow>ℹ</yellow> Thẻ trong trận",
+			List.of(
+				"<gray>Bật/tắt thẻ dùng trong trận.</gray>",
+				" ",
+				"<gray>Đang bật: <white>" + enabledCards + "</white></gray>"
+			), ACTION_SETTINGS_CARDS, null));
+
+		inventory.setItem(25, buildActionItem(Material.CHEST,
 			"<yellow>ℹ</yellow> Bộ đồ speedrunner",
-			List.of("<gray>Số vật phẩm: <white>" + kitCount + "</white></gray>",
-				"<gray>Bấm để chỉnh.</gray>"), ACTION_SETTINGS_KIT, null));
+			List.of(
+				"<gray>Số vật phẩm: <white>" + kitCount + "</white></gray>",
+				" ",
+				"<gray>Bấm để chỉnh.</gray>"
+			), ACTION_SETTINGS_KIT, null));
 
-		inventory.setItem(17, buildActionItem(Material.BARRIER,
+		inventory.setItem(26, buildActionItem(Material.BARRIER,
 			"<red>❌</red> Xóa bộ đồ",
-			List.of("<gray>Đặt bộ đồ về trống.</gray>"), ACTION_SETTINGS_KIT_CLEAR, null));
+			List.of(
+				"<gray>Đặt bộ đồ về trống.</gray>",
+				" ",
+				"<gray>Thao tác: <white>Không thể hoàn tác</white></gray>"
+			), ACTION_SETTINGS_KIT_CLEAR, null));
 
-		inventory.setItem(20, buildActionItem(Material.RED_WOOL,
+		inventory.setItem(28, buildActionItem(Material.COMPASS,
+			"<yellow>ℹ</yellow> Speedrunner ngẫu nhiên",
+			List.of("<gray>Bấm để chọn ngẫu nhiên.</gray>"), ACTION_SETTINGS_SPEEDRUNNER_RANDOM, null));
+
+		inventory.setItem(30, buildActionItem(Material.PLAYER_HEAD,
+			"<yellow>ℹ</yellow> Chọn speedrunner",
+			List.of("<gray>Bấm để chọn người chơi.</gray>"), ACTION_SETTINGS_SPEEDRUNNER_PICK, null));
+
+		inventory.setItem(32, buildActionItem(Material.PLAYER_HEAD,
+			"<yellow>ℹ</yellow> Speedrunner là bạn",
+			List.of("<gray>Bấm để chọn chính bạn.</gray>"), ACTION_SETTINGS_SPEEDRUNNER_ME, null));
+
+		inventory.setItem(37, buildActionItem(Material.RED_WOOL,
 			"<red>❌</red> Giảm viền tối đa",
 			List.of("<gray>Giảm 100 block.</gray>"), ACTION_SETTINGS_BORDER_DOWN, null));
 
-		inventory.setItem(22, buildActionItem(Material.LIME_WOOL,
+		inventory.setItem(39, buildActionItem(Material.LIME_WOOL,
 			"<green>✔</green> Tăng viền tối đa",
 			List.of("<gray>Tăng 100 block.</gray>"), ACTION_SETTINGS_BORDER_UP, null));
 
-		inventory.setItem(24, buildActionItem(Material.RED_WOOL,
+		inventory.setItem(41, buildActionItem(Material.RED_WOOL,
 			"<red>❌</red> Giảm viền ban đầu",
 			List.of("<gray>Giảm 1 block.</gray>"), ACTION_SETTINGS_START_BORDER_DOWN, null));
 
-		inventory.setItem(26, buildActionItem(Material.LIME_WOOL,
+		inventory.setItem(43, buildActionItem(Material.LIME_WOOL,
 			"<green>✔</green> Tăng viền ban đầu",
 			List.of("<gray>Tăng 1 block.</gray>"), ACTION_SETTINGS_START_BORDER_UP, null));
 
-		inventory.setItem(18, buildActionItem(Material.ARROW,
+		inventory.setItem(49, buildActionItem(Material.ARROW,
 			"<yellow>ℹ</yellow> Quay lại",
 			List.of("<gray>Quay về phòng.</gray>"), ACTION_SETTINGS_BACK, null));
 	}
@@ -609,44 +588,102 @@ public class GuiService {
 			ownerName = owner.getName();
 		}
 		boolean isOwner = match.getOwnerId().equals(player.getUniqueId());
+
+		ItemStack pane = buildInfoItem(Material.GRAY_STAINED_GLASS_PANE, " ", List.of(" "));
+		int[] frameSlots = new int[] {
+			0, 1, 2, 3, 4, 5, 6, 7, 8,
+			9, 17, 18, 26, 27, 35, 36, 44,
+			45, 46, 47, 48, 49, 50, 51, 52, 53
+		};
+		for (int slot : frameSlots) {
+			inventory.setItem(slot, pane);
+		}
+
 		inventory.setItem(4, buildInfoItem(Material.BOOK,
 			"<yellow>ℹ</yellow> Thông tin phòng",
 			List.of(
 				"<gray>Mã phòng: <white>" + match.getId() + "</white></gray>",
 				"<gray>Chủ phòng: <white>" + ownerName + "</white></gray>",
+				" ",
 				"<gray>Hiển thị: <white>" + formatVisibility(match.getSettings().getVisibility()) + "</white></gray>",
+				"<gray>Trạng thái: <white>" + formatState(match.getState()) + "</white></gray>",
+				" ",
 				"<gray>Người chơi: <white>" + match.getLobbyPlayers().size() + "</white></gray>"
+			)));
+
+		int kitCount = ItemStackCodec.decodeList(match.getSettings().getSpeedrunnerKit()).size();
+		int enabledCards = cardService.getEnabledCards(match).size();
+		inventory.setItem(31, buildInfoItem(Material.MAP,
+			"<yellow>ℹ</yellow> Tổng quan",
+			List.of(
+				"<gray>Speedrunner: <white>" + formatSpeedrunner(match.getSettings()) + "</white></gray>",
+				"<gray>Viền tối đa: <white>" + match.getSettings().getWorldBorderLimit() + "</white></gray>",
+				" ",
+				"<gray>Thẻ bật: <white>" + enabledCards + "</white></gray>",
+				"<gray>Bộ đồ: <white>" + kitCount + "</white></gray>"
 			)));
 
 		if (isOwner) {
 			inventory.setItem(10, buildActionItem(Material.PAPER,
 				"<yellow>ℹ</yellow> Mời người chơi",
-				List.of("<gray>Mời người chơi vào phòng.</gray>"), ACTION_MATCH_INFO_INVITE, null));
+				List.of(
+					"<gray>Mời người chơi vào phòng.</gray>",
+					" ",
+					"<gray>Quyền: <white>Chủ phòng</white></gray>"
+				), ACTION_MATCH_INFO_INVITE, null));
 			inventory.setItem(12, buildActionItem(Material.COMPARATOR,
 				"<yellow>ℹ</yellow> Cài đặt trận",
-				List.of("<gray>Điều chỉnh cài đặt phòng.</gray>"), ACTION_MATCH_INFO_SETTINGS, null));
+				List.of(
+					"<gray>Điều chỉnh cài đặt phòng.</gray>",
+					" ",
+					"<gray>Quyền: <white>Chủ phòng</white></gray>"
+				), ACTION_MATCH_INFO_SETTINGS, null));
 			inventory.setItem(14, buildActionItem(Material.EMERALD,
 				"<yellow>ℹ</yellow> Thẻ dùng trong trận",
-				List.of("<gray>Bật/tắt thẻ cho trận đấu.</gray>"), ACTION_MATCH_INFO_CARDS, "0"));
+				List.of(
+					"<gray>Bật/tắt thẻ cho trận đấu.</gray>",
+					" ",
+					"<gray>Quyền: <white>Chủ phòng</white></gray>"
+				), ACTION_MATCH_INFO_CARDS, "0"));
 			inventory.setItem(16, buildActionItem(Material.CHEST,
 				"<yellow>ℹ</yellow> Bộ đồ speedrunner",
-				List.of("<gray>Chỉnh bộ đồ khởi đầu.</gray>"), ACTION_MATCH_INFO_KIT, null));
+				List.of(
+					"<gray>Chỉnh bộ đồ khởi đầu.</gray>",
+					" ",
+					"<gray>Quyền: <white>Chủ phòng</white></gray>"
+				), ACTION_MATCH_INFO_KIT, null));
 		} else {
 			inventory.setItem(10, buildInfoItem(Material.PAPER,
 				"<yellow>ℹ</yellow> Mời người chơi",
-				List.of("<gray>Chỉ chủ phòng mới có thể mời.</gray>")));
+				List.of(
+					"<gray>Chỉ chủ phòng mới có thể mời.</gray>",
+					" ",
+					"<gray>Trạng thái: <white>Chỉ xem</white></gray>"
+				)));
 			inventory.setItem(12, buildInfoItem(Material.COMPARATOR,
 				"<yellow>ℹ</yellow> Cài đặt trận",
-				List.of("<gray>Chỉ chủ phòng mới có thể chỉnh.</gray>")));
+				List.of(
+					"<gray>Chỉ chủ phòng mới có thể chỉnh.</gray>",
+					" ",
+					"<gray>Trạng thái: <white>Chỉ xem</white></gray>"
+				)));
 			inventory.setItem(14, buildActionItem(Material.EMERALD,
 				"<yellow>ℹ</yellow> Thẻ dùng trong trận",
-				List.of("<gray>Xem danh sách thẻ đã bật.</gray>"), ACTION_MATCH_INFO_CARDS, "0"));
+				List.of(
+					"<gray>Xem danh sách thẻ đã bật.</gray>",
+					" ",
+					"<gray>Trạng thái: <white>Chỉ xem</white></gray>"
+				), ACTION_MATCH_INFO_CARDS, "0"));
 			inventory.setItem(16, buildInfoItem(Material.CHEST,
 				"<yellow>ℹ</yellow> Bộ đồ speedrunner",
-				List.of("<gray>Chỉ chủ phòng mới có thể chỉnh.</gray>")));
+				List.of(
+					"<gray>Chỉ chủ phòng mới có thể chỉnh.</gray>",
+					" ",
+					"<gray>Trạng thái: <white>Chỉ xem</white></gray>"
+				)));
 		}
 
-		inventory.setItem(22, buildActionItem(Material.BARRIER,
+		inventory.setItem(49, buildActionItem(Material.BARRIER,
 			"<red>❌</red> Đóng",
 			List.of("<gray>Đóng bảng thông tin.</gray>"), ACTION_MATCH_INFO_CLOSE, null));
 	}
@@ -820,7 +857,8 @@ public class GuiService {
 		}
 		Match match = lobbyManager.createMatch(player.getUniqueId());
 		Text.msg(player, "<green>✔</green> Đã tạo phòng <yellow>" + match.getId() + "</yellow>.");
-		openLobbyMenu(player, match);
+		updateLobbyItems(player);
+		openMatchInfoMenu(player);
 	}
 
 	private void handleMyMatch(Player player) {
@@ -829,7 +867,7 @@ public class GuiService {
 			Text.msg(player, "<red>❌</red> Bạn chưa ở trong phòng nào.");
 			return;
 		}
-		openLobbyMenu(player, match);
+		openMatchInfoMenu(player);
 	}
 
 	private void handleJoin(Player player, String matchId) {
@@ -839,7 +877,8 @@ public class GuiService {
 		LobbyActionResult result = lobbyManager.join(player.getUniqueId(), matchId);
 		Text.msg(player, result.getMessage());
 		if (result.isSuccess() && result.getMatch() != null) {
-			openLobbyMenu(player, result.getMatch());
+			updateLobbyItems(player);
+			openMatchInfoMenu(player);
 		}
 	}
 
@@ -1037,7 +1076,7 @@ public class GuiService {
 			openMainMenu(player);
 			return;
 		}
-		openLobbyMenu(player, match);
+		openMatchInfoMenu(player);
 	}
 
 	private void handleVisibilityToggle(Player player, String matchId) {
@@ -1283,11 +1322,18 @@ public class GuiService {
 		Match match = matchManager.getMatch(matchId);
 		LobbyActionResult result = lobbyManager.leave(player.getUniqueId());
 		Text.msg(player, result.getMessage());
+		updateLobbyItems(player);
 		if (match != null && match.getOwnerId().equals(player.getUniqueId())) {
 			openMainMenu(player);
 			return;
 		}
 		openMainMenu(player);
+	}
+
+	private void updateLobbyItems(Player player) {
+		if (lobbyItemService != null) {
+			lobbyItemService.applyLobbyStateIfEligible(player);
+		}
 	}
 
 	private String formatState(MatchState state) {
@@ -1702,7 +1748,6 @@ public class GuiService {
 
 	public enum GuiType {
 		MAIN,
-		LOBBY,
 		INVITE,
 		SETTINGS,
 		SPEEDRUNNER,

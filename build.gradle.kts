@@ -29,8 +29,5 @@ tasks.processResources {
 
 tasks.shadowJar {
     archiveClassifier.set("shadow")
-}
-
-tasks.build {
-    dependsOn(tasks.shadowJar)
+    dependsOn(tasks.build)
 }

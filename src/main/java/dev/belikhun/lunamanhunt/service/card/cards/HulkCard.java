@@ -11,11 +11,16 @@ import org.bukkit.potion.PotionEffectType;
 public class HulkCard extends BaseCard {
 	public HulkCard() {
 		super("hulk", "Người khổng lồ xanh", CardType.EFFECT, CardRarity.UNCOMMON, 2,
-			"Kháng sát thương II trong 1 phút.", Material.SLIME_BLOCK);
+			"Kháng sát thương II trong 1 phút.", Material.SLIME_BLOCK, 60);
 	}
 
 	@Override
 	public boolean apply(CardContext context) {
 		return context.applyPotionToSpeedrunner(new PotionEffect(PotionEffectType.RESISTANCE, 20 * 60, 1));
+	}
+
+	@Override
+	public boolean clear(CardContext context) {
+		return context.clearPotionFromSpeedrunner(PotionEffectType.RESISTANCE);
 	}
 }

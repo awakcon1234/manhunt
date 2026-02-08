@@ -11,11 +11,16 @@ import org.bukkit.potion.PotionEffectType;
 public class CurseShiningCard extends BaseCard {
 	public CurseShiningCard() {
 		super("shining", "Phát sáng", CardType.CURSE, CardRarity.COMMON, 1,
-			"Phát sáng thợ săn trong 2 phút.", Material.GLOW_INK_SAC);
+			"Phát sáng thợ săn trong 2 phút.", Material.GLOW_INK_SAC, 120);
 	}
 
 	@Override
 	public boolean apply(CardContext context) {
 		return context.applyPotionToHunters(new PotionEffect(PotionEffectType.GLOWING, 20 * 120, 0));
+	}
+
+	@Override
+	public boolean clear(CardContext context) {
+		return context.clearPotionFromHunters(PotionEffectType.GLOWING);
 	}
 }

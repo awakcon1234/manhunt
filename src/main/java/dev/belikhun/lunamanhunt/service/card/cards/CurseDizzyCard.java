@@ -11,11 +11,16 @@ import org.bukkit.potion.PotionEffectType;
 public class CurseDizzyCard extends BaseCard {
 	public CurseDizzyCard() {
 		super("dizzy", "Hơi chóng mặt", CardType.CURSE, CardRarity.COMMON, 1,
-			"Chóng mặt thợ săn trong 30 giây.", Material.FERMENTED_SPIDER_EYE);
+			"Chóng mặt thợ săn trong 30 giây.", Material.FERMENTED_SPIDER_EYE, 30);
 	}
 
 	@Override
 	public boolean apply(CardContext context) {
 		return context.applyPotionToHunters(new PotionEffect(PotionEffectType.NAUSEA, 20 * 30, 0));
+	}
+
+	@Override
+	public boolean clear(CardContext context) {
+		return context.clearPotionFromHunters(PotionEffectType.NAUSEA);
 	}
 }

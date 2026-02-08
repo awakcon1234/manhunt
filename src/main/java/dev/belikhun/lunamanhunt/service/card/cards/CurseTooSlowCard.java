@@ -11,11 +11,16 @@ import org.bukkit.potion.PotionEffectType;
 public class CurseTooSlowCard extends BaseCard {
 	public CurseTooSlowCard() {
 		super("too_slow", "Quá chậm", CardType.CURSE, CardRarity.COMMON, 1,
-			"Làm chậm thợ săn trong 1 phút.", Material.BLUE_ICE);
+			"Làm chậm thợ săn trong 1 phút.", Material.BLUE_ICE, 60);
 	}
 
 	@Override
 	public boolean apply(CardContext context) {
 		return context.applyPotionToHunters(new PotionEffect(PotionEffectType.SLOWNESS, 20 * 60, 1));
+	}
+
+	@Override
+	public boolean clear(CardContext context) {
+		return context.clearPotionFromHunters(PotionEffectType.SLOWNESS);
 	}
 }

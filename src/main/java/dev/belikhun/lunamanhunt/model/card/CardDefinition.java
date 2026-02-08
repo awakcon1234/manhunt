@@ -18,5 +18,11 @@ public interface CardDefinition {
 
 	Material getIcon();
 
+	boolean isTimed();
+
+	int getDurationSeconds();
+
 	boolean apply(CardContext context);
+
+	boolean clear(CardContext context);
 }

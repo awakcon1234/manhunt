@@ -64,8 +64,9 @@ public final class LunaManhuntPlugin extends JavaPlugin {
         this.guiService = new GuiService(this, lobbyManager, matchManager, cardService, pointService,
             persistenceManager.getProfileStore());
         this.lobbyItemService = new LobbyItemService(this, lobbyManager, guiService);
+        this.guiService.setLobbyItemService(lobbyItemService);
         this.lobbyTeleportService = new LobbyTeleportService(this, lobbyItemService);
-        this.matchEndService = new MatchEndService(this, lobbyManager, multiverseService, lobbyTeleportService);
+        this.matchEndService = new MatchEndService(this, lobbyManager, multiverseService, lobbyTeleportService, cardService);
         this.winConditionService = new WinConditionService(lobbyManager, persistenceManager.getProfileStore(),
             matchEndService);
         this.matchLifecycleService = new MatchLifecycleService(lobbyManager, matchManager, compassService);
@@ -82,7 +83,7 @@ public final class LunaManhuntPlugin extends JavaPlugin {
         getServer().getPluginManager().registerEvents(new CardListener(cardService), this);
         getServer().getPluginManager().registerEvents(new RunStartListener(matchLifecycleService), this);
         getServer().getPluginManager().registerEvents(new EndPortalListener(matchEndService), this);
-        MatchCommand matchCommand = new MatchCommand(lobbyManager, matchManager, guiService);
+        MatchCommand matchCommand = new MatchCommand(lobbyManager, matchManager, guiService, lobbyItemService);
         LmAdminCommand adminCommand = new LmAdminCommand(this, lobbyManager, matchManager);
         SpawnCommand spawnCommand = new SpawnCommand(spawnService);
         CardsCommand cardsCommand = new CardsCommand(lobbyManager, cardService, guiService);

@@ -36,6 +36,7 @@ import dev.belikhun.lunamanhunt.service.point.PointService;
 import dev.belikhun.lunamanhunt.util.Text;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.TextDecoration;
+import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
 import org.bukkit.entity.Player;
@@ -48,9 +49,11 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Random;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class CardService {
 	private static final int DRAW_COUNT = 3;
@@ -62,6 +65,7 @@ public class CardService {
 	private final PointService pointService;
 	private final List<CardDefinition> cardPool;
 	private final Random random = new Random();
+	private final Map<String, List<ActiveCard>> activeCards = new ConcurrentHashMap<>();
 
 	public CardService(JavaPlugin plugin, LobbyManager lobbyManager, CompassService compassService, PointService pointService) {
 		this.plugin = Objects.requireNonNull(plugin, "plugin");
@@ -155,6 +159,30 @@ public class CardService {
 		return List.copyOf(match.getDrawnCards());
 	}
 
+	public List<ActiveCard> getActiveCards(Match match) {
+		if (match == null) {
+			return List.of();
+		}
+		List<ActiveCard> entries = activeCards.get(match.getId());
+		if (entries == null || entries.isEmpty()) {
+			return List.of();
+		}
+		return List.copyOf(entries);
+	}
+
+	public void clearActiveCards(Match match) {
+		if (match == null) {
+			return;
+		}
+		List<ActiveCard> entries = activeCards.get(match.getId());
+		if (entries == null || entries.isEmpty()) {
+			return;
+		}
+		for (ActiveCard entry : List.copyOf(entries)) {
+			clearActiveCard(entry);
+		}
+	}
+
 	public int getPoints(Match match) {
 		return match == null ? 0 : match.getSpeedrunnerPoints();
 	}
@@ -208,6 +236,7 @@ public class CardService {
 		if (!card.apply(context)) {
 			return false;
 		}
+		trackActiveCard(match, card);
 		match.setSpeedrunnerPoints(match.getSpeedrunnerPoints() - card.getCost());
 		match.getDrawnCards().remove(card);
 		Text.msg(player, "<green>✔</green> Đã dùng thẻ <yellow>" + card.getName() + "</yellow>.");
@@ -296,6 +325,9 @@ public class CardService {
 			lore.add("<gray>● <white>Loại thẻ: " + formatCardTypeDisplay(card.getType()) + "</white>");
 			lore.add("<gray>● <white>Độ hiếm: " + formatCardRarityDisplay(card.getRarity()) + "</white>");
 			lore.add("<gray>● <white>Chi phí: " + pointService.formatPoints(card.getCost()) + "</white>");
+			if (card.isTimed()) {
+				lore.add("<gray>● <white>Thời lượng: " + formatCardDuration(card.getDurationSeconds()) + "</white>");
+			}
 			lore.add("");
 			List<String> descriptionLines = wrapCardDescription(card.getDescription());
 			lore.add("<color:#36a8ff>▍</color> <white>" + descriptionLines.get(0) + "</white>");
@@ -382,6 +414,61 @@ public class CardService {
 		String first = text.substring(0, split).trim();
 		String second = text.substring(split + 1).trim();
 		return List.of(first, second);
+	}
+
+	private void trackActiveCard(Match match, CardDefinition card) {
+		if (match == null || card == null || !card.isTimed()) {
+			return;
+		}
+		int durationSeconds = card.getDurationSeconds();
+		if (durationSeconds <= 0) {
+			return;
+		}
+		long now = System.currentTimeMillis();
+		ActiveCard entry = new ActiveCard(match, card, now, now + (durationSeconds * 1000L));
+		activeCards.computeIfAbsent(match.getId(), key -> new ArrayList<>()).add(entry);
+		Bukkit.getScheduler().runTaskLater(plugin, () -> clearActiveCard(entry), durationSeconds * 20L);
+	}
+
+	private void clearActiveCard(ActiveCard entry) {
+		if (entry == null || entry.match() == null) {
+			return;
+		}
+		Match match = entry.match();
+		List<ActiveCard> entries = activeCards.get(match.getId());
+		if (entries == null || !entries.remove(entry)) {
+			return;
+		}
+		if (entries.isEmpty()) {
+			activeCards.remove(match.getId());
+		}
+		Player speedrunner = resolveSpeedrunner(match);
+		CardContext context = new CardContext(plugin, match, speedrunner, lobbyManager, compassService);
+		entry.card().clear(context);
+	}
+
+	private Player resolveSpeedrunner(Match match) {
+		UUID speedrunnerId = match == null ? null : match.getSpeedrunnerId();
+		return speedrunnerId == null ? null : Bukkit.getPlayer(speedrunnerId);
+	}
+
+	private String formatCardDuration(int durationSeconds) {
+		if (durationSeconds <= 0) {
+			return "Không giới hạn";
+		}
+		int minutes = durationSeconds / 60;
+		int seconds = durationSeconds % 60;
+		if (minutes <= 0) {
+			return durationSeconds + " giây";
+		}
+		if (seconds == 0) {
+			if (minutes % 60 == 0) {
+				int hours = minutes / 60;
+				return hours + " giờ";
+			}
+			return minutes + " phút";
+		}
+		return minutes + " phút " + seconds + " giây";
 	}
 
 	private Component mmNoItalic(String miniMessage) {
