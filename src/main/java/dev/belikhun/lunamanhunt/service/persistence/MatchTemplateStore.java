@@ -98,6 +98,10 @@ public class MatchTemplateStore {
             List<String> kit = section.getStringList("speedrunnerKit");
             settings.setSpeedrunnerKit(new ArrayList<>(kit));
         }
+        if (section.contains("enabledCards")) {
+            List<String> enabledCards = section.getStringList("enabledCards");
+            settings.setEnabledCardIds(new ArrayList<>(enabledCards));
+        }
         if (section.isSet("visibility")) {
             String visibility = section.getString("visibility", MatchVisibility.PUBLIC.name());
             settings.setVisibility(MatchSettingsService.parseVisibility(visibility, settings.getVisibility()));
@@ -113,6 +117,7 @@ public class MatchTemplateStore {
         section.set("worldBorderLimit", settings.getWorldBorderLimit());
         section.set("startingBorder", settings.getStartingBorder());
         section.set("speedrunnerKit", settings.getSpeedrunnerKit());
+        section.set("enabledCards", settings.getEnabledCardIds());
         section.set("visibility", settings.getVisibility().name());
     }
 }

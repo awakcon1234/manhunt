@@ -43,6 +43,11 @@ public class MatchSettingsService {
 			settings.setSpeedrunnerKit(new ArrayList<>(kit));
 		}
 
+		List<String> enabledCards = config.getStringList("match.defaults.enabledCards");
+		if (!enabledCards.isEmpty()) {
+			settings.setEnabledCardIds(new ArrayList<>(enabledCards));
+		}
+
 		return settings;
 	}
 

@@ -54,6 +54,11 @@ public class GuiService {
 	private static final String ACTION_MAIN_CLOSE = "main_close";
 
 	private static final String ACTION_MATCH_JOIN = "match_join";
+	private static final String ACTION_MATCH_INFO_INVITE = "match_info_invite";
+	private static final String ACTION_MATCH_INFO_SETTINGS = "match_info_settings";
+	private static final String ACTION_MATCH_INFO_CARDS = "match_info_cards";
+	private static final String ACTION_MATCH_INFO_KIT = "match_info_kit";
+	private static final String ACTION_MATCH_INFO_CLOSE = "match_info_close";
 
 	private static final String ACTION_LOBBY_START = "lobby_start";
 	private static final String ACTION_LOBBY_INVITE = "lobby_invite";
@@ -90,6 +95,11 @@ public class GuiService {
 	private static final String ACTION_CARDS_INFO_CLOSE = "cards_info_close";
 	private static final String ACTION_CARDS_INFO_PREV = "cards_info_prev";
 	private static final String ACTION_CARDS_INFO_NEXT = "cards_info_next";
+	private static final String ACTION_CARDS_ADJUST_ENABLE = "cards_adjust_enable";
+	private static final String ACTION_CARDS_ADJUST_DISABLE = "cards_adjust_disable";
+	private static final String ACTION_CARDS_ADJUST_CLOSE = "cards_adjust_close";
+	private static final String ACTION_CARDS_ADJUST_PREV = "cards_adjust_prev";
+	private static final String ACTION_CARDS_ADJUST_NEXT = "cards_adjust_next";
 	private static final String ACTION_PROFILE_CLOSE = "profile_close";
 	private static final String ACTION_PROFILE_HISTORY_OPEN = "profile_history_open";
 	private static final String ACTION_PROFILE_HISTORY_BACK = "profile_history_back";
@@ -98,6 +108,22 @@ public class GuiService {
 
 	private static final int HISTORY_PAGE_SIZE = 45;
 	private static final int CARDS_INFO_PAGE_SIZE = 45;
+	private static final int CARDS_ADJUST_PAGE_SIZE = 20;
+
+	private static final int[] AVAILABLE_CARD_SLOTS = new int[] {
+		0, 1, 2, 3,
+		9, 10, 11, 12,
+		18, 19, 20, 21,
+		27, 28, 29, 30,
+		36, 37, 38, 39
+	};
+	private static final int[] ENABLED_CARD_SLOTS = new int[] {
+		5, 6, 7, 8,
+		14, 15, 16, 17,
+		23, 24, 25, 26,
+		32, 33, 34, 35,
+		41, 42, 43, 44
+	};
 
 	private final LobbyManager lobbyManager;
 	private final MatchManager matchManager;
@@ -209,6 +235,35 @@ public class GuiService {
 		player.openInventory(inventory);
 	}
 
+	public void openMatchInfoMenu(Player player) {
+		if (player == null) {
+			return;
+		}
+		Match match = lobbyManager.getMatchForPlayer(player.getUniqueId());
+		if (match == null || match.getState() != MatchState.LOBBY) {
+			Text.msg(player, "<red>❌</red> Bạn chưa ở trong sảnh phòng nào.");
+			return;
+		}
+		Inventory inventory = Bukkit.createInventory(new GuiHolder(GuiType.MATCH_INFO, match.getId()), 27,
+			Text.mm(UiColors.titlePrimary("Thông tin phòng")));
+		fillMatchInfoMenu(player, match, inventory);
+		player.openInventory(inventory);
+	}
+
+	public void openCardsAdjustMenu(Player player, Match match, int page) {
+		if (player == null || match == null) {
+			return;
+		}
+		boolean isOwner = match.getOwnerId().equals(player.getUniqueId());
+		int totalPages = getCardsAdjustPageCount(match, isOwner);
+		int safePage = clamp(page, 0, Math.max(0, totalPages - 1));
+		Inventory inventory = Bukkit.createInventory(new GuiHolder(GuiType.CARDS_ADJUST, match.getId()), 54,
+			Text.mm(UiColors.titlePrimary("Thẻ dùng trong trận") + " "
+				+ UiColors.titleSecondary("- Trang " + (safePage + 1) + "/" + Math.max(1, totalPages))));
+		fillCardsAdjustMenu(player, match, inventory, safePage, totalPages);
+		player.openInventory(inventory);
+	}
+
 	public void openCardsInfoMenu(Player player, int page) {
 		if (player == null) {
 			return;
@@ -270,7 +325,7 @@ public class GuiService {
 			return true;
 		}
 
-			switch (action) {
+		switch (action) {
 			case ACTION_MAIN_CREATE -> handleCreate(player);
 			case ACTION_MAIN_MY -> handleMyMatch(player);
 			case ACTION_MAIN_SETTINGS -> Text.msg(player, "<yellow>ℹ</yellow> Cài đặt đang được phát triển.");
@@ -278,6 +333,11 @@ public class GuiService {
 			case ACTION_MAIN_REFRESH -> openMainMenu(player);
 			case ACTION_MAIN_CLOSE -> player.closeInventory();
 			case ACTION_MATCH_JOIN -> handleJoin(player, target);
+			case ACTION_MATCH_INFO_INVITE -> handleMatchInfoInvite(player, holder.matchId());
+			case ACTION_MATCH_INFO_SETTINGS -> handleMatchInfoSettings(player, holder.matchId());
+			case ACTION_MATCH_INFO_CARDS -> handleMatchInfoCards(player, holder.matchId(), target);
+			case ACTION_MATCH_INFO_KIT -> handleMatchInfoKit(player, holder.matchId());
+			case ACTION_MATCH_INFO_CLOSE -> player.closeInventory();
 			case ACTION_LOBBY_START -> handleStart(player, holder.matchId());
 			case ACTION_LOBBY_INVITE -> handleOpenInvite(player, holder.matchId());
 			case ACTION_LOBBY_SETTINGS -> handleOpenSettings(player, holder.matchId());
@@ -307,6 +367,10 @@ public class GuiService {
 			case ACTION_CARD_CLOSE -> player.closeInventory();
 			case ACTION_CARDS_INFO_CLOSE -> player.closeInventory();
 			case ACTION_CARDS_INFO_PREV, ACTION_CARDS_INFO_NEXT -> handleOpenCardsInfoPage(player, target);
+			case ACTION_CARDS_ADJUST_ENABLE -> handleAdjustCard(player, holder.matchId(), target, true);
+			case ACTION_CARDS_ADJUST_DISABLE -> handleAdjustCard(player, holder.matchId(), target, false);
+			case ACTION_CARDS_ADJUST_PREV, ACTION_CARDS_ADJUST_NEXT -> handleOpenCardsAdjustPage(player, holder.matchId(), target);
+			case ACTION_CARDS_ADJUST_CLOSE -> handleCardsAdjustClose(player, holder.matchId());
 			case ACTION_PROFILE_CLOSE -> player.closeInventory();
 			case ACTION_PROFILE_HISTORY_OPEN -> openProfileHistoryMenu(player, 0);
 			case ACTION_PROFILE_HISTORY_BACK -> openProfileMenu(player);
@@ -335,14 +399,6 @@ public class GuiService {
 		inventory.setItem(45, buildActionItem(Material.LIME_WOOL,
 			"<green>✔</green> Tạo phòng",
 			List.of("<gray>Tạo phòng mới và trở thành chủ phòng.</gray>"), ACTION_MAIN_CREATE, null));
-
-		inventory.setItem(47, buildActionItem(Material.COMPARATOR,
-			"<yellow>ℹ</yellow> Cài đặt",
-			List.of("<gray>Thiết lập cá nhân (đang phát triển).</gray>"), ACTION_MAIN_SETTINGS, null));
-
-		inventory.setItem(48, buildActionItem(Material.EMERALD,
-			"<yellow>ℹ</yellow> Thẻ bài",
-			List.of("<gray>Xem thẻ bài đã rút.</gray>"), ACTION_MAIN_CARDS, null));
 
 		inventory.setItem(49, buildActionItem(Material.CLOCK,
 			"<yellow>ℹ</yellow> Làm mới",
@@ -544,6 +600,103 @@ public class GuiService {
 		inventory.setItem(26, buildActionItem(Material.BARRIER,
 			"<red>❌</red> Đóng",
 			List.of("<gray>Đóng bảng thẻ bài.</gray>"), ACTION_CARD_CLOSE, null));
+	}
+
+	private void fillMatchInfoMenu(Player player, Match match, Inventory inventory) {
+		String ownerName = "Không rõ";
+		Player owner = Bukkit.getPlayer(match.getOwnerId());
+		if (owner != null) {
+			ownerName = owner.getName();
+		}
+		boolean isOwner = match.getOwnerId().equals(player.getUniqueId());
+		inventory.setItem(4, buildInfoItem(Material.BOOK,
+			"<yellow>ℹ</yellow> Thông tin phòng",
+			List.of(
+				"<gray>Mã phòng: <white>" + match.getId() + "</white></gray>",
+				"<gray>Chủ phòng: <white>" + ownerName + "</white></gray>",
+				"<gray>Hiển thị: <white>" + formatVisibility(match.getSettings().getVisibility()) + "</white></gray>",
+				"<gray>Người chơi: <white>" + match.getLobbyPlayers().size() + "</white></gray>"
+			)));
+
+		if (isOwner) {
+			inventory.setItem(10, buildActionItem(Material.PAPER,
+				"<yellow>ℹ</yellow> Mời người chơi",
+				List.of("<gray>Mời người chơi vào phòng.</gray>"), ACTION_MATCH_INFO_INVITE, null));
+			inventory.setItem(12, buildActionItem(Material.COMPARATOR,
+				"<yellow>ℹ</yellow> Cài đặt trận",
+				List.of("<gray>Điều chỉnh cài đặt phòng.</gray>"), ACTION_MATCH_INFO_SETTINGS, null));
+			inventory.setItem(14, buildActionItem(Material.EMERALD,
+				"<yellow>ℹ</yellow> Thẻ dùng trong trận",
+				List.of("<gray>Bật/tắt thẻ cho trận đấu.</gray>"), ACTION_MATCH_INFO_CARDS, "0"));
+			inventory.setItem(16, buildActionItem(Material.CHEST,
+				"<yellow>ℹ</yellow> Bộ đồ speedrunner",
+				List.of("<gray>Chỉnh bộ đồ khởi đầu.</gray>"), ACTION_MATCH_INFO_KIT, null));
+		} else {
+			inventory.setItem(10, buildInfoItem(Material.PAPER,
+				"<yellow>ℹ</yellow> Mời người chơi",
+				List.of("<gray>Chỉ chủ phòng mới có thể mời.</gray>")));
+			inventory.setItem(12, buildInfoItem(Material.COMPARATOR,
+				"<yellow>ℹ</yellow> Cài đặt trận",
+				List.of("<gray>Chỉ chủ phòng mới có thể chỉnh.</gray>")));
+			inventory.setItem(14, buildActionItem(Material.EMERALD,
+				"<yellow>ℹ</yellow> Thẻ dùng trong trận",
+				List.of("<gray>Xem danh sách thẻ đã bật.</gray>"), ACTION_MATCH_INFO_CARDS, "0"));
+			inventory.setItem(16, buildInfoItem(Material.CHEST,
+				"<yellow>ℹ</yellow> Bộ đồ speedrunner",
+				List.of("<gray>Chỉ chủ phòng mới có thể chỉnh.</gray>")));
+		}
+
+		inventory.setItem(22, buildActionItem(Material.BARRIER,
+			"<red>❌</red> Đóng",
+			List.of("<gray>Đóng bảng thông tin.</gray>"), ACTION_MATCH_INFO_CLOSE, null));
+	}
+
+	private void fillCardsAdjustMenu(Player player, Match match, Inventory inventory, int page, int totalPages) {
+		boolean isOwner = match.getOwnerId().equals(player.getUniqueId());
+		List<CardDefinition> enabled = cardService.getEnabledCards(match);
+		List<CardDefinition> available = new ArrayList<>();
+		if (isOwner) {
+			for (CardDefinition card : cardService.getCardPool()) {
+				if (!enabled.contains(card)) {
+					available.add(card);
+				}
+			}
+		}
+
+		setCardsAdjustSeparator(inventory);
+		fillCardsAdjustList(inventory, available, AVAILABLE_CARD_SLOTS, page, isOwner,
+			ACTION_CARDS_ADJUST_ENABLE);
+		fillCardsAdjustList(inventory, enabled, ENABLED_CARD_SLOTS, page, isOwner,
+			ACTION_CARDS_ADJUST_DISABLE);
+
+		inventory.setItem(46, buildInfoItem(Material.PAPER,
+			"<yellow>ℹ</yellow> Thẻ khả dụng",
+			List.of("<gray>Chưa bật: <white>" + available.size() + "</white></gray>")));
+		inventory.setItem(52, buildInfoItem(Material.PAPER,
+			"<yellow>ℹ</yellow> Thẻ đang bật",
+			List.of("<gray>Đang bật: <white>" + enabled.size() + "</white></gray>")));
+
+		if (page > 0) {
+			inventory.setItem(45, buildActionItem(Material.ARROW,
+				"<yellow>ℹ</yellow> Trang trước",
+				List.of("<gray>Xem trang trước.</gray>"), ACTION_CARDS_ADJUST_PREV,
+				String.valueOf(page - 1)));
+		}
+		if (page < totalPages - 1) {
+			inventory.setItem(53, buildActionItem(Material.ARROW,
+				"<yellow>ℹ</yellow> Trang sau",
+				List.of("<gray>Xem trang tiếp theo.</gray>"), ACTION_CARDS_ADJUST_NEXT,
+				String.valueOf(page + 1)));
+		}
+
+		inventory.setItem(49, buildActionItem(Material.BARRIER,
+			"<red>❌</red> Quay lại",
+			List.of("<gray>Quay về thông tin phòng.</gray>"), ACTION_CARDS_ADJUST_CLOSE, null));
+		if (!isOwner) {
+			inventory.setItem(50, buildInfoItem(Material.GRAY_DYE,
+				"<yellow>ℹ</yellow> Chế độ xem",
+				List.of("<gray>Chỉ chủ phòng mới được chỉnh.</gray>")));
+		}
 	}
 
 	private void fillCardsInfoMenu(List<CardDefinition> pool, Inventory inventory, int page, int totalPages) {
@@ -780,6 +933,94 @@ public class GuiService {
 			return;
 		}
 		openCardsMenu(player, match);
+	}
+
+	private void handleMatchInfoInvite(Player player, String matchId) {
+		Match match = matchManager.getMatch(matchId);
+		if (match == null) {
+			Text.msg(player, "<red>❌</red> Không tìm thấy phòng đấu.");
+			return;
+		}
+		if (!match.getOwnerId().equals(player.getUniqueId())) {
+			Text.msg(player, "<red>❌</red> Chỉ chủ phòng mới được mời người chơi.");
+			return;
+		}
+		openInviteMenu(player, match);
+	}
+
+	private void handleMatchInfoSettings(Player player, String matchId) {
+		Match match = matchManager.getMatch(matchId);
+		if (match == null) {
+			Text.msg(player, "<red>❌</red> Không tìm thấy phòng đấu.");
+			return;
+		}
+		if (!match.getOwnerId().equals(player.getUniqueId())) {
+			Text.msg(player, "<red>❌</red> Chỉ chủ phòng mới được chỉnh cài đặt.");
+			return;
+		}
+		openSettingsMenu(player, match);
+	}
+
+	private void handleMatchInfoCards(Player player, String matchId, String target) {
+		Match match = matchManager.getMatch(matchId);
+		if (match == null) {
+			Text.msg(player, "<red>❌</red> Không tìm thấy phòng đấu.");
+			return;
+		}
+		int page = parsePage(target, 0);
+		openCardsAdjustMenu(player, match, page);
+	}
+
+	private void handleMatchInfoKit(Player player, String matchId) {
+		Match match = matchManager.getMatch(matchId);
+		if (match == null) {
+			Text.msg(player, "<red>❌</red> Không tìm thấy phòng đấu.");
+			return;
+		}
+		if (!match.getOwnerId().equals(player.getUniqueId())) {
+			Text.msg(player, "<red>❌</red> Chỉ chủ phòng mới được chỉnh bộ đồ.");
+			return;
+		}
+		openKitEditor(player, match);
+	}
+
+	private void handleAdjustCard(Player player, String matchId, String target, boolean enable) {
+		Match match = matchManager.getMatch(matchId);
+		if (match == null) {
+			Text.msg(player, "<red>❌</red> Không tìm thấy phòng đấu.");
+			return;
+		}
+		if (!match.getOwnerId().equals(player.getUniqueId())) {
+			Text.msg(player, "<red>❌</red> Chỉ chủ phòng mới được chỉnh thẻ.");
+			return;
+		}
+		String[] parts = splitCardTarget(target);
+		String cardId = parts[0];
+		int page = parsePage(parts[1], 0);
+		if (cardId == null || cardId.isBlank()) {
+			return;
+		}
+		cardService.setCardEnabled(match, cardId, enable);
+		openCardsAdjustMenu(player, match, page);
+	}
+
+	private void handleOpenCardsAdjustPage(Player player, String matchId, String target) {
+		Match match = matchManager.getMatch(matchId);
+		if (match == null) {
+			Text.msg(player, "<red>❌</red> Không tìm thấy phòng đấu.");
+			return;
+		}
+		int page = parsePage(target, 0);
+		openCardsAdjustMenu(player, match, page);
+	}
+
+	private void handleCardsAdjustClose(Player player, String matchId) {
+		Match match = matchManager.getMatch(matchId);
+		if (match == null) {
+			player.closeInventory();
+			return;
+		}
+		openMatchInfoMenu(player);
 	}
 
 	private void handleOpenSpeedrunnerMenu(Player player, String matchId) {
@@ -1301,6 +1542,77 @@ public class GuiService {
 		return (totalEntries + CARDS_INFO_PAGE_SIZE - 1) / CARDS_INFO_PAGE_SIZE;
 	}
 
+	private int getCardsAdjustPageCount(Match match, boolean isOwner) {
+		if (match == null) {
+			return 0;
+		}
+		int enabledCount = cardService.getEnabledCards(match).size();
+		int maxCount = enabledCount;
+		if (isOwner) {
+			int availableCount = cardService.getCardPool().size() - enabledCount;
+			maxCount = Math.max(enabledCount, availableCount);
+		}
+		if (maxCount <= 0) {
+			return 0;
+		}
+		return (maxCount + CARDS_ADJUST_PAGE_SIZE - 1) / CARDS_ADJUST_PAGE_SIZE;
+	}
+
+	private void setCardsAdjustSeparator(Inventory inventory) {
+		ItemStack separator = buildInfoItem(Material.GRAY_STAINED_GLASS_PANE,
+			" ",
+			List.of(" "));
+		int[] slots = new int[] { 4, 13, 22, 31, 40 };
+		for (int slot : slots) {
+			inventory.setItem(slot, separator);
+		}
+	}
+
+	private void fillCardsAdjustList(Inventory inventory, List<CardDefinition> cards, int[] slots, int page,
+			boolean allowEdit, String action) {
+		int start = page * CARDS_ADJUST_PAGE_SIZE;
+		for (int i = 0; i < slots.length; i++) {
+			int index = start + i;
+			if (index >= cards.size()) {
+				continue;
+			}
+			CardDefinition card = cards.get(index);
+			ItemStack item = cardService.buildCardInfoItem(card);
+			if (allowEdit) {
+				String target = card.getId() + "|" + page;
+				item = decorateCardAction(item, action, target);
+			}
+			inventory.setItem(slots[i], item);
+		}
+	}
+
+	private ItemStack decorateCardAction(ItemStack item, String action, String target) {
+		if (item == null) {
+			return null;
+		}
+		ItemMeta meta = item.getItemMeta();
+		if (meta == null) {
+			return item;
+		}
+		meta.getPersistentDataContainer().set(actionKey, PersistentDataType.STRING, action);
+		if (target != null) {
+			meta.getPersistentDataContainer().set(targetKey, PersistentDataType.STRING, target);
+		}
+		item.setItemMeta(meta);
+		return item;
+	}
+
+	private String[] splitCardTarget(String target) {
+		if (target == null) {
+			return new String[] { null, null };
+		}
+		String[] parts = target.split("\\|", 2);
+		if (parts.length == 1) {
+			return new String[] { parts[0], null };
+		}
+		return parts;
+	}
+
 	private String formatHistoryOutcome(MatchHistoryEntry entry) {
 		return entry != null && entry.isWon() ? "<green>Thắng</green>" : "<red>Thua</red>";
 	}
@@ -1398,6 +1710,8 @@ public class GuiService {
 		KIT_CLEAR_CONFIRM,
 		CARDS,
 		CARDS_INFO,
+		MATCH_INFO,
+		CARDS_ADJUST,
 		PROFILE,
 		PROFILE_HISTORY
 	}

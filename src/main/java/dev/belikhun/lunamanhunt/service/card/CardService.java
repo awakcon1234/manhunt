@@ -47,6 +47,7 @@ import org.bukkit.plugin.java.JavaPlugin;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Locale;
 import java.util.Objects;
 import java.util.Random;
 import java.util.UUID;
@@ -72,6 +73,71 @@ public class CardService {
 
 	public List<CardDefinition> getCardPool() {
 		return cardPool;
+	}
+
+	public List<String> getAllCardIds() {
+		List<String> ids = new ArrayList<>(cardPool.size());
+		for (CardDefinition card : cardPool) {
+			ids.add(card.getId());
+		}
+		return ids;
+	}
+
+	public List<String> getEnabledCardIds(Match match) {
+		if (match == null) {
+			return List.of();
+		}
+		ensureEnabledCards(match);
+		return List.copyOf(match.getSettings().getEnabledCardIds());
+	}
+
+	public List<CardDefinition> getEnabledCards(Match match) {
+		if (match == null) {
+			return List.of();
+		}
+		ensureEnabledCards(match);
+		List<String> enabled = match.getSettings().getEnabledCardIds();
+		List<CardDefinition> result = new ArrayList<>();
+		for (CardDefinition card : cardPool) {
+			if (enabled.contains(card.getId())) {
+				result.add(card);
+			}
+		}
+		return result;
+	}
+
+	public boolean setCardEnabled(Match match, String cardId, boolean enabled) {
+		if (match == null || cardId == null || cardId.isBlank()) {
+			return false;
+		}
+		ensureEnabledCards(match);
+		String normalized = normalizeCardId(cardId);
+		CardDefinition card = getCardById(normalized);
+		if (card == null) {
+			return false;
+		}
+		List<String> enabledIds = match.getSettings().getEnabledCardIds();
+		if (enabled && !enabledIds.contains(card.getId())) {
+			enabledIds.add(card.getId());
+			return true;
+		}
+		if (!enabled && enabledIds.remove(card.getId())) {
+			return true;
+		}
+		return false;
+	}
+
+	public CardDefinition getCardById(String cardId) {
+		if (cardId == null) {
+			return null;
+		}
+		String normalized = normalizeCardId(cardId);
+		for (CardDefinition card : cardPool) {
+			if (card.getId().equalsIgnoreCase(normalized)) {
+				return card;
+			}
+		}
+		return null;
 	}
 
 	public int getDrawCost() {
@@ -105,7 +171,7 @@ public class CardService {
 		if (match == null) {
 			return;
 		}
-		List<CardDefinition> draw = drawRandomCards(DRAW_COUNT);
+		List<CardDefinition> draw = drawRandomCards(match, DRAW_COUNT);
 		match.getDrawnCards().clear();
 		match.getDrawnCards().addAll(draw);
 	}
@@ -328,13 +394,40 @@ public class CardService {
 			.toList();
 	}
 
-	private List<CardDefinition> drawRandomCards(int count) {
-		if (cardPool.isEmpty()) {
+	private List<CardDefinition> drawRandomCards(Match match, int count) {
+		List<CardDefinition> pool = getEnabledCards(match);
+		if (pool.isEmpty()) {
 			return List.of();
 		}
-		List<CardDefinition> pool = new ArrayList<>(cardPool);
+		pool = new ArrayList<>(pool);
 		Collections.shuffle(pool, random);
 		return pool.subList(0, Math.min(count, pool.size()));
+	}
+
+	private void ensureEnabledCards(Match match) {
+		if (match == null) {
+			return;
+		}
+		List<String> enabled = match.getSettings().getEnabledCardIds();
+		List<String> normalized = new ArrayList<>();
+		for (String id : enabled) {
+			String value = normalizeCardId(id);
+			if (value == null || value.isBlank()) {
+				continue;
+			}
+			CardDefinition card = getCardById(value);
+			if (card != null && !normalized.contains(card.getId())) {
+				normalized.add(card.getId());
+			}
+		}
+		if (normalized.isEmpty()) {
+			normalized.addAll(getAllCardIds());
+		}
+		match.getSettings().setEnabledCardIds(normalized);
+	}
+
+	private String normalizeCardId(String cardId) {
+		return cardId == null ? null : cardId.trim().toLowerCase(Locale.ROOT);
 	}
 
 	private List<CardDefinition> buildDefaultPool() {

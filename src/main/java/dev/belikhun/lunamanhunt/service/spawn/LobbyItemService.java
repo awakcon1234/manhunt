@@ -27,6 +27,7 @@ import java.util.Objects;
 public class LobbyItemService {
 	private static final String ACTION_MATCH_LIST = "match_list";
 	private static final String ACTION_PROFILE = "profile";
+	private static final String ACTION_MATCH_INFO = "match_info";
 
 	private final JavaPlugin plugin;
 	private final LobbyManager lobbyManager;
@@ -47,6 +48,7 @@ public class LobbyItemService {
 		player.setGameMode(GameMode.ADVENTURE);
 		PlayerInventory inventory = player.getInventory();
 		inventory.setItem(0, buildMatchListItem());
+		inventory.setItem(1, buildMatchInfoItem(player));
 		inventory.setItem(8, buildProfileItem(player));
 		player.getInventory().setHeldItemSlot(0);
 	}
@@ -72,6 +74,7 @@ public class LobbyItemService {
 		}
 		switch (action) {
 			case ACTION_MATCH_LIST -> guiService.openMainMenu(player);
+			case ACTION_MATCH_INFO -> guiService.openMatchInfoMenu(player);
 			case ACTION_PROFILE -> guiService.openProfileMenu(player);
 			default -> {
 			}
@@ -117,6 +120,25 @@ public class LobbyItemService {
 			meta.displayName(mmNoItalic("<gold>Phòng đấu</gold>"));
 			meta.lore(mmNoItalic(List.of("<gray>Bấm để mở danh sách phòng.</gray>")));
 			meta.getPersistentDataContainer().set(actionKey, PersistentDataType.STRING, ACTION_MATCH_LIST);
+			item.setItemMeta(meta);
+		}
+		return item;
+	}
+
+	private ItemStack buildMatchInfoItem(Player player) {
+		Match match = lobbyManager.getMatchForPlayer(player.getUniqueId());
+		if (match == null || match.getState() != MatchState.LOBBY) {
+			return null;
+		}
+		ItemStack item = new ItemStack(Material.COMPASS);
+		ItemMeta meta = item.getItemMeta();
+		if (meta != null) {
+			meta.displayName(mmNoItalic("<yellow>Thông tin phòng</yellow>"));
+			meta.lore(mmNoItalic(List.of(
+				"<gray>Mã phòng: <white>" + match.getId() + "</white></gray>",
+				"<gray>Bấm để xem chi tiết.</gray>"
+			)));
+			meta.getPersistentDataContainer().set(actionKey, PersistentDataType.STRING, ACTION_MATCH_INFO);
 			item.setItemMeta(meta);
 		}
 		return item;

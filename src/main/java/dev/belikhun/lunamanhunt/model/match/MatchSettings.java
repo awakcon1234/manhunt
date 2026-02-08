@@ -12,6 +12,7 @@ public class MatchSettings {
     private int startingBorder = 10;
     private List<String> speedrunnerKit = new ArrayList<>();
     private MatchVisibility visibility = MatchVisibility.PUBLIC;
+    private List<String> enabledCardIds = new ArrayList<>();
 
     public SpeedrunnerSelection getSpeedrunnerSelection() {
         return speedrunnerSelection;
@@ -67,5 +68,13 @@ public class MatchSettings {
 
     public void setVisibility(MatchVisibility visibility) {
         this.visibility = visibility;
+    }
+
+    public List<String> getEnabledCardIds() {
+        return enabledCardIds;
+    }
+
+    public void setEnabledCardIds(List<String> enabledCardIds) {
+        this.enabledCardIds = enabledCardIds == null ? new ArrayList<>() : enabledCardIds;
     }
 }
