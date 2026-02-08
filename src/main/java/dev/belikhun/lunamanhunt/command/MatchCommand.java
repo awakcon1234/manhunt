@@ -1,0 +1,293 @@
+package dev.belikhun.lunamanhunt.command;
+
+import dev.belikhun.lunamanhunt.model.match.Match;
+import dev.belikhun.lunamanhunt.model.match.MatchState;
+import dev.belikhun.lunamanhunt.service.lobby.LobbyActionResult;
+import dev.belikhun.lunamanhunt.service.lobby.LobbyManager;
+import dev.belikhun.lunamanhunt.service.match.MatchManager;
+import dev.belikhun.lunamanhunt.service.gui.GuiService;
+import dev.belikhun.lunamanhunt.util.Text;
+import org.bukkit.Bukkit;
+import org.bukkit.command.Command;
+import org.bukkit.command.CommandSender;
+import org.bukkit.command.TabExecutor;
+import org.bukkit.entity.Player;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Locale;
+import java.util.Objects;
+
+public class MatchCommand implements TabExecutor {
+	private static final String PERM_BASE = "lunamanhunt.match";
+	private static final String PERM_CREATE = "lunamanhunt.match.create";
+	private static final String PERM_JOIN = "lunamanhunt.match.join";
+	private static final String PERM_INVITE = "lunamanhunt.match.invite";
+	private static final String PERM_START = "lunamanhunt.match.start";
+	private static final String PERM_LEAVE = "lunamanhunt.match.leave";
+	private static final String PERM_HELP = "lunamanhunt.match.help";
+	private static final String PERM_GUI = "lunamanhunt.match.gui";
+	private static final String PERM_SEED = "lunamanhunt.match.seed";
+	private static final String PERM_KIT = "lunamanhunt.match.kit";
+
+	private final LobbyManager lobbyManager;
+	private final MatchManager matchManager;
+	private final GuiService guiService;
+
+	public MatchCommand(LobbyManager lobbyManager, MatchManager matchManager, GuiService guiService) {
+		this.lobbyManager = Objects.requireNonNull(lobbyManager, "lobbyManager");
+		this.matchManager = Objects.requireNonNull(matchManager, "matchManager");
+		this.guiService = Objects.requireNonNull(guiService, "guiService");
+	}
+
+	@Override
+	public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
+		if (!(sender instanceof Player player)) {
+			sender.sendMessage("Chỉ hỗ trợ trong game.");
+			return true;
+		}
+
+		if (args.length == 0) {
+			sendHelp(player);
+			return true;
+		}
+
+		switch (args[0].toLowerCase(Locale.ROOT)) {
+			case "create" -> handleCreate(player);
+			case "join" -> handleJoin(player, args);
+			case "invite" -> handleInvite(player, args);
+			case "start" -> handleStart(player);
+			case "leave" -> handleLeave(player);
+			case "seed" -> handleSeed(player, args);
+			case "kit" -> handleKit(player, args);
+			case "gui", "menu" -> handleGui(player);
+			case "help" -> sendHelp(player);
+			default -> Text.msg(player, "<red>❌</red> Lệnh không hợp lệ. Dùng <yellow>/match help</yellow>.");
+		}
+
+		return true;
+	}
+
+	@Override
+	public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
+		if (args.length == 1) {
+			return filter(List.of("create", "join", "invite", "start", "leave", "seed", "kit", "gui", "menu", "help"), args[0]);
+		}
+		if (args.length == 2 && "join".equalsIgnoreCase(args[0]) && sender instanceof Player player) {
+			List<String> ids = new ArrayList<>();
+			for (Match match : matchManager.getMatches()) {
+				if (match.getState() != MatchState.LOBBY) {
+					continue;
+				}
+				if (canJoin(match, player.getUniqueId())) {
+					ids.add(match.getId());
+				}
+			}
+			return filter(ids, args[1]);
+		}
+		if (args.length == 2 && "invite".equalsIgnoreCase(args[0])) {
+			List<String> names = new ArrayList<>();
+			for (Player p : Bukkit.getOnlinePlayers()) {
+				names.add(p.getName());
+			}
+			return filter(names, args[1]);
+		}
+		if (args.length == 2 && "seed".equalsIgnoreCase(args[0])) {
+			return filter(List.of("xoa"), args[1]);
+		}
+		if (args.length == 2 && "kit".equalsIgnoreCase(args[0])) {
+			return filter(List.of("xoa"), args[1]);
+		}
+		return List.of();
+	}
+
+	private void handleCreate(Player player) {
+		if (!hasPerm(player, PERM_CREATE)) {
+			return;
+		}
+		Match match = lobbyManager.createMatch(player.getUniqueId());
+		Text.msg(player, "<green>✔</green> Đã tạo phòng <yellow>" + match.getId() + "</yellow>.");
+	}
+
+	private void handleJoin(Player player, String[] args) {
+		if (!hasPerm(player, PERM_JOIN)) {
+			return;
+		}
+		if (args.length < 2) {
+			Text.msg(player, "<red>❌</red> Dùng: <yellow>/match join <mã_phòng></yellow>.");
+			return;
+		}
+		LobbyActionResult result = lobbyManager.join(player.getUniqueId(), args[1]);
+		Text.msg(player, result.getMessage());
+	}
+
+	private void handleInvite(Player player, String[] args) {
+		if (!hasPerm(player, PERM_INVITE)) {
+			return;
+		}
+		if (args.length < 2) {
+			Text.msg(player, "<red>❌</red> Dùng: <yellow>/match invite <tên_người_chơi></yellow>.");
+			return;
+		}
+		Player target = Bukkit.getPlayer(args[1]);
+		if (target == null) {
+			Text.msg(player, "<red>❌</red> Không tìm thấy người chơi.");
+			return;
+		}
+		Match match = lobbyManager.getMatchForPlayer(player.getUniqueId());
+		if (match == null) {
+			Text.msg(player, "<red>❌</red> Bạn chưa ở trong phòng nào.");
+			return;
+		}
+		LobbyActionResult result = lobbyManager.invite(player.getUniqueId(), target.getUniqueId(), match);
+		Text.msg(player, result.getMessage());
+		if (result.isSuccess()) {
+			Text.msg(target, "<green>✔</green> Bạn vừa nhận lời mời vào phòng <yellow>" + match.getId() + "</yellow>.");
+		}
+	}
+
+	private void handleStart(Player player) {
+		if (!hasPerm(player, PERM_START)) {
+			return;
+		}
+		Match match = lobbyManager.getMatchForPlayer(player.getUniqueId());
+		if (match == null) {
+			Text.msg(player, "<red>❌</red> Bạn chưa ở trong phòng nào.");
+			return;
+		}
+		if (!match.getOwnerId().equals(player.getUniqueId())) {
+			Text.msg(player, "<red>❌</red> Chỉ chủ phòng mới được bắt đầu trận đấu.");
+			return;
+		}
+		if (match.getState() != MatchState.LOBBY) {
+			Text.msg(player, "<red>❌</red> Trận đấu đã bắt đầu hoặc đang tạo thế giới.");
+			return;
+		}
+		boolean started = matchManager.startMatch(match);
+		if (started) {
+			Text.msg(player, "<green>✔</green> Đang tạo thế giới cho trận đấu...");
+			return;
+		}
+		Text.msg(player, "<red>❌</red> Không thể bắt đầu trận đấu lúc này.");
+	}
+
+	private void handleLeave(Player player) {
+		if (!hasPerm(player, PERM_LEAVE)) {
+			return;
+		}
+		LobbyActionResult result = lobbyManager.leave(player.getUniqueId());
+		Text.msg(player, result.getMessage());
+	}
+
+	private void handleSeed(Player player, String[] args) {
+		if (!hasPerm(player, PERM_SEED)) {
+			return;
+		}
+		Match match = requireOwnerLobby(player);
+		if (match == null) {
+			return;
+		}
+		if (args.length < 2) {
+			Text.msg(player, "<red>❌</red> Dùng: <yellow>/match seed <giá_trị|xoa></yellow>.");
+			return;
+		}
+		String value = String.join(" ", java.util.Arrays.copyOfRange(args, 1, args.length)).trim();
+		if (value.equalsIgnoreCase("xoa")) {
+			match.getSettings().setWorldSeed(null);
+			Text.msg(player, "<green>✔</green> Đã xóa seed.");
+			return;
+		}
+		match.getSettings().setWorldSeed(value);
+		Text.msg(player, "<green>✔</green> Đã đặt seed.");
+	}
+
+	private void handleKit(Player player, String[] args) {
+		if (!hasPerm(player, PERM_KIT)) {
+			return;
+		}
+		Match match = requireOwnerLobby(player);
+		if (match == null) {
+			return;
+		}
+		if (args.length < 2) {
+			Text.msg(player, "<red>❌</red> Dùng: <yellow>/match kit xoa</yellow>.");
+			return;
+		}
+		if (!args[1].equalsIgnoreCase("xoa")) {
+			Text.msg(player, "<red>❌</red> Dùng: <yellow>/match kit xoa</yellow>.");
+			return;
+		}
+		match.getSettings().setSpeedrunnerKit(List.of());
+		Text.msg(player, "<green>✔</green> Đã xóa bộ đồ speedrunner.");
+	}
+
+	private void sendHelp(Player player) {
+		if (!hasPerm(player, PERM_HELP)) {
+			return;
+		}
+		Text.msg(player, "<yellow>●</yellow> <white>/match create</white>");
+		Text.msg(player, "<yellow>●</yellow> <white>/match join <mã_phòng></white>");
+		Text.msg(player, "<yellow>●</yellow> <white>/match invite <tên_người_chơi></white>");
+		Text.msg(player, "<yellow>●</yellow> <white>/match start</white>");
+		Text.msg(player, "<yellow>●</yellow> <white>/match leave</white>");
+		Text.msg(player, "<yellow>●</yellow> <white>/match seed <giá_trị|xoa></white>");
+		Text.msg(player, "<yellow>●</yellow> <white>/match kit xoa</white>");
+		Text.msg(player, "<yellow>●</yellow> <white>/match gui</white>");
+	}
+
+	private void handleGui(Player player) {
+		if (!hasPerm(player, PERM_GUI)) {
+			return;
+		}
+		guiService.openMainMenu(player);
+	}
+
+	private boolean hasPerm(Player player, String permission) {
+		if (player.hasPermission(permission) || player.hasPermission(PERM_BASE)) {
+			return true;
+		}
+		Text.msg(player, "<red>❌</red> Bạn không có quyền dùng lệnh này.");
+		return false;
+	}
+
+	private Match requireOwnerLobby(Player player) {
+		Match match = lobbyManager.getMatchForPlayer(player.getUniqueId());
+		if (match == null) {
+			Text.msg(player, "<red>❌</red> Bạn chưa ở trong phòng nào.");
+			return null;
+		}
+		if (!match.getOwnerId().equals(player.getUniqueId())) {
+			Text.msg(player, "<red>❌</red> Chỉ chủ phòng mới được chỉnh cài đặt.");
+			return null;
+		}
+		if (match.getState() != MatchState.LOBBY) {
+			Text.msg(player, "<red>❌</red> Chỉ chỉnh cài đặt khi đang ở sảnh.");
+			return null;
+		}
+		return match;
+	}
+
+	private boolean canJoin(Match match, java.util.UUID playerId) {
+		if (match.getOwnerId().equals(playerId)) {
+			return true;
+		}
+		return switch (match.getSettings().getVisibility()) {
+			case PUBLIC -> true;
+			case INVITE_ONLY, PRIVATE -> match.getInvitedPlayers().contains(playerId);
+		};
+	}
+
+	private List<String> filter(List<String> options, String prefix) {
+		if (prefix == null || prefix.isEmpty()) {
+			return options;
+		}
+		String lower = prefix.toLowerCase(Locale.ROOT);
+		List<String> out = new ArrayList<>();
+		for (String option : options) {
+			if (option.toLowerCase(Locale.ROOT).startsWith(lower)) {
+				out.add(option);
+			}
+		}
+		return out;
+	}
+}

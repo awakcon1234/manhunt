@@ -1,0 +1,3 @@
+# LunaManhunt
+
+PaperMC plugin scaffold.
