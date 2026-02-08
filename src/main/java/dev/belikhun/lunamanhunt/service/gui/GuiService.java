@@ -1295,6 +1295,11 @@ public class GuiService {
 			openMatchInfoMenu(player);
 			return;
 		}
+		if (match.getLobbyPlayers().size() < 2) {
+			Text.msg(player, "<red>❌</red> Cần ít nhất <white>2</white> người chơi để bắt đầu.");
+			openMatchInfoMenu(player);
+			return;
+		}
 		boolean started = matchManager.startMatch(match);
 		if (started) {
 			Text.msg(player, "<green>✔</green> Đang tạo thế giới cho trận đấu...");

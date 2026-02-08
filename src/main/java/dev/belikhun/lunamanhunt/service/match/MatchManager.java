@@ -63,6 +63,9 @@ public class MatchManager {
 		if (match.getState() != MatchState.LOBBY) {
 			return false;
 		}
+		if (match.getLobbyPlayers().size() < 2) {
+			return false;
+		}
 
 		match.setState(MatchState.WORLD_CREATING);
 		MatchWorlds worlds = new MatchWorlds();

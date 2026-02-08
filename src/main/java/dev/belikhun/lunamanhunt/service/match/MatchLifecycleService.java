@@ -370,7 +370,7 @@ public class MatchLifecycleService {
 				return;
 			}
 			String timeText = formatRunTime(System.currentTimeMillis() - startedAt);
-			String message = "<#32faa7>⏱</#32faa7> <white>" + timeText + "</white>";
+			String message = "<#32faa7>⌚</#32faa7> <white>" + timeText + "</white>";
 			sendActionBar(match, message);
 		}, 0L, RUN_ACTIONBAR_TICKS);
 		runningActionTasks.put(match.getId(), task);
@@ -472,10 +472,11 @@ public class MatchLifecycleService {
 	}
 
 	private String formatRunTime(long millis) {
-		long totalSeconds = Math.max(0, millis) / 1000L;
+		long safeMillis = Math.max(0, millis);
+		long totalSeconds = safeMillis / 1000L;
 		long minutes = totalSeconds / 60L;
 		long seconds = totalSeconds % 60L;
-		long tenths = (Math.max(0, millis) / 100L) % 10L;
-		return String.format("%02d:%02d.%01d", minutes, seconds, tenths);
+		long milli = safeMillis % 1000L;
+		return String.format("%02d:%02d.%03d", minutes, seconds, milli);
 	}
 }
