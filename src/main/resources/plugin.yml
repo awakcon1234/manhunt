@@ -5,6 +5,7 @@ api-version: "1.21"
 author: Belikhun
 depend:
   - Multiverse-Core
+  - Multiverse-NetherPortals
 
 commands:
   match:

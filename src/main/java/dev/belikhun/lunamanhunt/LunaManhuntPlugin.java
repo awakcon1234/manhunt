@@ -21,6 +21,7 @@ import dev.belikhun.lunamanhunt.service.card.CardService;
 import dev.belikhun.lunamanhunt.service.compass.CompassService;
 import dev.belikhun.lunamanhunt.service.gui.GuiService;
 import dev.belikhun.lunamanhunt.service.integration.MultiverseService;
+import dev.belikhun.lunamanhunt.service.integration.NetherPortalsService;
 import dev.belikhun.lunamanhunt.service.kit.SpeedrunnerKitService;
 import dev.belikhun.lunamanhunt.service.kit.SpeedrunnerKitStore;
 import dev.belikhun.lunamanhunt.service.lobby.LobbyManager;
@@ -56,6 +57,7 @@ public final class LunaManhuntPlugin extends JavaPlugin {
     private LobbyItemService lobbyItemService;
     private MatchLifecycleService matchLifecycleService;
     private MatchEndService matchEndService;
+    private NetherPortalsService netherPortalsService;
 
     @Override
     public void onEnable() {
@@ -65,6 +67,7 @@ public final class LunaManhuntPlugin extends JavaPlugin {
         this.matchSettingsService = new MatchSettingsService(this, kitService);
         this.persistenceManager = new PersistenceManager(this, matchSettingsService);
         this.multiverseService = new MultiverseService();
+        this.netherPortalsService = new NetherPortalsService();
         this.matchManager = new MatchManager(this, multiverseService);
         this.lobbyManager = new LobbyManager(matchManager, matchSettingsService);
         this.compassService = new CompassService(this, lobbyManager);
@@ -75,12 +78,13 @@ public final class LunaManhuntPlugin extends JavaPlugin {
         this.lobbyItemService = new LobbyItemService(this, lobbyManager, guiService);
         this.guiService.setLobbyItemService(lobbyItemService);
         this.lobbyTeleportService = new LobbyTeleportService(this, lobbyItemService);
-        this.matchEndService = new MatchEndService(this, lobbyManager, multiverseService, lobbyTeleportService, cardService);
+        this.matchEndService = new MatchEndService(this, lobbyManager, multiverseService, netherPortalsService,
+            lobbyTeleportService, cardService);
         this.matchEndService.processQueuedWorlds();
         this.winConditionService = new WinConditionService(lobbyManager, persistenceManager.getProfileStore(),
             matchEndService);
         this.matchLifecycleService = new MatchLifecycleService(this, lobbyManager, matchManager, compassService,
-            kitService, cardService);
+            kitService, cardService, netherPortalsService);
         this.matchManager.setLifecycleService(matchLifecycleService);
         this.spawnService = new SpawnService(this, lobbyManager, matchManager, winConditionService, lobbyTeleportService);
 
@@ -121,6 +125,7 @@ public final class LunaManhuntPlugin extends JavaPlugin {
     private void registerCardPermissions() {
         registerPermission("lunamanhunt.cards", "Xem thẻ bài", PermissionDefault.TRUE);
         registerPermission("lunamanhunt.cards.use", "Dùng thẻ bài", PermissionDefault.TRUE);
+        registerPermission("lunamanhunt.spawn", "Dịch chuyển về sảnh", PermissionDefault.TRUE);
     }
 
     private void registerPermission(String node, String description, PermissionDefault defaultValue) {

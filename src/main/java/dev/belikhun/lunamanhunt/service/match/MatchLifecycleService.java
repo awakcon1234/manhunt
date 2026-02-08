@@ -9,6 +9,7 @@ import dev.belikhun.lunamanhunt.service.card.CardService;
 import dev.belikhun.lunamanhunt.service.compass.CompassService;
 import dev.belikhun.lunamanhunt.service.kit.SpeedrunnerKitService;
 import dev.belikhun.lunamanhunt.service.lobby.LobbyManager;
+import dev.belikhun.lunamanhunt.service.integration.NetherPortalsService;
 import dev.belikhun.lunamanhunt.util.Text;
 import dev.belikhun.lunamanhunt.util.UiColors;
 import org.bukkit.Bukkit;
@@ -48,6 +49,7 @@ public class MatchLifecycleService {
 	private final CompassService compassService;
 	private final SpeedrunnerKitService kitService;
 	private final CardService cardService;
+	private final NetherPortalsService netherPortalsService;
 	private final Random random = new Random();
 	private final ConcurrentMap<String, BukkitTask> worldProgressTasks = new ConcurrentHashMap<>();
 	private final ConcurrentMap<String, BukkitTask> overworldWarmupTasks = new ConcurrentHashMap<>();
@@ -56,19 +58,22 @@ public class MatchLifecycleService {
 	private final ConcurrentMap<String, BukkitTask> runningActionTasks = new ConcurrentHashMap<>();
 
 	public MatchLifecycleService(JavaPlugin plugin, LobbyManager lobbyManager, MatchManager matchManager,
-			CompassService compassService, SpeedrunnerKitService kitService, CardService cardService) {
+			CompassService compassService, SpeedrunnerKitService kitService, CardService cardService,
+			NetherPortalsService netherPortalsService) {
 		this.plugin = Objects.requireNonNull(plugin, "plugin");
 		this.lobbyManager = Objects.requireNonNull(lobbyManager, "lobbyManager");
 		this.matchManager = Objects.requireNonNull(matchManager, "matchManager");
 		this.compassService = Objects.requireNonNull(compassService, "compassService");
 		this.kitService = Objects.requireNonNull(kitService, "kitService");
 		this.cardService = Objects.requireNonNull(cardService, "cardService");
+		this.netherPortalsService = Objects.requireNonNull(netherPortalsService, "netherPortalsService");
 	}
 
 	public void handleWorldsCreating(Match match) {
 		if (match == null || match.getState() != MatchState.WORLD_CREATING) {
 			return;
 		}
+		broadcast(match, "<yellow>ℹ</yellow> Trận đấu đang được chuẩn bị, hãy sẵn sàng!");
 		sendActionBar(match, "<yellow>⌛</yellow> Đang tạo thế giới: <white>0/" + WORLD_TOTAL + "</white>");
 		startWorldProgressTask(match);
 	}
@@ -110,7 +115,19 @@ public class MatchLifecycleService {
 		}
 		match.setSpeedrunnerId(speedrunnerId);
 		assignHunters(match, speedrunnerId);
+		linkMatchPortals(worlds);
 		startOverworldWarmup(match, overworld);
+	}
+
+	private void linkMatchPortals(MatchWorlds worlds) {
+		if (worlds == null) {
+			return;
+		}
+		netherPortalsService.linkMatchWorlds(
+			worlds.getOverworldName(),
+			worlds.getNetherName(),
+			worlds.getEndName()
+		);
 	}
 
 	public void handleWorldCreationFailed(Match match, String worldName) {
@@ -438,6 +455,7 @@ public class MatchLifecycleService {
 
 	private void startCountdown(Match match, World overworld) {
 		stopCountdownTask(match.getId());
+		broadcast(match, "<yellow>⌛</yellow> Bắt đầu đếm ngược <white>" + COUNTDOWN_SECONDS + "</white> giây.");
 		BukkitRunnable runnable = new BukkitRunnable() {
 			int seconds = COUNTDOWN_SECONDS;
 
@@ -488,17 +506,32 @@ public class MatchLifecycleService {
 		if (match == null) {
 			return;
 		}
-		broadcast(match, "");
-		broadcast(match, "<gray>+--------------------------------------------------+</gray>");
-		broadcast(match, "<yellow>ℹ</yellow> <white>Hướng dẫn trận Manhunt</white>");
-		broadcast(match, "<gray>+--------------------------------------------------+</gray>");
-		broadcast(match, "<white>● Mục tiêu: Speedrunner hạ Ender Dragon.</white>");
-		broadcast(match, "<white>● Hunters thắng khi giết Speedrunner.</white>");
-		broadcast(match, "<gray>  - Speedrunner chết tự nhiên không kết thúc trận.</gray>");
-		broadcast(match, "");
-		broadcast(match, "<white>● Trận đấu bắt đầu khi Speedrunner đánh một Hunter.</white>");
-		broadcast(match, "<white>● Khi bắt đầu, Hunters nhận la bàn truy vết.</white>");
-		broadcast(match, "<gray>+--------------------------------------------------+</gray>");
+		UUID speedrunnerId = match.getSpeedrunnerId();
+		for (UUID id : Set.copyOf(match.getLobbyPlayers())) {
+			Player player = Bukkit.getPlayer(id);
+			if (player == null) {
+				continue;
+			}
+			boolean isSpeedrunner = speedrunnerId != null && speedrunnerId.equals(id);
+			sendRunPendingGuideLines(player, isSpeedrunner);
+		}
+	}
+
+	private void sendRunPendingGuideLines(Player player, boolean isSpeedrunner) {
+		Text.tell(player, "");
+		Text.tell(player, "<gray>+--------------------------------------------------+</gray>");
+		Text.tell(player, " <yellow>ℹ</yellow> <b><u>MANHUNT</u></b> <gray>•</gray> <white>Hướng dẫn nhanh</white>");
+		Text.tell(player, "<gray>+--------------------------------------------------+</gray>");
+		Text.tell(player, " <white>● Mục tiêu:</white> <#8fd3ff><b>Speedrunner</b></#8fd3ff> <white>hạ <b>Ender Dragon</b>.</white>");
+		Text.tell(player, " <white>● Điều kiện thắng:</white> <#ffb84d><b>Hunters</b></#ffb84d> <white>giết <b>Speedrunner</b>.</white>");
+		Text.tell(player, " <white>● Bắt đầu:</white> <white>Speedrunner đánh <b>một</b> Hunter.</white>");
+		Text.tell(player, " <white>● Khi bắt đầu:</white> <white>Hunters nhận <b>la bàn truy vết</b>.</white>");
+		if (isSpeedrunner) {
+			Text.tell(player, " <#8fd3ff>● Vai trò của bạn:</#8fd3ff> <white><b>kết liễu rồng</b> và sinh tồn.</white>");
+		} else {
+			Text.tell(player, " <#ffb84d>● Vai trò của bạn:</#ffb84d> <white><b>hạ Speedrunner</b> bằng truy đuổi.</white>");
+		}
+		Text.tell(player, "<gray>+--------------------------------------------------+</gray>");
 	}
 
 	private void startPendingActionTask(Match match) {

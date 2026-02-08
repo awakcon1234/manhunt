@@ -6,6 +6,7 @@ import dev.belikhun.lunamanhunt.model.match.MatchWinner;
 import dev.belikhun.lunamanhunt.model.match.MatchWorlds;
 import dev.belikhun.lunamanhunt.service.card.CardService;
 import dev.belikhun.lunamanhunt.service.integration.MultiverseService;
+import dev.belikhun.lunamanhunt.service.integration.NetherPortalsService;
 import dev.belikhun.lunamanhunt.service.lobby.LobbyManager;
 import dev.belikhun.lunamanhunt.service.spawn.LobbyTeleportService;
 import dev.belikhun.lunamanhunt.util.Text;
@@ -35,16 +36,19 @@ public class MatchEndService {
 	private final JavaPlugin plugin;
 	private final LobbyManager lobbyManager;
 	private final MultiverseService multiverseService;
+	private final NetherPortalsService netherPortalsService;
 	private final LobbyTeleportService lobbyTeleportService;
 	private final CardService cardService;
 	private final File cleanupFile;
 	private final Map<String, UUID> awaitingPortal = new ConcurrentHashMap<>();
 
 	public MatchEndService(JavaPlugin plugin, LobbyManager lobbyManager, MultiverseService multiverseService,
-			LobbyTeleportService lobbyTeleportService, CardService cardService) {
+			NetherPortalsService netherPortalsService, LobbyTeleportService lobbyTeleportService,
+			CardService cardService) {
 		this.plugin = Objects.requireNonNull(plugin, "plugin");
 		this.lobbyManager = Objects.requireNonNull(lobbyManager, "lobbyManager");
 		this.multiverseService = Objects.requireNonNull(multiverseService, "multiverseService");
+		this.netherPortalsService = Objects.requireNonNull(netherPortalsService, "netherPortalsService");
 		this.lobbyTeleportService = Objects.requireNonNull(lobbyTeleportService, "lobbyTeleportService");
 		this.cardService = Objects.requireNonNull(cardService, "cardService");
 		this.cleanupFile = new File(plugin.getDataFolder(), "cleanup-worlds.yml");
@@ -274,6 +278,11 @@ public class MatchEndService {
 		if (worlds == null) {
 			return;
 		}
+		netherPortalsService.unlinkMatchWorlds(
+			worlds.getOverworldName(),
+			worlds.getNetherName(),
+			worlds.getEndName()
+		);
 		deleteWorld(worlds.getOverworldName());
 		deleteWorld(worlds.getNetherName());
 		deleteWorld(worlds.getEndName());

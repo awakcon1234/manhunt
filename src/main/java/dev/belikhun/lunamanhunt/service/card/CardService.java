@@ -160,7 +160,17 @@ public class CardService {
 		if (match == null) {
 			return List.of();
 		}
-		return List.copyOf(match.getDrawnCards());
+		List<CardDefinition> source = match.getDrawnCards();
+		if (source == null || source.isEmpty()) {
+			return List.of();
+		}
+		List<CardDefinition> safe = new ArrayList<>(source.size());
+		for (CardDefinition card : source) {
+			if (card != null) {
+				safe.add(card);
+			}
+		}
+		return safe.isEmpty() ? List.of() : List.copyOf(safe);
 	}
 
 	public List<CardDefinition> getKeptCards(Match match) {
@@ -481,6 +491,11 @@ public class CardService {
 			lore.add("<color:#36a8ff>▍</color> <white>" + descriptionLines.get(0) + "</white>");
 			if (descriptionLines.size() > 1) {
 				lore.add("<color:#36a8ff>▍</color> <white>" + descriptionLines.get(1) + "</white>");
+			}
+			if ("card_keep".equals(actionValue)) {
+				lore.add("");
+				lore.add("<yellow>ℹ</yellow> <white>Chuột trái: dùng ngay.</white>");
+				lore.add("<yellow>ℹ</yellow> <white>Chuột phải: giữ vào ô thẻ.</white>");
 			}
 			lore.add("");
 			lore.add("<dark_gray>#card/" + card.getId() + "</dark_gray>");
