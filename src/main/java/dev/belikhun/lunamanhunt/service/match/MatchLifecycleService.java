@@ -919,7 +919,7 @@ public class MatchLifecycleService {
 		for (UUID id : Set.copyOf(match.getLobbyPlayers())) {
 			Player player = Bukkit.getPlayer(id);
 			if (player != null) {
-				player.playSound(player.getLocation(), Sound.UI_TOAST_CHALLENGE_COMPLETE, 1.0f, 1.0f);
+				player.playSound(player.getLocation(), Sound.ENTITY_PLAYER_LEVELUP, 1.0f, 1.0f);
 			}
 		}
 	}

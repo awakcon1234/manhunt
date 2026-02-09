@@ -33,6 +33,7 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
 public class MatchEndService {
+	private static final int WORLD_DELETE_RETRY_LIMIT = 5;
 	private final JavaPlugin plugin;
 	private final LobbyManager lobbyManager;
 	private final MultiverseService multiverseService;
@@ -41,6 +42,7 @@ public class MatchEndService {
 	private final CardService cardService;
 	private final File cleanupFile;
 	private final Map<String, UUID> awaitingPortal = new ConcurrentHashMap<>();
+	private final Map<String, Integer> deleteWorldRetries = new ConcurrentHashMap<>();
 
 	public MatchEndService(JavaPlugin plugin, LobbyManager lobbyManager, MultiverseService multiverseService,
 			NetherPortalsService netherPortalsService, LobbyTeleportService lobbyTeleportService,
@@ -297,9 +299,21 @@ public class MatchEndService {
 			return;
 		}
 		World world = Bukkit.getWorld(worldName);
+		if (world != null && !world.getPlayers().isEmpty()) {
+			int retries = deleteWorldRetries.getOrDefault(worldName, 0);
+			if (retries >= WORLD_DELETE_RETRY_LIMIT) {
+				deleteWorldRetries.remove(worldName);
+				queueWorldCleanup(worldName);
+				return;
+			}
+			deleteWorldRetries.put(worldName, retries + 1);
+			Bukkit.getScheduler().runTaskLater(plugin, () -> deleteWorld(worldName), 40L);
+			return;
+		}
 		if (world != null) {
 			Bukkit.unloadWorld(world, false);
 		}
+		deleteWorldRetries.remove(worldName);
 		removeWorldFromMultiverse(worldName);
 		File folder = new File(Bukkit.getWorldContainer(), worldName);
 		if (deleteFolder(folder)) {
