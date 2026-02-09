@@ -5,7 +5,9 @@ import dev.belikhun.lunamanhunt.util.Text;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
+import org.bukkit.event.entity.PlayerDeathEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
+import org.bukkit.event.player.PlayerRespawnEvent;
 import org.bukkit.inventory.ItemStack;
 
 import java.util.Objects;
@@ -36,5 +38,21 @@ public class CompassListener implements Listener {
 		if (compassService.updateCompass(item, player)) {
 			Text.msg(player, "<green>✔</green> Đã cập nhật la bàn truy tìm.");
 		}
+	}
+
+	@EventHandler
+	public void onPlayerDeath(PlayerDeathEvent event) {
+		if (event == null) {
+			return;
+		}
+		compassService.stashTrackingCompasses(event.getEntity(), event.getDrops());
+	}
+
+	@EventHandler
+	public void onPlayerRespawn(PlayerRespawnEvent event) {
+		if (event == null) {
+			return;
+		}
+		compassService.restoreTrackingCompasses(event.getPlayer());
 	}
 }

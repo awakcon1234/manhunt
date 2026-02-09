@@ -162,15 +162,10 @@ public class CardService {
 		}
 		List<CardDefinition> source = match.getDrawnCards();
 		if (source == null || source.isEmpty()) {
-			return List.of();
+			return new ArrayList<>();
 		}
-		List<CardDefinition> safe = new ArrayList<>(source.size());
-		for (CardDefinition card : source) {
-			if (card != null) {
-				safe.add(card);
-			}
-		}
-		return safe.isEmpty() ? List.of() : List.copyOf(safe);
+		List<CardDefinition> safe = new ArrayList<>(source);
+		return safe;
 	}
 
 	public List<CardDefinition> getKeptCards(Match match) {
@@ -312,6 +307,7 @@ public class CardService {
 			return false;
 		}
 		slots.set(emptyIndex, card);
+		pool.set(poolIndex, null);
 		Text.msg(player, "<green>✔</green> Đã giữ thẻ <yellow>" + card.getName() + "</yellow>.");
 		return true;
 	}

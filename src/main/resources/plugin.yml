@@ -21,6 +21,10 @@ commands:
     description: "Quản lý thẻ bài"
     usage: "/cards"
     aliases: ["c"]
+  compass:
+    description: "Lấy lại la bàn truy tìm"
+    usage: "/compass"
+    aliases: ["tracker"]
 
 permissions:
   lunamanhunt.match:
@@ -61,4 +65,7 @@ permissions:
     default: true
   lunamanhunt.cards.use:
     description: "Dùng thẻ bài"
+    default: true
+  lunamanhunt.compass:
+    description: "Lấy lại la bàn truy tìm"
     default: true

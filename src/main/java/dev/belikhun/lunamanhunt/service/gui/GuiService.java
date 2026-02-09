@@ -530,7 +530,7 @@ public class GuiService {
 		int enabledCards = cardService.getEnabledCards(match).size();
 		int defaultEnabledCards = defaults.getEnabledCardIds().size();
 
-		ItemStack pane = buildInfoItem(Material.GRAY_STAINED_GLASS_PANE, " ", List.of(" "));
+		ItemStack pane = buildInfoItem(Material.BLACK_STAINED_GLASS_PANE, " ", List.of(" "));
 		int[] frameSlots = new int[] {
 			0, 1, 2, 3, 4, 5, 6, 7, 8,
 			9, 17, 18, 26, 27, 35, 36, 44,
@@ -762,7 +762,7 @@ public class GuiService {
 		int points = match.getSpeedrunnerPoints();
 		List<CardDefinition> poolCards = cardService.getDrawnCards(match);
 		List<CardDefinition> keptCards = cardService.getKeptCards(match);
-		ItemStack pane = buildInfoItem(Material.GRAY_STAINED_GLASS_PANE, " ", List.of(" "));
+		ItemStack pane = buildInfoItem(Material.BLACK_STAINED_GLASS_PANE, " ", List.of(" "));
 		for (int slot = 0; slot < inventory.getSize(); slot++) {
 			inventory.setItem(slot, pane);
 		}
@@ -775,10 +775,11 @@ public class GuiService {
 		inventory.setItem(8, buildInfoItem(Material.BOOK,
 			"<yellow>ℹ</yellow> Hướng dẫn",
 			List.of(
-				"<gray>● Hàng 3: trái dùng ngay, phải để giữ.</gray>",
-				" ",
-				"<gray>● Thẻ đang giữ nằm ở hàng 5.</gray>",
-				"<gray>● Ô đầy thì bấm nút bỏ thẻ ở hàng 6.</gray>"
+				"",
+				"<gray>● Hàng 3: bấm trái để dùng ngay.</gray>",
+				"<gray>● Hàng 3: bấm phải để giữ vào ô thẻ.</gray>",
+				"<gray>● Hàng 5: thẻ đang giữ, bấm trái để dùng.</gray>",
+				"<gray>● Hàng 6: bấm nút bỏ thẻ nếu ô đã đầy.</gray>"
 			)));
 
 		int[] poolSlots = new int[] { 19, 20, 21, 22, 23, 24, 25 };
@@ -813,6 +814,12 @@ public class GuiService {
 				ACTION_CARD_DISCARD, String.valueOf(i)));
 		}
 
+		int remainingCards = 0;
+		for (CardDefinition card : poolCards) {
+			if (card != null) {
+				remainingCards++;
+			}
+		}
 		ItemStack pointsItem = new ItemStack(Material.SUNFLOWER);
 		ItemMeta pointsMeta = pointsItem.getItemMeta();
 		if (pointsMeta != null) {
@@ -820,7 +827,7 @@ public class GuiService {
 			pointsMeta.lore(mmNoItalic(List.of(
 				"<gray>Bạn có <white>" + pointService.formatPoints(points) + "</white>.</gray>",
 				" ",
-				"<gray>Thẻ mới: <white>" + poolCards.size() + "</white>/" + cardService.getPoolCount() + "</gray>"
+				"<gray>Thẻ mới: <white>" + remainingCards + "</white>/" + cardService.getPoolCount() + "</gray>"
 			)));
 			pointsMeta.setEnchantmentGlintOverride(true);
 			pointsItem.setItemMeta(pointsMeta);
@@ -828,7 +835,7 @@ public class GuiService {
 		pointsItem.setAmount(Math.max(1, Math.min(64, points)));
 		inventory.setItem(44, pointsItem);
 
-		if (poolCards.isEmpty()) {
+		if (remainingCards == 0) {
 			inventory.setItem(22, buildInfoItem(Material.PAPER,
 				"<yellow>ℹ</yellow> Chưa có thẻ mới",
 				List.of("<gray>Nhận thành tựu để mở 7 thẻ.</gray>")));

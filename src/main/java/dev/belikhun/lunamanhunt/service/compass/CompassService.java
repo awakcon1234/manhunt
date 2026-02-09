@@ -1,6 +1,7 @@
 package dev.belikhun.lunamanhunt.service.compass;
 
 import dev.belikhun.lunamanhunt.model.match.Match;
+import dev.belikhun.lunamanhunt.model.match.MatchState;
 import dev.belikhun.lunamanhunt.service.lobby.LobbyManager;
 import dev.belikhun.lunamanhunt.util.Text;
 import org.bukkit.Bukkit;
@@ -12,6 +13,8 @@ import org.bukkit.persistence.PersistentDataContainer;
 import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.plugin.java.JavaPlugin;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
@@ -26,6 +29,7 @@ public class CompassService {
 	private final NamespacedKey matchIdKey;
 	private final Map<UUID, UUID> compassTargets = new ConcurrentHashMap<>();
 	private final Map<UUID, Long> scrambledHunters = new ConcurrentHashMap<>();
+	private final Map<UUID, List<ItemStack>> pendingRestores = new ConcurrentHashMap<>();
 	private final java.util.Random random = new java.util.Random();
 	private BukkitTask autoUpdateTask;
 
@@ -188,6 +192,70 @@ public class CompassService {
 				}
 				updateCompass(item, player);
 			}
+		}
+	}
+
+	public boolean hasTrackingCompass(Player player) {
+		if (player == null) {
+			return false;
+		}
+		ItemStack[] contents = player.getInventory().getContents();
+		if (contents == null) {
+			return false;
+		}
+		for (ItemStack item : contents) {
+			if (isTrackingCompass(item) && canUseCompass(player, item)) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	public void stashTrackingCompasses(Player player, List<ItemStack> drops) {
+		if (player == null || drops == null || drops.isEmpty()) {
+			return;
+		}
+		Match match = lobbyManager.getMatchForPlayer(player.getUniqueId());
+		if (match == null || match.getState() != MatchState.RUNNING) {
+			return;
+		}
+		UUID speedrunnerId = match.getSpeedrunnerId();
+		if (speedrunnerId != null && speedrunnerId.equals(player.getUniqueId())) {
+			return;
+		}
+		List<ItemStack> saved = new ArrayList<>();
+		java.util.Iterator<ItemStack> iterator = drops.iterator();
+		while (iterator.hasNext()) {
+			ItemStack item = iterator.next();
+			if (!isTrackingCompass(item) || !canUseCompass(player, item)) {
+				continue;
+			}
+			saved.add(item.clone());
+			iterator.remove();
+		}
+		if (!saved.isEmpty()) {
+			pendingRestores.put(player.getUniqueId(), saved);
+		}
+	}
+
+	public void restoreTrackingCompasses(Player player) {
+		if (player == null) {
+			return;
+		}
+		List<ItemStack> items = pendingRestores.remove(player.getUniqueId());
+		if (items == null || items.isEmpty()) {
+			return;
+		}
+		Match match = lobbyManager.getMatchForPlayer(player.getUniqueId());
+		if (match == null || match.getState() != MatchState.RUNNING) {
+			return;
+		}
+		UUID speedrunnerId = match.getSpeedrunnerId();
+		if (speedrunnerId != null && speedrunnerId.equals(player.getUniqueId())) {
+			return;
+		}
+		for (ItemStack item : items) {
+			player.getInventory().addItem(item);
 		}
 	}
 

@@ -1,6 +1,7 @@
 package dev.belikhun.lunamanhunt;
 
 import dev.belikhun.lunamanhunt.command.CardsCommand;
+import dev.belikhun.lunamanhunt.command.CompassCommand;
 import dev.belikhun.lunamanhunt.command.BasicCommandAdapter;
 import dev.belikhun.lunamanhunt.command.LmAdminCommand;
 import dev.belikhun.lunamanhunt.command.MatchCommand;
@@ -110,12 +111,15 @@ public final class LunaManhuntPlugin extends JavaPlugin {
         LmAdminCommand adminCommand = new LmAdminCommand(this, lobbyManager, matchManager);
         SpawnCommand spawnCommand = new SpawnCommand(spawnService);
         CardsCommand cardsCommand = new CardsCommand(lobbyManager, cardService, guiService);
+        CompassCommand compassCommand = new CompassCommand(lobbyManager, compassService);
         BasicCommandAdapter matchAdapter = new BasicCommandAdapter("match", matchCommand);
         BasicCommandAdapter matchAliasAdapter = new BasicCommandAdapter("m", matchCommand);
         BasicCommandAdapter adminAdapter = new BasicCommandAdapter("lm", adminCommand);
         BasicCommandAdapter spawnAdapter = new BasicCommandAdapter("spawn", spawnCommand);
         BasicCommandAdapter cardsAdapter = new BasicCommandAdapter("cards", cardsCommand);
         BasicCommandAdapter cardsAliasAdapter = new BasicCommandAdapter("c", cardsCommand);
+        BasicCommandAdapter compassAdapter = new BasicCommandAdapter("compass", compassCommand);
+        BasicCommandAdapter trackerAdapter = new BasicCommandAdapter("tracker", compassCommand);
         getLifecycleManager().registerEventHandler(LifecycleEvents.COMMANDS, event -> {
             event.registrar().register("match", matchAdapter);
             event.registrar().register("m", matchAliasAdapter);
@@ -123,6 +127,8 @@ public final class LunaManhuntPlugin extends JavaPlugin {
             event.registrar().register("spawn", spawnAdapter);
             event.registrar().register("cards", cardsAdapter);
             event.registrar().register("c", cardsAliasAdapter);
+            event.registrar().register("compass", compassAdapter);
+            event.registrar().register("tracker", trackerAdapter);
         });
         getLogger().info("LunaManhunt enabled");
     }
@@ -131,6 +137,7 @@ public final class LunaManhuntPlugin extends JavaPlugin {
         registerPermission("lunamanhunt.cards", "Xem thẻ bài", PermissionDefault.TRUE);
         registerPermission("lunamanhunt.cards.use", "Dùng thẻ bài", PermissionDefault.TRUE);
         registerPermission("lunamanhunt.spawn", "Dịch chuyển về sảnh", PermissionDefault.TRUE);
+        registerPermission("lunamanhunt.compass", "Lấy lại la bàn truy tìm", PermissionDefault.TRUE);
     }
 
     private void registerPermission(String node, String description, PermissionDefault defaultValue) {
