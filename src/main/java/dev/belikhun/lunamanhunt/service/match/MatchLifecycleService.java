@@ -43,7 +43,7 @@ import org.bukkit.scheduler.BukkitTask;
 public class MatchLifecycleService {
 	private static final int WORLD_TOTAL = 3;
 	private static final int COUNTDOWN_SECONDS = 10;
-	private static final int RUN_ACTIONBAR_TICKS = 2;
+	private static final int RUN_ACTIONBAR_TICKS = 1;
 
 	private final JavaPlugin plugin;
 	private final LobbyManager lobbyManager;

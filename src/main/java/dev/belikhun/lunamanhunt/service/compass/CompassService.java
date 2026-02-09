@@ -28,6 +28,7 @@ public class CompassService {
 	private final NamespacedKey compassIdKey;
 	private final NamespacedKey matchIdKey;
 	private final Map<UUID, UUID> compassTargets = new ConcurrentHashMap<>();
+	private final Map<UUID, org.bukkit.Location> lastCompassTargets = new ConcurrentHashMap<>();
 	private final Map<UUID, Long> scrambledHunters = new ConcurrentHashMap<>();
 	private final Map<UUID, List<ItemStack>> pendingRestores = new ConcurrentHashMap<>();
 	private final java.util.Random random = new java.util.Random();
@@ -107,7 +108,7 @@ public class CompassService {
 		Long scrambleUntil = scrambledHunters.get(holder.getUniqueId());
 		if (scrambleUntil != null) {
 			if (System.currentTimeMillis() <= scrambleUntil) {
-				applyScrambledTarget(meta, holder);
+				applyScrambledTarget(meta, holder, compassId);
 				item.setItemMeta(meta);
 				return true;
 			}
@@ -118,15 +119,25 @@ public class CompassService {
 			return false;
 		}
 		if (!holder.getWorld().getUID().equals(target.getWorld().getUID())) {
-			meta.setLodestone(null);
-			meta.setLodestoneTracked(true);
-			item.setItemMeta(meta);
+			boolean needsUpdate = !meta.isLodestoneTracked() || meta.getLodestone() != null;
+			if (needsUpdate) {
+				meta.setLodestone(null);
+				meta.setLodestoneTracked(true);
+				item.setItemMeta(meta);
+			}
+			lastCompassTargets.remove(compassId);
 			return true;
 		}
 
-		meta.setLodestone(target.getLocation());
+		org.bukkit.Location targetLocation = target.getLocation();
+		org.bukkit.Location lastLocation = lastCompassTargets.get(compassId);
+		if (isSameBlockLocation(lastLocation, targetLocation)) {
+			return true;
+		}
+		meta.setLodestone(targetLocation);
 		meta.setLodestoneTracked(false);
 		item.setItemMeta(meta);
+		lastCompassTargets.put(compassId, snapshotBlockLocation(targetLocation));
 		return true;
 	}
 
@@ -166,7 +177,7 @@ public class CompassService {
 		}
 	}
 
-	private void applyScrambledTarget(CompassMeta meta, Player holder) {
+	private void applyScrambledTarget(CompassMeta meta, Player holder, UUID compassId) {
 		if (meta == null || holder == null) {
 			return;
 		}
@@ -176,8 +187,36 @@ public class CompassService {
 		int baseX = holder.getLocation().getBlockX() + offsetX;
 		int baseZ = holder.getLocation().getBlockZ() + offsetZ;
 		int baseY = world.getHighestBlockYAt(baseX, baseZ) + 1;
-		meta.setLodestone(new org.bukkit.Location(world, baseX, baseY, baseZ));
+		org.bukkit.Location scrambled = new org.bukkit.Location(world, baseX, baseY, baseZ);
+		meta.setLodestone(scrambled);
 		meta.setLodestoneTracked(false);
+		if (compassId != null) {
+			lastCompassTargets.put(compassId, snapshotBlockLocation(scrambled));
+		}
+	}
+
+	private boolean isSameBlockLocation(org.bukkit.Location left, org.bukkit.Location right) {
+		if (left == null || right == null) {
+			return false;
+		}
+		if (!left.getWorld().getUID().equals(right.getWorld().getUID())) {
+			return false;
+		}
+		return left.getBlockX() == right.getBlockX()
+			&& left.getBlockY() == right.getBlockY()
+			&& left.getBlockZ() == right.getBlockZ();
+	}
+
+	private org.bukkit.Location snapshotBlockLocation(org.bukkit.Location location) {
+		if (location == null) {
+			return null;
+		}
+		return new org.bukkit.Location(
+			location.getWorld(),
+			location.getBlockX(),
+			location.getBlockY(),
+			location.getBlockZ()
+		);
 	}
 
 	public void updateAllForOnlinePlayers() {

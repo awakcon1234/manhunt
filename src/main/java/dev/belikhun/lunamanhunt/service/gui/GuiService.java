@@ -587,6 +587,35 @@ public class GuiService {
 		}
 
 		List<SettingRow> rows = new ArrayList<>();
+		boolean visibilityPublic = settings.getVisibility() == MatchVisibility.PUBLIC;
+		boolean visibilityInvite = settings.getVisibility() == MatchVisibility.INVITE_ONLY;
+		boolean visibilityPrivate = settings.getVisibility() == MatchVisibility.PRIVATE;
+		boolean speedrunnerRandom = settings.getSpeedrunnerSelection() == SpeedrunnerSelection.RANDOM;
+		boolean speedrunnerSpecific = settings.getSpeedrunnerSelection() == SpeedrunnerSelection.SPECIFIC;
+		boolean speedrunnerMe = speedrunnerSpecific
+			&& player.getUniqueId().equals(settings.getSpeedrunnerId());
+		boolean speedrunnerPick = speedrunnerSpecific && !speedrunnerMe;
+		boolean genCurrent = isGenVersionSelected(settings, "current");
+		boolean gen12111 = isGenVersionSelected(settings, "1.21.11");
+		boolean gen1161 = isGenVersionSelected(settings, "1.16.1");
+		boolean gen112 = isGenVersionSelected(settings, "1.12");
+		boolean genInput = settings.getWorldGenerationVersion() != null
+			&& !settings.getWorldGenerationVersion().isBlank()
+			&& !(genCurrent || gen12111 || gen1161 || gen112);
+		boolean timeCycle = settings.getWorldTime() == WorldTimeSetting.CYCLE;
+		boolean timeMorning = settings.getWorldTime() == WorldTimeSetting.MORNING;
+		boolean timeNoon = settings.getWorldTime() == WorldTimeSetting.NOON;
+		boolean timeNight = settings.getWorldTime() == WorldTimeSetting.NIGHT;
+		boolean timeMidnight = settings.getWorldTime() == WorldTimeSetting.MIDNIGHT;
+		boolean weatherCycle = settings.getWorldWeather() == WorldWeatherSetting.CYCLE;
+		boolean weatherClear = settings.getWorldWeather() == WorldWeatherSetting.CLEAR;
+		boolean weatherRain = settings.getWorldWeather() == WorldWeatherSetting.RAIN;
+		boolean weatherThunder = settings.getWorldWeather() == WorldWeatherSetting.THUNDERSTORM;
+		boolean difficultyPeaceful = settings.getWorldDifficulty() == WorldDifficultySetting.PEACEFUL;
+		boolean difficultyEasy = settings.getWorldDifficulty() == WorldDifficultySetting.EASY;
+		boolean difficultyMedium = settings.getWorldDifficulty() == WorldDifficultySetting.MEDIUM;
+		boolean difficultyHard = settings.getWorldDifficulty() == WorldDifficultySetting.HARD;
+		boolean keepInventoryOn = settings.isKeepInventory();
 		rows.add(new SettingRow(
 			Material.NAME_TAG,
 			"<yellow>ℹ</yellow> Hiển thị",
@@ -599,11 +628,14 @@ public class GuiService {
 			ACTION_SETTINGS_RESET_VISIBILITY,
 			List.of(
 				buildOption(Material.LIME_WOOL, "<green>✔</green> Công khai",
-					List.of("<gray>Cho mọi người tham gia.</gray>"), ACTION_SETTINGS_VISIBILITY_PUBLIC, null),
+					List.of("<gray>Cho mọi người tham gia.</gray>"), ACTION_SETTINGS_VISIBILITY_PUBLIC, null,
+					visibilityPublic),
 				buildOption(Material.YELLOW_WOOL, "<yellow>ℹ</yellow> Chỉ mời",
-					List.of("<gray>Chỉ người được mời mới vào.</gray>"), ACTION_SETTINGS_VISIBILITY_INVITE, null),
+					List.of("<gray>Chỉ người được mời mới vào.</gray>"), ACTION_SETTINGS_VISIBILITY_INVITE, null,
+					visibilityInvite),
 				buildOption(Material.RED_WOOL, "<red>❌</red> Riêng tư",
-					List.of("<gray>Ẩn khỏi danh sách phòng.</gray>"), ACTION_SETTINGS_VISIBILITY_PRIVATE, null)
+					List.of("<gray>Ẩn khỏi danh sách phòng.</gray>"), ACTION_SETTINGS_VISIBILITY_PRIVATE, null,
+					visibilityPrivate)
 			)
 		));
 
@@ -619,11 +651,14 @@ public class GuiService {
 			ACTION_SETTINGS_RESET_SPEEDRUNNER,
 			List.of(
 				buildOption(Material.COMPASS, "<yellow>ℹ</yellow> Ngẫu nhiên",
-					List.of("<gray>Tự chọn speedrunner.</gray>"), ACTION_SETTINGS_SPEEDRUNNER_RANDOM, null),
+					List.of("<gray>Tự chọn speedrunner.</gray>"), ACTION_SETTINGS_SPEEDRUNNER_RANDOM, null,
+					speedrunnerRandom),
 				buildOption(Material.PLAYER_HEAD, "<yellow>ℹ</yellow> Chọn người chơi",
-					List.of("<gray>Chọn từ danh sách.</gray>"), ACTION_SETTINGS_SPEEDRUNNER_PICK, null),
+					List.of("<gray>Chọn từ danh sách.</gray>"), ACTION_SETTINGS_SPEEDRUNNER_PICK, null,
+					speedrunnerPick),
 				buildOption(Material.PLAYER_HEAD, "<yellow>ℹ</yellow> Là chính bạn",
-					List.of("<gray>Đặt bạn làm speedrunner.</gray>"), ACTION_SETTINGS_SPEEDRUNNER_ME, null)
+					List.of("<gray>Đặt bạn làm speedrunner.</gray>"), ACTION_SETTINGS_SPEEDRUNNER_ME, null,
+					speedrunnerMe)
 			)
 		));
 
@@ -701,15 +736,20 @@ public class GuiService {
 			ACTION_SETTINGS_RESET_GEN_VERSION,
 			List.of(
 				buildOption(Material.COMPARATOR, "<yellow>ℹ</yellow> Theo server",
-					List.of("<gray>Dùng phiên bản máy chủ.</gray>"), ACTION_SETTINGS_GEN_VERSION_SET, "current"),
+					List.of("<gray>Dùng phiên bản máy chủ.</gray>"), ACTION_SETTINGS_GEN_VERSION_SET, "current",
+					genCurrent),
 				buildOption(Material.DIAMOND, "<yellow>ℹ</yellow> 1.21.11",
-					List.of("<gray>Phiên bản mới nhất.</gray>"), ACTION_SETTINGS_GEN_VERSION_SET, "1.21.11"),
+					List.of("<gray>Phiên bản mới nhất.</gray>"), ACTION_SETTINGS_GEN_VERSION_SET, "1.21.11",
+					gen12111),
 				buildOption(Material.CRYING_OBSIDIAN, "<yellow>ℹ</yellow> 1.16.1",
-					List.of("<gray>Phiên bản Nether.</gray>"), ACTION_SETTINGS_GEN_VERSION_SET, "1.16.1"),
+					List.of("<gray>Phiên bản Nether.</gray>"), ACTION_SETTINGS_GEN_VERSION_SET, "1.16.1",
+					gen1161),
 				buildOption(Material.GOLD_INGOT, "<yellow>ℹ</yellow> 1.12",
-					List.of("<gray>Phiên bản cũ.</gray>"), ACTION_SETTINGS_GEN_VERSION_SET, "1.12"),
+					List.of("<gray>Phiên bản cũ.</gray>"), ACTION_SETTINGS_GEN_VERSION_SET, "1.12",
+					gen112),
 				buildOption(Material.NAME_TAG, "<yellow>ℹ</yellow> Nhập phiên bản",
-					List.of("<gray>Gõ phiên bản bất kỳ.</gray>"), ACTION_SETTINGS_GEN_VERSION_INPUT, null)
+					List.of("<gray>Gõ phiên bản bất kỳ.</gray>"), ACTION_SETTINGS_GEN_VERSION_INPUT, null,
+					genInput)
 			)
 		));
 
@@ -726,19 +766,19 @@ public class GuiService {
 			List.of(
 				buildOption(Material.CLOCK, "<yellow>ℹ</yellow> Chu kỳ",
 					List.of("<gray>Thời gian tự chạy.</gray>"), ACTION_SETTINGS_WORLD_TIME_SET,
-					WorldTimeSetting.CYCLE.name()),
+					WorldTimeSetting.CYCLE.name(), timeCycle),
 				buildOption(Material.SUNFLOWER, "<yellow>ℹ</yellow> Buổi sáng",
 					List.of("<gray>Giữ buổi sáng.</gray>"), ACTION_SETTINGS_WORLD_TIME_SET,
-					WorldTimeSetting.MORNING.name()),
+					WorldTimeSetting.MORNING.name(), timeMorning),
 				buildOption(Material.GOLD_BLOCK, "<yellow>ℹ</yellow> Buổi trưa",
 					List.of("<gray>Giữ buổi trưa.</gray>"), ACTION_SETTINGS_WORLD_TIME_SET,
-					WorldTimeSetting.NOON.name()),
+					WorldTimeSetting.NOON.name(), timeNoon),
 				buildOption(Material.BLUE_BED, "<yellow>ℹ</yellow> Ban đêm",
 					List.of("<gray>Giữ ban đêm.</gray>"), ACTION_SETTINGS_WORLD_TIME_SET,
-					WorldTimeSetting.NIGHT.name()),
+					WorldTimeSetting.NIGHT.name(), timeNight),
 				buildOption(Material.ENDER_PEARL, "<yellow>ℹ</yellow> Nửa đêm",
 					List.of("<gray>Giữ nửa đêm.</gray>"), ACTION_SETTINGS_WORLD_TIME_SET,
-					WorldTimeSetting.MIDNIGHT.name())
+					WorldTimeSetting.MIDNIGHT.name(), timeMidnight)
 			)
 		));
 
@@ -755,16 +795,16 @@ public class GuiService {
 			List.of(
 				buildOption(Material.CLOCK, "<yellow>ℹ</yellow> Chu kỳ",
 					List.of("<gray>Thời tiết tự chạy.</gray>"), ACTION_SETTINGS_WORLD_WEATHER_SET,
-					WorldWeatherSetting.CYCLE.name()),
+					WorldWeatherSetting.CYCLE.name(), weatherCycle),
 				buildOption(Material.SUNFLOWER, "<yellow>ℹ</yellow> Trời quang",
 					List.of("<gray>Không mưa.</gray>"), ACTION_SETTINGS_WORLD_WEATHER_SET,
-					WorldWeatherSetting.CLEAR.name()),
+					WorldWeatherSetting.CLEAR.name(), weatherClear),
 				buildOption(Material.WATER_BUCKET, "<yellow>ℹ</yellow> Mưa",
 					List.of("<gray>Luôn có mưa.</gray>"), ACTION_SETTINGS_WORLD_WEATHER_SET,
-					WorldWeatherSetting.RAIN.name()),
+					WorldWeatherSetting.RAIN.name(), weatherRain),
 				buildOption(Material.TRIDENT, "<yellow>ℹ</yellow> Giông",
 					List.of("<gray>Luôn có sấm sét.</gray>"), ACTION_SETTINGS_WORLD_WEATHER_SET,
-					WorldWeatherSetting.THUNDERSTORM.name())
+					WorldWeatherSetting.THUNDERSTORM.name(), weatherThunder)
 			)
 		));
 
@@ -779,18 +819,18 @@ public class GuiService {
 			),
 			ACTION_SETTINGS_RESET_WORLD_DIFFICULTY,
 			List.of(
-				buildOption(Material.WHITE_WOOL, "<green>✔</green> Hòa bình",
+				buildOption(Material.WHITE_WOOL, "<green>✔</green> Bình yên",
 					List.of("<gray>Không có quái.</gray>"), ACTION_SETTINGS_WORLD_DIFFICULTY_SET,
-					WorldDifficultySetting.PEACEFUL.name()),
+					WorldDifficultySetting.PEACEFUL.name(), difficultyPeaceful),
 				buildOption(Material.LIME_WOOL, "<green>✔</green> Dễ",
 					List.of("<gray>Độ khó nhẹ.</gray>"), ACTION_SETTINGS_WORLD_DIFFICULTY_SET,
-					WorldDifficultySetting.EASY.name()),
+					WorldDifficultySetting.EASY.name(), difficultyEasy),
 				buildOption(Material.YELLOW_WOOL, "<yellow>ℹ</yellow> Trung bình",
 					List.of("<gray>Độ khó chuẩn.</gray>"), ACTION_SETTINGS_WORLD_DIFFICULTY_SET,
-					WorldDifficultySetting.MEDIUM.name()),
+					WorldDifficultySetting.MEDIUM.name(), difficultyMedium),
 				buildOption(Material.RED_WOOL, "<red>❌</red> Khó",
 					List.of("<gray>Độ khó cao.</gray>"), ACTION_SETTINGS_WORLD_DIFFICULTY_SET,
-					WorldDifficultySetting.HARD.name())
+					WorldDifficultySetting.HARD.name(), difficultyHard)
 			)
 		));
 
@@ -806,9 +846,11 @@ public class GuiService {
 			ACTION_SETTINGS_RESET_KEEP_INVENTORY,
 			List.of(
 				buildOption(Material.LIME_WOOL, "<green>✔</green> Bật",
-					List.of("<gray>Không rơi đồ.</gray>"), ACTION_SETTINGS_KEEP_INVENTORY_SET, "on"),
+					List.of("<gray>Không rơi đồ.</gray>"), ACTION_SETTINGS_KEEP_INVENTORY_SET, "on",
+					keepInventoryOn),
 				buildOption(Material.RED_WOOL, "<red>❌</red> Tắt",
-					List.of("<gray>Rơi đồ khi chết.</gray>"), ACTION_SETTINGS_KEEP_INVENTORY_SET, "off")
+					List.of("<gray>Rơi đồ khi chết.</gray>"), ACTION_SETTINGS_KEEP_INVENTORY_SET, "off",
+					!keepInventoryOn)
 			)
 		));
 
@@ -836,12 +878,13 @@ public class GuiService {
 			List<String> lore = new ArrayList<>(kit.getDescription());
 			lore.add(" ");
 			lore.add("<gray>Số vật phẩm: <white>" + kit.getItems().size() + "</white></gray>");
-			if (selectedKitId != null && kit.getId().equalsIgnoreCase(selectedKitId)) {
+			boolean kitSelected = selectedKitId != null && kit.getId().equalsIgnoreCase(selectedKitId);
+			if (kitSelected) {
 				lore.add(" ");
 				lore.add("<#7fd36b>Đang chọn</#7fd36b>");
 			}
 			kitOptions.add(buildPreviewOption(kit.getIcon(), "<yellow>ℹ</yellow> " + kit.getName(), lore,
-				ACTION_SETTINGS_KIT_SELECT, kit.getId()));
+				ACTION_SETTINGS_KIT_SELECT, kit.getId(), kitSelected));
 		}
 
 		if (paginateKits && safeKitPage < kitTotalPages - 1) {
@@ -903,7 +946,7 @@ public class GuiService {
 			for (int i = 0; i < options.size() && i < 5; i++) {
 				OptionItem option = options.get(i);
 				inventory.setItem(base + 2 + i, buildActionItem(option.icon(), option.title(), option.lore(),
-					option.action(), option.target()));
+					option.action(), option.target(), option.glint()));
 			}
 		}
 
@@ -941,6 +984,11 @@ public class GuiService {
 			inventory.setItem(slot, null);
 		}
 
+		int[] poolSlots = new int[] { 19, 20, 21, 22, 23, 24, 25 };
+		for (int slot : poolSlots) {
+			inventory.setItem(slot, null);
+		}
+
 		inventory.setItem(8, buildInfoItem(Material.BOOK,
 			"<yellow>ℹ</yellow> Hướng dẫn",
 			List.of(
@@ -951,7 +999,6 @@ public class GuiService {
 				"<gray>● Hàng 6: bấm nút bỏ thẻ nếu ô đã đầy.</gray>"
 			)));
 
-		int[] poolSlots = new int[] { 19, 20, 21, 22, 23, 24, 25 };
 		for (int i = 0; i < poolSlots.length; i++) {
 			if (i >= poolCards.size()) {
 				break;
@@ -2395,6 +2442,24 @@ public class GuiService {
 		return "<" + color + ">" + formatKeepInventory(keepInventory) + "</" + color + ">";
 	}
 
+	private boolean isGenVersionSelected(MatchSettings settings, String candidate) {
+		if (settings == null || candidate == null) {
+			return false;
+		}
+		String current = settings.getWorldGenerationVersion();
+		if (current == null) {
+			return false;
+		}
+		String trimmed = current.trim();
+		if (trimmed.isEmpty()) {
+			return false;
+		}
+		if ("current".equalsIgnoreCase(candidate)) {
+			return trimmed.equalsIgnoreCase(Bukkit.getMinecraftVersion());
+		}
+		return trimmed.equalsIgnoreCase(candidate.trim());
+	}
+
 	private String formatNumericValue(int value, int defaultValue) {
 		String color = value == defaultValue ? "#7fd36b" : "#ffd166";
 		return "<" + color + ">" + formatNumber(value) + "</" + color + ">";
@@ -2569,6 +2634,11 @@ public class GuiService {
 	}
 
 	private ItemStack buildActionItem(Material material, String name, List<String> lore, String action, String target) {
+		return buildActionItem(material, name, lore, action, target, false);
+	}
+
+	private ItemStack buildActionItem(Material material, String name, List<String> lore, String action, String target,
+			boolean glint) {
 		ItemStack item = new ItemStack(material);
 		ItemMeta meta = item.getItemMeta();
 		if (meta != null) {
@@ -2577,6 +2647,9 @@ public class GuiService {
 			meta.getPersistentDataContainer().set(actionKey, PersistentDataType.STRING, action);
 			if (target != null) {
 				meta.getPersistentDataContainer().set(targetKey, PersistentDataType.STRING, target);
+			}
+			if (glint) {
+				meta.setEnchantmentGlintOverride(true);
 			}
 			item.setItemMeta(meta);
 		}
@@ -2943,24 +3016,29 @@ public class GuiService {
 	}
 
 	private OptionItem buildOption(Material icon, String title, List<String> details, String action, String target) {
+		return buildOption(icon, title, details, action, target, false);
+	}
+
+	private OptionItem buildOption(Material icon, String title, List<String> details, String action, String target,
+			boolean glint) {
 		List<String> lore = new ArrayList<>();
 		if (details != null && !details.isEmpty()) {
 			lore.addAll(details);
 		}
 		lore.add(" ");
 		lore.add("<gray>Bấm để chọn.</gray>");
-		return new OptionItem(icon, title, lore, action, target);
+		return new OptionItem(icon, title, lore, action, target, glint);
 	}
 
 	private OptionItem buildPreviewOption(Material icon, String title, List<String> details, String action,
-			String target) {
+			String target, boolean glint) {
 		List<String> lore = new ArrayList<>();
 		if (details != null && !details.isEmpty()) {
 			lore.addAll(details);
 		}
 		lore.add(" ");
 		lore.add("<gray>Bấm để xem bộ đồ.</gray>");
-		return new OptionItem(icon, title, lore, action, target);
+		return new OptionItem(icon, title, lore, action, target, glint);
 	}
 
 	private OptionItem buildPageOption(Material icon, String title, List<String> details, String action,
@@ -2971,10 +3049,11 @@ public class GuiService {
 		}
 		lore.add(" ");
 		lore.add("<gray>Bấm để xem trang.</gray>");
-		return new OptionItem(icon, title, lore, action, target);
+		return new OptionItem(icon, title, lore, action, target, false);
 	}
 
-	private record OptionItem(Material icon, String title, List<String> lore, String action, String target) {
+	private record OptionItem(Material icon, String title, List<String> lore, String action, String target,
+			boolean glint) {
 	}
 
 	private record SettingRow(Material icon, String title, List<String> lore, String resetAction,
