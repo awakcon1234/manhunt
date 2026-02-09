@@ -13,6 +13,10 @@ public class MatchSettings {
     private UUID speedrunnerId;
     private String worldSeed;
     private String worldGenerationVersion;
+    private WorldTimeSetting worldTime = WorldTimeSetting.CYCLE;
+    private WorldWeatherSetting worldWeather = WorldWeatherSetting.CYCLE;
+    private WorldDifficultySetting worldDifficulty = WorldDifficultySetting.MEDIUM;
+    private boolean keepInventory;
     private int worldBorderLimit = WORLD_BORDER_LIMIT_DEFAULT;
     private int startingBorder = 10;
     private String speedrunnerKitId;
@@ -50,6 +54,38 @@ public class MatchSettings {
 
     public void setWorldGenerationVersion(String worldGenerationVersion) {
         this.worldGenerationVersion = worldGenerationVersion;
+    }
+
+    public WorldTimeSetting getWorldTime() {
+        return worldTime;
+    }
+
+    public void setWorldTime(WorldTimeSetting worldTime) {
+        this.worldTime = worldTime == null ? WorldTimeSetting.CYCLE : worldTime;
+    }
+
+    public WorldWeatherSetting getWorldWeather() {
+        return worldWeather;
+    }
+
+    public void setWorldWeather(WorldWeatherSetting worldWeather) {
+        this.worldWeather = worldWeather == null ? WorldWeatherSetting.CYCLE : worldWeather;
+    }
+
+    public WorldDifficultySetting getWorldDifficulty() {
+        return worldDifficulty;
+    }
+
+    public void setWorldDifficulty(WorldDifficultySetting worldDifficulty) {
+        this.worldDifficulty = worldDifficulty == null ? WorldDifficultySetting.MEDIUM : worldDifficulty;
+    }
+
+    public boolean isKeepInventory() {
+        return keepInventory;
+    }
+
+    public void setKeepInventory(boolean keepInventory) {
+        this.keepInventory = keepInventory;
     }
 
     public int getWorldBorderLimit() {

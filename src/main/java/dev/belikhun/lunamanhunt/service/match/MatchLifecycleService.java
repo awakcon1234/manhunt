@@ -14,6 +14,7 @@ import dev.belikhun.lunamanhunt.service.worldgen.WorldGenerationService;
 import dev.belikhun.lunamanhunt.util.Text;
 import dev.belikhun.lunamanhunt.util.UiColors;
 import org.bukkit.Bukkit;
+import org.bukkit.Difficulty;
 import org.bukkit.GameRules;
 import org.bukkit.Location;
 import org.bukkit.Material;
@@ -90,7 +91,7 @@ public class MatchLifecycleService {
 		if (bukkitWorld == null) {
 			return;
 		}
-		applyWorldRule(bukkitWorld);
+		applyWorldRule(bukkitWorld, match.getSettings());
 		String label = formatWorldLabel(bukkitWorld.getEnvironment());
 		String seed = formatSeedValue(bukkitWorld.getSeed());
 		broadcast(match, "<green>✔</green> Thế giới <yellow>" + label + "</yellow> đã tạo xong. Seed: " + seed + ".");
@@ -261,12 +262,94 @@ public class MatchLifecycleService {
 		border.setSize(match.getSettings().getWorldBorderLimit());
 	}
 
-	private void applyWorldRule(World world) {
+	private void applyWorldRule(World world, MatchSettings settings) {
 		if (world == null) {
 			return;
 		}
 		world.setGameRule(GameRules.IMMEDIATE_RESPAWN, true);
 		world.setGameRule(GameRules.LOCATOR_BAR, false);
+		if (settings == null) {
+			return;
+		}
+		applyKeepInventory(world, settings);
+		applyWorldTime(world, settings);
+		applyWorldWeather(world, settings);
+		applyWorldDifficulty(world, settings);
+	}
+
+	private void applyKeepInventory(World world, MatchSettings settings) {
+		if (world == null || settings == null) {
+			return;
+		}
+		world.setGameRule(GameRules.KEEP_INVENTORY, settings.isKeepInventory());
+	}
+
+	private void applyWorldTime(World world, MatchSettings settings) {
+		if (world == null || settings == null || settings.getWorldTime() == null) {
+			return;
+		}
+			switch (settings.getWorldTime()) {
+				case CYCLE -> world.setGameRule(GameRules.ADVANCE_TIME, true);
+				case MORNING -> {
+					world.setGameRule(GameRules.ADVANCE_TIME, false);
+					world.setTime(1000L);
+				}
+				case NOON -> {
+					world.setGameRule(GameRules.ADVANCE_TIME, false);
+					world.setTime(6000L);
+				}
+				case NIGHT -> {
+					world.setGameRule(GameRules.ADVANCE_TIME, false);
+					world.setTime(13000L);
+				}
+				case MIDNIGHT -> {
+					world.setGameRule(GameRules.ADVANCE_TIME, false);
+					world.setTime(18000L);
+				}
+			}
+	}
+
+	private void applyWorldWeather(World world, MatchSettings settings) {
+		if (world == null || settings == null || settings.getWorldWeather() == null) {
+			return;
+		}
+			switch (settings.getWorldWeather()) {
+				case CYCLE -> world.setGameRule(GameRules.ADVANCE_WEATHER, true);
+				case CLEAR -> {
+					world.setGameRule(GameRules.ADVANCE_WEATHER, false);
+					world.setStorm(false);
+					world.setThundering(false);
+					world.setWeatherDuration(Integer.MAX_VALUE);
+					world.setThunderDuration(0);
+				}
+				case RAIN -> {
+					world.setGameRule(GameRules.ADVANCE_WEATHER, false);
+					world.setStorm(true);
+					world.setThundering(false);
+					world.setWeatherDuration(Integer.MAX_VALUE);
+					world.setThunderDuration(0);
+				}
+				case THUNDERSTORM -> {
+					world.setGameRule(GameRules.ADVANCE_WEATHER, false);
+					world.setStorm(true);
+					world.setThundering(true);
+					world.setWeatherDuration(Integer.MAX_VALUE);
+					world.setThunderDuration(Integer.MAX_VALUE);
+				}
+			}
+	}
+
+	private void applyWorldDifficulty(World world, MatchSettings settings) {
+		if (world == null || settings == null || settings.getWorldDifficulty() == null) {
+			return;
+		}
+		Difficulty difficulty = switch (settings.getWorldDifficulty()) {
+			case PEACEFUL -> Difficulty.PEACEFUL;
+			case EASY -> Difficulty.EASY;
+			case HARD -> Difficulty.HARD;
+			case MEDIUM -> Difficulty.NORMAL;
+		};
+		world.setDifficulty(difficulty);
 	}
 
 	private void teleportPlayers(Match match, Location spawn) {

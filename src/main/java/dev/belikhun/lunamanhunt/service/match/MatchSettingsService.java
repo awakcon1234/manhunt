@@ -3,6 +3,9 @@ package dev.belikhun.lunamanhunt.service.match;
 import dev.belikhun.lunamanhunt.model.match.MatchSettings;
 import dev.belikhun.lunamanhunt.model.match.MatchVisibility;
 import dev.belikhun.lunamanhunt.model.match.SpeedrunnerSelection;
+import dev.belikhun.lunamanhunt.model.match.WorldDifficultySetting;
+import dev.belikhun.lunamanhunt.model.match.WorldTimeSetting;
+import dev.belikhun.lunamanhunt.model.match.WorldWeatherSetting;
 import dev.belikhun.lunamanhunt.service.kit.SpeedrunnerKitService;
 import org.bukkit.Bukkit;
 import org.bukkit.configuration.file.FileConfiguration;
@@ -48,6 +51,19 @@ public class MatchSettingsService {
 		String genVersion = resolveWorldGenerationVersion(
 			config.getString("match.defaults.worldGenerationVersion"));
 		settings.setWorldGenerationVersion(genVersion);
+
+		String worldTimeValue = config.getString("match.defaults.worldTime", settings.getWorldTime().name());
+		settings.setWorldTime(parseWorldTime(worldTimeValue, settings.getWorldTime()));
+
+		String worldWeatherValue = config.getString("match.defaults.worldWeather", settings.getWorldWeather().name());
+		settings.setWorldWeather(parseWorldWeather(worldWeatherValue, settings.getWorldWeather()));
+
+		String worldDifficultyValue = config.getString("match.defaults.worldDifficulty",
+			settings.getWorldDifficulty().name());
+		settings.setWorldDifficulty(parseWorldDifficulty(worldDifficultyValue, settings.getWorldDifficulty()));
+
+		Object keepInventoryValue = config.get("match.defaults.keepInventory");
+		settings.setKeepInventory(parseKeepInventory(keepInventoryValue, settings.isKeepInventory()));
 
 		int borderLimit = config.getInt("match.defaults.worldBorderLimit", settings.getWorldBorderLimit());
 		settings.setWorldBorderLimit(borderLimit > 0 ? borderLimit : settings.getWorldBorderLimit());
@@ -150,5 +166,63 @@ public class MatchSettingsService {
 
 	public static Set<String> getSupportedWorldGenVersions() {
 		return new LinkedHashSet<>(SUPPORTED_WORLD_GEN_VERSIONS);
+	}
+
+	public static WorldTimeSetting parseWorldTime(String value, WorldTimeSetting fallback) {
+		if (value == null || value.isBlank()) {
+			return fallback;
+		}
+		try {
+			return WorldTimeSetting.valueOf(value.trim().toUpperCase(Locale.ROOT));
+		} catch (IllegalArgumentException ex) {
+			return fallback;
+		}
+	}
+
+	public static WorldWeatherSetting parseWorldWeather(String value, WorldWeatherSetting fallback) {
+		if (value == null || value.isBlank()) {
+			return fallback;
+		}
+		try {
+			return WorldWeatherSetting.valueOf(value.trim().toUpperCase(Locale.ROOT));
+		} catch (IllegalArgumentException ex) {
+			return fallback;
+		}
+	}
+
+	public static WorldDifficultySetting parseWorldDifficulty(String value, WorldDifficultySetting fallback) {
+		if (value == null || value.isBlank()) {
+			return fallback;
+		}
+		String normalized = value.trim().toUpperCase(Locale.ROOT);
+		if ("NORMAL".equals(normalized) || "MEDIUM".equals(normalized)) {
+			return WorldDifficultySetting.MEDIUM;
+		}
+		try {
+			return WorldDifficultySetting.valueOf(normalized);
+		} catch (IllegalArgumentException ex) {
+			return fallback;
+		}
+	}
+
+	public static boolean parseKeepInventory(Object value, boolean fallback) {
+		if (value == null) {
+			return fallback;
+		}
+		if (value instanceof Boolean boolValue) {
+			return boolValue;
+		}
+		if (value instanceof Number numberValue) {
+			return numberValue.intValue() != 0;
+		}
+		String text = value.toString().trim().toLowerCase(Locale.ROOT);
+		if (text.isEmpty()) {
+			return fallback;
+		}
+		return switch (text) {
+			case "on", "true", "yes", "1" -> true;
+			case "off", "false", "no", "0" -> false;
+			default -> fallback;
+		};
 	}
 }

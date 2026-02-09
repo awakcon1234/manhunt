@@ -23,12 +23,16 @@ public class GuiInputListener implements Listener {
 	@EventHandler
 	public void onChat(AsyncChatEvent event) {
 		Player player = event.getPlayer();
-		if (!guiService.hasSeedInput(player)) {
+		String message = PlainTextComponentSerializer.plainText().serialize(event.message());
+		if (guiService.hasSeedInput(player)) {
+			event.setCancelled(true);
+			Bukkit.getScheduler().runTask(plugin, () -> guiService.handleSeedInput(player, message));
 			return;
 		}
-		String message = PlainTextComponentSerializer.plainText().serialize(event.message());
-		event.setCancelled(true);
-		Bukkit.getScheduler().runTask(plugin, () -> guiService.handleSeedInput(player, message));
+		if (guiService.hasGenVersionInput(player)) {
+			event.setCancelled(true);
+			Bukkit.getScheduler().runTask(plugin, () -> guiService.handleGenVersionInput(player, message));
+		}
 	}
 
 }

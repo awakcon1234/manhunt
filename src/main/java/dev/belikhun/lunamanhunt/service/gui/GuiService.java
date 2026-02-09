@@ -5,6 +5,9 @@ import dev.belikhun.lunamanhunt.model.match.MatchSettings;
 import dev.belikhun.lunamanhunt.model.match.MatchState;
 import dev.belikhun.lunamanhunt.model.match.MatchVisibility;
 import dev.belikhun.lunamanhunt.model.match.SpeedrunnerSelection;
+import dev.belikhun.lunamanhunt.model.match.WorldDifficultySetting;
+import dev.belikhun.lunamanhunt.model.match.WorldTimeSetting;
+import dev.belikhun.lunamanhunt.model.match.WorldWeatherSetting;
 import dev.belikhun.lunamanhunt.model.kit.SpeedrunnerKitDefinition;
 import dev.belikhun.lunamanhunt.model.card.CardDefinition;
 import dev.belikhun.lunamanhunt.model.match.MatchWinner;
@@ -15,6 +18,7 @@ import dev.belikhun.lunamanhunt.service.kit.SpeedrunnerKitService;
 import dev.belikhun.lunamanhunt.service.lobby.LobbyActionResult;
 import dev.belikhun.lunamanhunt.service.lobby.LobbyManager;
 import dev.belikhun.lunamanhunt.service.match.MatchManager;
+import dev.belikhun.lunamanhunt.service.match.MatchSettingsService;
 import dev.belikhun.lunamanhunt.service.persistence.ProfileStore;
 import dev.belikhun.lunamanhunt.service.point.PointService;
 import dev.belikhun.lunamanhunt.service.spawn.LobbyItemService;
@@ -26,6 +30,7 @@ import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
 import org.bukkit.OfflinePlayer;
+import org.bukkit.Sound;
 import org.bukkit.entity.Player;
 import org.bukkit.event.inventory.ClickType;
 import org.bukkit.inventory.Inventory;
@@ -85,12 +90,23 @@ public class GuiService {
 	private static final String ACTION_SETTINGS_RESET_VISIBILITY = "settings_reset_visibility";
 	private static final String ACTION_SETTINGS_RESET_SPEEDRUNNER = "settings_reset_speedrunner";
 	private static final String ACTION_SETTINGS_RESET_SEED = "settings_reset_seed";
+	private static final String ACTION_SETTINGS_RESET_GEN_VERSION = "settings_reset_gen_version";
+	private static final String ACTION_SETTINGS_RESET_WORLD_TIME = "settings_reset_world_time";
+	private static final String ACTION_SETTINGS_RESET_WORLD_WEATHER = "settings_reset_world_weather";
+	private static final String ACTION_SETTINGS_RESET_WORLD_DIFFICULTY = "settings_reset_world_difficulty";
+	private static final String ACTION_SETTINGS_RESET_KEEP_INVENTORY = "settings_reset_keep_inventory";
 	private static final String ACTION_SETTINGS_RESET_KIT = "settings_reset_kit";
 	private static final String ACTION_SETTINGS_RESET_BORDER = "settings_reset_border";
 	private static final String ACTION_SETTINGS_RESET_START_BORDER = "settings_reset_start_border";
 	private static final String ACTION_SETTINGS_RESET_CARDS = "settings_reset_cards";
 	private static final String ACTION_SETTINGS_SEED = "settings_seed";
 	private static final String ACTION_SETTINGS_SEED_CLEAR = "settings_seed_clear";
+	private static final String ACTION_SETTINGS_GEN_VERSION_SET = "settings_gen_version_set";
+	private static final String ACTION_SETTINGS_GEN_VERSION_INPUT = "settings_gen_version_input";
+	private static final String ACTION_SETTINGS_WORLD_TIME_SET = "settings_world_time_set";
+	private static final String ACTION_SETTINGS_WORLD_WEATHER_SET = "settings_world_weather_set";
+	private static final String ACTION_SETTINGS_WORLD_DIFFICULTY_SET = "settings_world_difficulty_set";
+	private static final String ACTION_SETTINGS_KEEP_INVENTORY_SET = "settings_keep_inventory_set";
 	private static final String ACTION_SETTINGS_KIT_SELECT = "settings_kit_select";
 	private static final String ACTION_SETTINGS_KIT_PAGE_PREV = "settings_kit_page_prev";
 	private static final String ACTION_SETTINGS_KIT_PAGE_NEXT = "settings_kit_page_next";
@@ -130,8 +146,8 @@ public class GuiService {
 	private static final int CARDS_INFO_PAGE_SIZE = 45;
 	private static final int CARDS_ADJUST_PAGE_SIZE = 20;
 	private static final int SETTINGS_ROWS_PER_PAGE = 4;
-	private static final int SETTINGS_TOTAL_ROWS = 7;
-	private static final int SETTINGS_ROW_KIT_INDEX = 5;
+	private static final int SETTINGS_TOTAL_ROWS = 12;
+	private static final int SETTINGS_ROW_KIT_INDEX = 10;
 	private static final int SETTINGS_KIT_PAGE_SIZE = 3;
 	private static final int SETTINGS_KIT_PAGE_SIZE_FULL = 5;
 
@@ -161,6 +177,7 @@ public class GuiService {
 	private final NamespacedKey actionKey;
 	private final NamespacedKey targetKey;
 	private final java.util.Map<UUID, String> seedInputs = new java.util.concurrent.ConcurrentHashMap<>();
+	private final java.util.Map<UUID, String> genVersionInputs = new java.util.concurrent.ConcurrentHashMap<>();
 	private final java.util.Map<UUID, Integer> settingsPages = new java.util.concurrent.ConcurrentHashMap<>();
 	private final java.util.Map<UUID, Integer> kitPages = new java.util.concurrent.ConcurrentHashMap<>();
 	private final java.util.Map<UUID, Integer> kitPreviewPages = new java.util.concurrent.ConcurrentHashMap<>();
@@ -374,6 +391,8 @@ public class GuiService {
 			return true;
 		}
 
+		player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 0.7f, 1.0f);
+
 		switch (action) {
 			case ACTION_MAIN_CREATE -> handleCreate(player);
 			case ACTION_MAIN_MY -> handleMyMatch(player);
@@ -404,12 +423,23 @@ public class GuiService {
 			case ACTION_SETTINGS_RESET_VISIBILITY -> handleResetVisibility(player, holder.matchId());
 			case ACTION_SETTINGS_RESET_SPEEDRUNNER -> handleResetSpeedrunner(player, holder.matchId());
 			case ACTION_SETTINGS_RESET_SEED -> handleResetSeed(player, holder.matchId());
+			case ACTION_SETTINGS_RESET_GEN_VERSION -> handleResetWorldGenerationVersion(player, holder.matchId());
+			case ACTION_SETTINGS_RESET_WORLD_TIME -> handleResetWorldTime(player, holder.matchId());
+			case ACTION_SETTINGS_RESET_WORLD_WEATHER -> handleResetWorldWeather(player, holder.matchId());
+			case ACTION_SETTINGS_RESET_WORLD_DIFFICULTY -> handleResetWorldDifficulty(player, holder.matchId());
+			case ACTION_SETTINGS_RESET_KEEP_INVENTORY -> handleResetKeepInventory(player, holder.matchId());
 			case ACTION_SETTINGS_RESET_KIT -> handleResetKit(player, holder.matchId());
 			case ACTION_SETTINGS_RESET_BORDER -> handleResetBorder(player, holder.matchId());
 			case ACTION_SETTINGS_RESET_START_BORDER -> handleResetStartBorder(player, holder.matchId());
 			case ACTION_SETTINGS_RESET_CARDS -> handleResetCards(player, holder.matchId());
 			case ACTION_SETTINGS_SEED -> handleSeedPrompt(player, holder.matchId());
 			case ACTION_SETTINGS_SEED_CLEAR -> handleSeedClear(player, holder.matchId());
+			case ACTION_SETTINGS_GEN_VERSION_SET -> handleWorldGenerationVersionSet(player, holder.matchId(), target);
+			case ACTION_SETTINGS_GEN_VERSION_INPUT -> handleWorldGenerationVersionPrompt(player, holder.matchId());
+			case ACTION_SETTINGS_WORLD_TIME_SET -> handleWorldTimeSet(player, holder.matchId(), target);
+			case ACTION_SETTINGS_WORLD_WEATHER_SET -> handleWorldWeatherSet(player, holder.matchId(), target);
+			case ACTION_SETTINGS_WORLD_DIFFICULTY_SET -> handleWorldDifficultySet(player, holder.matchId(), target);
+			case ACTION_SETTINGS_KEEP_INVENTORY_SET -> handleKeepInventorySet(player, holder.matchId(), target);
 			case ACTION_SETTINGS_KIT_SELECT -> handleOpenKitPreview(player, holder.matchId(), target);
 			case ACTION_SETTINGS_KIT_PAGE_PREV, ACTION_SETTINGS_KIT_PAGE_NEXT -> handleOpenKitPage(player, holder.matchId(), target);
 			case ACTION_SETTINGS_CARDS -> handleMatchInfoCards(player, holder.matchId(), "0");
@@ -522,6 +552,22 @@ public class GuiService {
 		MatchSettings defaults = matchSettingsService.createDefaults();
 		String seedText = formatSeedValue(settings.getWorldSeed(), defaults.getWorldSeed());
 		String defaultSeedText = formatSeedValue(defaults.getWorldSeed(), defaults.getWorldSeed());
+		String genVersionText = formatGenVersionValue(
+			settings.getWorldGenerationVersion(), defaults.getWorldGenerationVersion());
+		String defaultGenVersionText = formatGenVersionValue(
+			defaults.getWorldGenerationVersion(), defaults.getWorldGenerationVersion());
+		String worldTimeText = formatWorldTimeColored(settings.getWorldTime(), defaults.getWorldTime());
+		String defaultWorldTimeText = formatWorldTimeColored(defaults.getWorldTime(), defaults.getWorldTime());
+		String worldWeatherText = formatWorldWeatherColored(settings.getWorldWeather(), defaults.getWorldWeather());
+		String defaultWorldWeatherText = formatWorldWeatherColored(
+			defaults.getWorldWeather(), defaults.getWorldWeather());
+		String worldDifficultyText = formatWorldDifficultyColored(
+			settings.getWorldDifficulty(), defaults.getWorldDifficulty());
+		String defaultWorldDifficultyText = formatWorldDifficultyColored(
+			defaults.getWorldDifficulty(), defaults.getWorldDifficulty());
+		String keepInventoryText = formatKeepInventoryColored(settings.isKeepInventory(), defaults.isKeepInventory());
+		String defaultKeepInventoryText = formatKeepInventoryColored(
+			defaults.isKeepInventory(), defaults.isKeepInventory());
 		String defaultKitId = resolveDefaultKitId(defaults);
 		String kitText = formatKitNameColored(settings, defaultKitId);
 		String defaultKitText = formatKitNameColored(defaults, defaultKitId);
@@ -640,6 +686,129 @@ public class GuiService {
 					List.of("<gray>Nhập bằng chat.</gray>"), ACTION_SETTINGS_SEED, null),
 				buildOption(Material.BARRIER, "<red>❌</red> Xóa seed",
 					List.of("<gray>Đặt seed về trống.</gray>"), ACTION_SETTINGS_SEED_CLEAR, null)
+			)
+		));
+
+		rows.add(new SettingRow(
+			Material.REPEATER,
+			"<yellow>ℹ</yellow> Phiên bản tạo thế giới",
+			List.of(
+				"<gray>Hiện tại: " + genVersionText + "</gray>",
+				"<gray>Mặc định: " + defaultGenVersionText + "</gray>",
+				" ",
+				"<gray>Bấm để về mặc định.</gray>"
+			),
+			ACTION_SETTINGS_RESET_GEN_VERSION,
+			List.of(
+				buildOption(Material.COMPARATOR, "<yellow>ℹ</yellow> Theo server",
+					List.of("<gray>Dùng phiên bản máy chủ.</gray>"), ACTION_SETTINGS_GEN_VERSION_SET, "current"),
+				buildOption(Material.DIAMOND, "<yellow>ℹ</yellow> 1.21.11",
+					List.of("<gray>Phiên bản mới nhất.</gray>"), ACTION_SETTINGS_GEN_VERSION_SET, "1.21.11"),
+				buildOption(Material.CRYING_OBSIDIAN, "<yellow>ℹ</yellow> 1.16.1",
+					List.of("<gray>Phiên bản Nether.</gray>"), ACTION_SETTINGS_GEN_VERSION_SET, "1.16.1"),
+				buildOption(Material.GOLD_INGOT, "<yellow>ℹ</yellow> 1.12",
+					List.of("<gray>Phiên bản cũ.</gray>"), ACTION_SETTINGS_GEN_VERSION_SET, "1.12"),
+				buildOption(Material.NAME_TAG, "<yellow>ℹ</yellow> Nhập phiên bản",
+					List.of("<gray>Gõ phiên bản bất kỳ.</gray>"), ACTION_SETTINGS_GEN_VERSION_INPUT, null)
+			)
+		));
+
+		rows.add(new SettingRow(
+			Material.CLOCK,
+			"<yellow>ℹ</yellow> Thời gian thế giới",
+			List.of(
+				"<gray>Hiện tại: " + worldTimeText + "</gray>",
+				"<gray>Mặc định: " + defaultWorldTimeText + "</gray>",
+				" ",
+				"<gray>Bấm để về mặc định.</gray>"
+			),
+			ACTION_SETTINGS_RESET_WORLD_TIME,
+			List.of(
+				buildOption(Material.CLOCK, "<yellow>ℹ</yellow> Chu kỳ",
+					List.of("<gray>Thời gian tự chạy.</gray>"), ACTION_SETTINGS_WORLD_TIME_SET,
+					WorldTimeSetting.CYCLE.name()),
+				buildOption(Material.SUNFLOWER, "<yellow>ℹ</yellow> Buổi sáng",
+					List.of("<gray>Giữ buổi sáng.</gray>"), ACTION_SETTINGS_WORLD_TIME_SET,
+					WorldTimeSetting.MORNING.name()),
+				buildOption(Material.GOLD_BLOCK, "<yellow>ℹ</yellow> Buổi trưa",
+					List.of("<gray>Giữ buổi trưa.</gray>"), ACTION_SETTINGS_WORLD_TIME_SET,
+					WorldTimeSetting.NOON.name()),
+				buildOption(Material.BLUE_BED, "<yellow>ℹ</yellow> Ban đêm",
+					List.of("<gray>Giữ ban đêm.</gray>"), ACTION_SETTINGS_WORLD_TIME_SET,
+					WorldTimeSetting.NIGHT.name()),
+				buildOption(Material.ENDER_PEARL, "<yellow>ℹ</yellow> Nửa đêm",
+					List.of("<gray>Giữ nửa đêm.</gray>"), ACTION_SETTINGS_WORLD_TIME_SET,
+					WorldTimeSetting.MIDNIGHT.name())
+			)
+		));
+
+		rows.add(new SettingRow(
+			Material.WATER_BUCKET,
+			"<yellow>ℹ</yellow> Thời tiết",
+			List.of(
+				"<gray>Hiện tại: " + worldWeatherText + "</gray>",
+				"<gray>Mặc định: " + defaultWorldWeatherText + "</gray>",
+				" ",
+				"<gray>Bấm để về mặc định.</gray>"
+			),
+			ACTION_SETTINGS_RESET_WORLD_WEATHER,
+			List.of(
+				buildOption(Material.CLOCK, "<yellow>ℹ</yellow> Chu kỳ",
+					List.of("<gray>Thời tiết tự chạy.</gray>"), ACTION_SETTINGS_WORLD_WEATHER_SET,
+					WorldWeatherSetting.CYCLE.name()),
+				buildOption(Material.SUNFLOWER, "<yellow>ℹ</yellow> Trời quang",
+					List.of("<gray>Không mưa.</gray>"), ACTION_SETTINGS_WORLD_WEATHER_SET,
+					WorldWeatherSetting.CLEAR.name()),
+				buildOption(Material.WATER_BUCKET, "<yellow>ℹ</yellow> Mưa",
+					List.of("<gray>Luôn có mưa.</gray>"), ACTION_SETTINGS_WORLD_WEATHER_SET,
+					WorldWeatherSetting.RAIN.name()),
+				buildOption(Material.TRIDENT, "<yellow>ℹ</yellow> Giông",
+					List.of("<gray>Luôn có sấm sét.</gray>"), ACTION_SETTINGS_WORLD_WEATHER_SET,
+					WorldWeatherSetting.THUNDERSTORM.name())
+			)
+		));
+
+		rows.add(new SettingRow(
+			Material.IRON_SWORD,
+			"<yellow>ℹ</yellow> Độ khó",
+			List.of(
+				"<gray>Hiện tại: " + worldDifficultyText + "</gray>",
+				"<gray>Mặc định: " + defaultWorldDifficultyText + "</gray>",
+				" ",
+				"<gray>Bấm để về mặc định.</gray>"
+			),
+			ACTION_SETTINGS_RESET_WORLD_DIFFICULTY,
+			List.of(
+				buildOption(Material.WHITE_WOOL, "<green>✔</green> Hòa bình",
+					List.of("<gray>Không có quái.</gray>"), ACTION_SETTINGS_WORLD_DIFFICULTY_SET,
+					WorldDifficultySetting.PEACEFUL.name()),
+				buildOption(Material.LIME_WOOL, "<green>✔</green> Dễ",
+					List.of("<gray>Độ khó nhẹ.</gray>"), ACTION_SETTINGS_WORLD_DIFFICULTY_SET,
+					WorldDifficultySetting.EASY.name()),
+				buildOption(Material.YELLOW_WOOL, "<yellow>ℹ</yellow> Trung bình",
+					List.of("<gray>Độ khó chuẩn.</gray>"), ACTION_SETTINGS_WORLD_DIFFICULTY_SET,
+					WorldDifficultySetting.MEDIUM.name()),
+				buildOption(Material.RED_WOOL, "<red>❌</red> Khó",
+					List.of("<gray>Độ khó cao.</gray>"), ACTION_SETTINGS_WORLD_DIFFICULTY_SET,
+					WorldDifficultySetting.HARD.name())
+			)
+		));
+
+		rows.add(new SettingRow(
+			Material.CHEST,
+			"<yellow>ℹ</yellow> Giữ đồ khi chết",
+			List.of(
+				"<gray>Hiện tại: " + keepInventoryText + "</gray>",
+				"<gray>Mặc định: " + defaultKeepInventoryText + "</gray>",
+				" ",
+				"<gray>Bấm để về mặc định.</gray>"
+			),
+			ACTION_SETTINGS_RESET_KEEP_INVENTORY,
+			List.of(
+				buildOption(Material.LIME_WOOL, "<green>✔</green> Bật",
+					List.of("<gray>Không rơi đồ.</gray>"), ACTION_SETTINGS_KEEP_INVENTORY_SET, "on"),
+				buildOption(Material.RED_WOOL, "<red>❌</red> Tắt",
+					List.of("<gray>Rơi đồ khi chết.</gray>"), ACTION_SETTINGS_KEEP_INVENTORY_SET, "off")
 			)
 		));
 
@@ -938,17 +1107,28 @@ public class GuiService {
 			"<yellow>ℹ</yellow> Người chơi",
 			buildMatchPlayersLore(match), ACTION_MATCH_INFO_PLAYERS, "0"));
 
-		List<String> settingsOverview = List.of(
-			"<gray>● Hiển thị: " + formatVisibilityColored(settings.getVisibility()) + "</gray>",
-			"<gray>● Speedrunner: " + formatSpeedrunnerColored(settings) + "</gray>",
-			"<gray>● Seed: " + seedText + "</gray>",
-			"<gray>● Viền tối đa: "
-				+ formatNumericValue(settings.getWorldBorderLimit(), defaults.getWorldBorderLimit()) + "</gray>",
-			"<gray>● Viền ban đầu: "
-				+ formatNumericValue(settings.getStartingBorder(), defaults.getStartingBorder()) + "</gray>",
-			"<gray>● Thẻ bật: " + formatCountValue(enabledCards, defaultEnabledCards) + "</gray>",
-			"<gray>● Bộ đồ: " + kitText + "</gray>"
-		);
+		List<String> settingsOverview = new ArrayList<>();
+		settingsOverview.add("<gray>● Hiển thị: " + formatVisibilityColored(settings.getVisibility()) + "</gray>");
+		settingsOverview.add("<gray>● Speedrunner: " + formatSpeedrunnerColored(settings) + "</gray>");
+		settingsOverview.add("<gray>● Seed: " + seedText + "</gray>");
+		settingsOverview.add("<gray>● Phiên bản: "
+			+ formatGenVersionValue(settings.getWorldGenerationVersion(), defaults.getWorldGenerationVersion())
+			+ "</gray>");
+		settingsOverview.add("<gray>● Thời gian: "
+			+ formatWorldTimeColored(settings.getWorldTime(), defaults.getWorldTime()) + "</gray>");
+		settingsOverview.add("<gray>● Thời tiết: "
+			+ formatWorldWeatherColored(settings.getWorldWeather(), defaults.getWorldWeather()) + "</gray>");
+		settingsOverview.add("<gray>● Độ khó: "
+			+ formatWorldDifficultyColored(settings.getWorldDifficulty(), defaults.getWorldDifficulty()) + "</gray>");
+		settingsOverview.add("<gray>● Giữ đồ: "
+			+ formatKeepInventoryColored(settings.isKeepInventory(), defaults.isKeepInventory()) + "</gray>");
+		settingsOverview.add(" ");
+		settingsOverview.add("<gray>● Viền tối đa: "
+			+ formatNumericValue(settings.getWorldBorderLimit(), defaults.getWorldBorderLimit()) + "</gray>");
+		settingsOverview.add("<gray>● Viền ban đầu: "
+			+ formatNumericValue(settings.getStartingBorder(), defaults.getStartingBorder()) + "</gray>");
+		settingsOverview.add("<gray>● Thẻ bật: " + formatCountValue(enabledCards, defaultEnabledCards) + "</gray>");
+		settingsOverview.add("<gray>● Bộ đồ: " + kitText + "</gray>");
 
 		if (isOwner) {
 			inventory.setItem(10, buildActionItem(Material.PAPER,
@@ -975,22 +1155,16 @@ public class GuiService {
 						"<gray>Trạng thái: " + formatStateColored(match.getState()) + "</gray>"
 					)));
 			}
+			List<String> settingsLore = new ArrayList<>();
+			settingsLore.add("<gray>Điều chỉnh cài đặt phòng.</gray>");
+			settingsLore.add(" ");
+			settingsLore.add("<gray>Tổng quan cài đặt:</gray>");
+			settingsLore.addAll(settingsOverview);
+			settingsLore.add(" ");
+			settingsLore.add("<gray>Quyền: <white>Chủ phòng</white></gray>");
 			inventory.setItem(12, buildActionItem(Material.COMPARATOR,
 				"<yellow>ℹ</yellow> Cài đặt trận",
-				List.of(
-					"<gray>Điều chỉnh cài đặt phòng.</gray>",
-					" ",
-					"<gray>Tổng quan cài đặt:</gray>",
-					settingsOverview.get(0),
-					settingsOverview.get(1),
-					settingsOverview.get(2),
-					settingsOverview.get(3),
-					settingsOverview.get(4),
-					settingsOverview.get(5),
-					settingsOverview.get(6),
-					" ",
-					"<gray>Quyền: <white>Chủ phòng</white></gray>"
-				), ACTION_MATCH_INFO_SETTINGS, null));
+				settingsLore, ACTION_MATCH_INFO_SETTINGS, null));
 			inventory.setItem(14, buildActionItem(Material.EMERALD,
 				"<yellow>ℹ</yellow> Thẻ dùng trong trận",
 				List.of(
@@ -1030,20 +1204,15 @@ public class GuiService {
 					" ",
 					"<gray>Trạng thái: <white>Chỉ xem</white></gray>"
 				)));
+			List<String> settingsViewLore = new ArrayList<>();
+			settingsViewLore.add("<gray>Chỉ chủ phòng mới có thể chỉnh.</gray>");
+			settingsViewLore.add(" ");
+			settingsViewLore.addAll(settingsOverview);
+			settingsViewLore.add(" ");
+			settingsViewLore.add("<gray>Trạng thái: <white>Chỉ xem</white></gray>");
 			inventory.setItem(12, buildInfoItem(Material.COMPARATOR,
 				"<yellow>ℹ</yellow> Cài đặt trận",
-				List.of(
-					"<gray>Chỉ chủ phòng mới có thể chỉnh.</gray>",
-					settingsOverview.get(0),
-					settingsOverview.get(1),
-					settingsOverview.get(2),
-					settingsOverview.get(3),
-					settingsOverview.get(4),
-					settingsOverview.get(5),
-					settingsOverview.get(6),
-					" ",
-					"<gray>Trạng thái: <white>Chỉ xem</white></gray>"
-				)));
+				settingsViewLore));
 			inventory.setItem(14, buildActionItem(Material.EMERALD,
 				"<yellow>ℹ</yellow> Thẻ dùng trong trận",
 				List.of(
@@ -1624,6 +1793,128 @@ public class GuiService {
 		openSettingsMenu(player, match, getSettingsPage(player));
 	}
 
+	private void handleResetWorldGenerationVersion(Player player, String matchId) {
+		Match match = requireSettingsMatch(player, matchId);
+		if (match == null) {
+			return;
+		}
+		MatchSettings defaults = matchSettingsService.createDefaults();
+		match.getSettings().setWorldGenerationVersion(defaults.getWorldGenerationVersion());
+		Text.msg(player, "<green>✔</green> Đã khôi phục phiên bản tạo thế giới mặc định.");
+		openSettingsMenu(player, match, getSettingsPage(player));
+	}
+
+	private void handleWorldGenerationVersionSet(Player player, String matchId, String version) {
+		Match match = requireSettingsMatch(player, matchId);
+		if (match == null || version == null || version.isBlank()) {
+			return;
+		}
+		String resolved = matchSettingsService.resolveWorldGenerationVersion(version);
+		match.getSettings().setWorldGenerationVersion(resolved);
+		Text.msg(player, "<green>✔</green> Phiên bản tạo thế giới: <yellow>" + resolved + "</yellow>.");
+		openSettingsMenu(player, match, getSettingsPage(player));
+	}
+
+	private void handleWorldGenerationVersionPrompt(Player player, String matchId) {
+		Match match = requireSettingsMatch(player, matchId);
+		if (match == null) {
+			return;
+		}
+		genVersionInputs.put(player.getUniqueId(), match.getId());
+		player.closeInventory();
+		Text.msg(player, "<yellow>ℹ</yellow> Nhập phiên bản vào chat. Gõ <white>huy</white> để hủy.");
+	}
+
+	private void handleResetWorldTime(Player player, String matchId) {
+		Match match = requireSettingsMatch(player, matchId);
+		if (match == null) {
+			return;
+		}
+		MatchSettings defaults = matchSettingsService.createDefaults();
+		match.getSettings().setWorldTime(defaults.getWorldTime());
+		Text.msg(player, "<green>✔</green> Đã khôi phục thời gian thế giới mặc định.");
+		openSettingsMenu(player, match, getSettingsPage(player));
+	}
+
+	private void handleWorldTimeSet(Player player, String matchId, String target) {
+		Match match = requireSettingsMatch(player, matchId);
+		if (match == null) {
+			return;
+		}
+		WorldTimeSetting time = MatchSettingsService.parseWorldTime(target, match.getSettings().getWorldTime());
+		match.getSettings().setWorldTime(time);
+		Text.msg(player, "<green>✔</green> Thời gian: <yellow>" + formatWorldTime(time) + "</yellow>.");
+		openSettingsMenu(player, match, getSettingsPage(player));
+	}
+
+	private void handleResetWorldWeather(Player player, String matchId) {
+		Match match = requireSettingsMatch(player, matchId);
+		if (match == null) {
+			return;
+		}
+		MatchSettings defaults = matchSettingsService.createDefaults();
+		match.getSettings().setWorldWeather(defaults.getWorldWeather());
+		Text.msg(player, "<green>✔</green> Đã khôi phục thời tiết mặc định.");
+		openSettingsMenu(player, match, getSettingsPage(player));
+	}
+
+	private void handleWorldWeatherSet(Player player, String matchId, String target) {
+		Match match = requireSettingsMatch(player, matchId);
+		if (match == null) {
+			return;
+		}
+		WorldWeatherSetting weather = MatchSettingsService.parseWorldWeather(
+			target, match.getSettings().getWorldWeather());
+		match.getSettings().setWorldWeather(weather);
+		Text.msg(player, "<green>✔</green> Thời tiết: <yellow>" + formatWorldWeather(weather) + "</yellow>.");
+		openSettingsMenu(player, match, getSettingsPage(player));
+	}
+
+	private void handleResetWorldDifficulty(Player player, String matchId) {
+		Match match = requireSettingsMatch(player, matchId);
+		if (match == null) {
+			return;
+		}
+		MatchSettings defaults = matchSettingsService.createDefaults();
+		match.getSettings().setWorldDifficulty(defaults.getWorldDifficulty());
+		Text.msg(player, "<green>✔</green> Đã khôi phục độ khó mặc định.");
+		openSettingsMenu(player, match, getSettingsPage(player));
+	}
+
+	private void handleWorldDifficultySet(Player player, String matchId, String target) {
+		Match match = requireSettingsMatch(player, matchId);
+		if (match == null) {
+			return;
+		}
+		WorldDifficultySetting difficulty = MatchSettingsService.parseWorldDifficulty(
+			target, match.getSettings().getWorldDifficulty());
+		match.getSettings().setWorldDifficulty(difficulty);
+		Text.msg(player, "<green>✔</green> Độ khó: <yellow>" + formatWorldDifficulty(difficulty) + "</yellow>.");
+		openSettingsMenu(player, match, getSettingsPage(player));
+	}
+
+	private void handleResetKeepInventory(Player player, String matchId) {
+		Match match = requireSettingsMatch(player, matchId);
+		if (match == null) {
+			return;
+		}
+		MatchSettings defaults = matchSettingsService.createDefaults();
+		match.getSettings().setKeepInventory(defaults.isKeepInventory());
+		Text.msg(player, "<green>✔</green> Đã khôi phục giữ đồ mặc định.");
+		openSettingsMenu(player, match, getSettingsPage(player));
+	}
+
+	private void handleKeepInventorySet(Player player, String matchId, String target) {
+		Match match = requireSettingsMatch(player, matchId);
+		if (match == null) {
+			return;
+		}
+		boolean keepInventory = MatchSettingsService.parseKeepInventory(target, match.getSettings().isKeepInventory());
+		match.getSettings().setKeepInventory(keepInventory);
+		Text.msg(player, "<green>✔</green> Giữ đồ: <yellow>" + formatKeepInventory(keepInventory) + "</yellow>.");
+		openSettingsMenu(player, match, getSettingsPage(player));
+	}
+
 	private void handleResetKit(Player player, String matchId) {
 		Match match = requireSettingsMatch(player, matchId);
 		if (match == null) {
@@ -1872,6 +2163,10 @@ public class GuiService {
 		return player != null && seedInputs.containsKey(player.getUniqueId());
 	}
 
+	public boolean hasGenVersionInput(Player player) {
+		return player != null && genVersionInputs.containsKey(player.getUniqueId());
+	}
+
 	public void handleSeedInput(Player player, String message) {
 		if (player == null) {
 			return;
@@ -1899,6 +2194,36 @@ public class GuiService {
 		}
 		match.getSettings().setWorldSeed(input);
 		Text.msg(player, "<green>✔</green> Đã đặt seed.");
+		openSettingsMenu(player, match, getSettingsPage(player));
+	}
+
+	public void handleGenVersionInput(Player player, String message) {
+		if (player == null) {
+			return;
+		}
+		String matchId = genVersionInputs.remove(player.getUniqueId());
+		if (matchId == null) {
+			return;
+		}
+		Match match = matchManager.getMatch(matchId);
+		if (match == null) {
+			Text.msg(player, "<red>❌</red> Không tìm thấy phòng đấu.");
+			return;
+		}
+		String input = message == null ? "" : message.trim();
+		if (input.equalsIgnoreCase("huy")) {
+			Text.msg(player, "<yellow>ℹ</yellow> Đã hủy nhập phiên bản.");
+			openSettingsMenu(player, match, getSettingsPage(player));
+			return;
+		}
+		if (input.isBlank()) {
+			Text.msg(player, "<red>❌</red> Phiên bản không hợp lệ.");
+			openSettingsMenu(player, match, getSettingsPage(player));
+			return;
+		}
+		String resolved = matchSettingsService.resolveWorldGenerationVersion(input);
+		match.getSettings().setWorldGenerationVersion(resolved);
+		Text.msg(player, "<green>✔</green> Đã đặt phiên bản tạo thế giới: <yellow>" + resolved + "</yellow>.");
 		openSettingsMenu(player, match, getSettingsPage(player));
 	}
 
@@ -1988,6 +2313,86 @@ public class GuiService {
 		String defaultTrimmed = defaultSeed == null ? "" : defaultSeed.trim();
 		String color = trimmed.equals(defaultTrimmed) ? "#7fd36b" : "#ffd166";
 		return "<" + color + ">" + trimmed + "</" + color + ">";
+	}
+
+	private String formatGenVersionValue(String version, String defaultVersion) {
+		String trimmed = version == null ? "" : version.trim();
+		if (trimmed.isEmpty()) {
+			return "<#ff6b6b>Chưa đặt</#ff6b6b>";
+		}
+		String defaultTrimmed = defaultVersion == null ? "" : defaultVersion.trim();
+		String color = trimmed.equalsIgnoreCase(defaultTrimmed) ? "#7fd36b" : "#ffd166";
+		return "<" + color + ">" + trimmed + "</" + color + ">";
+	}
+
+	private String formatWorldTime(WorldTimeSetting setting) {
+		if (setting == null) {
+			return "Không rõ";
+		}
+		return switch (setting) {
+			case CYCLE -> "Chu kỳ";
+			case MORNING -> "Buổi sáng";
+			case NOON -> "Buổi trưa";
+			case NIGHT -> "Ban đêm";
+			case MIDNIGHT -> "Nửa đêm";
+		};
+	}
+
+	private String formatWorldTimeColored(WorldTimeSetting setting, WorldTimeSetting defaultSetting) {
+		if (setting == null) {
+			return "<gray>Không rõ</gray>";
+		}
+		String color = setting == defaultSetting ? "#7fd36b" : "#ffd166";
+		return "<" + color + ">" + formatWorldTime(setting) + "</" + color + ">";
+	}
+
+	private String formatWorldWeather(WorldWeatherSetting setting) {
+		if (setting == null) {
+			return "Không rõ";
+		}
+		return switch (setting) {
+			case CYCLE -> "Chu kỳ";
+			case CLEAR -> "Trời quang";
+			case RAIN -> "Mưa";
+			case THUNDERSTORM -> "Giông";
+		};
+	}
+
+	private String formatWorldWeatherColored(WorldWeatherSetting setting, WorldWeatherSetting defaultSetting) {
+		if (setting == null) {
+			return "<gray>Không rõ</gray>";
+		}
+		String color = setting == defaultSetting ? "#7fd36b" : "#ffd166";
+		return "<" + color + ">" + formatWorldWeather(setting) + "</" + color + ">";
+	}
+
+	private String formatWorldDifficulty(WorldDifficultySetting setting) {
+		if (setting == null) {
+			return "Không rõ";
+		}
+		return switch (setting) {
+			case PEACEFUL -> "Hòa bình";
+			case EASY -> "Dễ";
+			case MEDIUM -> "Trung bình";
+			case HARD -> "Khó";
+		};
+	}
+
+	private String formatWorldDifficultyColored(WorldDifficultySetting setting, WorldDifficultySetting defaultSetting) {
+		if (setting == null) {
+			return "<gray>Không rõ</gray>";
+		}
+		String color = setting == defaultSetting ? "#7fd36b" : "#ffd166";
+		return "<" + color + ">" + formatWorldDifficulty(setting) + "</" + color + ">";
+	}
+
+	private String formatKeepInventory(boolean keepInventory) {
+		return keepInventory ? "Bật" : "Tắt";
+	}
+
+	private String formatKeepInventoryColored(boolean keepInventory, boolean defaultKeepInventory) {
+		String color = keepInventory == defaultKeepInventory ? "#7fd36b" : "#ffd166";
+		return "<" + color + ">" + formatKeepInventory(keepInventory) + "</" + color + ">";
 	}
 
 	private String formatNumericValue(int value, int defaultValue) {

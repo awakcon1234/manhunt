@@ -12,6 +12,10 @@ match:
     speedrunnerSelection: RANDOM
     worldSeed: ""
     worldGenerationVersion: current
+    worldTime: CYCLE
+    worldWeather: CYCLE
+    worldDifficulty: MEDIUM
+    keepInventory: off
     worldBorderLimit: 3000
     startingBorder: 10
     visibility: PUBLIC

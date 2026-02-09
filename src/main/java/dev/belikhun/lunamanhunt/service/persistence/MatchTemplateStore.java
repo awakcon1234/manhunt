@@ -92,6 +92,22 @@ public class MatchTemplateStore {
             settings.setWorldGenerationVersion(MatchSettingsService.normalizeWorldGenerationVersion(
                 section.getString("worldGenerationVersion")));
         }
+        if (section.isSet("worldTime")) {
+            settings.setWorldTime(MatchSettingsService.parseWorldTime(
+                section.getString("worldTime"), settings.getWorldTime()));
+        }
+        if (section.isSet("worldWeather")) {
+            settings.setWorldWeather(MatchSettingsService.parseWorldWeather(
+                section.getString("worldWeather"), settings.getWorldWeather()));
+        }
+        if (section.isSet("worldDifficulty")) {
+            settings.setWorldDifficulty(MatchSettingsService.parseWorldDifficulty(
+                section.getString("worldDifficulty"), settings.getWorldDifficulty()));
+        }
+        if (section.isSet("keepInventory")) {
+            settings.setKeepInventory(MatchSettingsService.parseKeepInventory(
+                section.get("keepInventory"), settings.isKeepInventory()));
+        }
         if (section.isSet("worldBorderLimit")) {
             settings.setWorldBorderLimit(section.getInt("worldBorderLimit", settings.getWorldBorderLimit()));
         }
@@ -129,6 +145,10 @@ public class MatchTemplateStore {
         section.set("speedrunnerId", settings.getSpeedrunnerId() == null ? null : settings.getSpeedrunnerId().toString());
         section.set("worldSeed", settings.getWorldSeed());
         section.set("worldGenerationVersion", settings.getWorldGenerationVersion());
+        section.set("worldTime", settings.getWorldTime().name());
+        section.set("worldWeather", settings.getWorldWeather().name());
+        section.set("worldDifficulty", settings.getWorldDifficulty().name());
+        section.set("keepInventory", settings.isKeepInventory());
         section.set("worldBorderLimit", settings.getWorldBorderLimit());
         section.set("startingBorder", settings.getStartingBorder());
         section.set("speedrunnerKitId", settings.getSpeedrunnerKitId());
