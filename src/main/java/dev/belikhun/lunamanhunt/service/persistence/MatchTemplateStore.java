@@ -88,6 +88,10 @@ public class MatchTemplateStore {
         if (section.isSet("worldSeed")) {
             settings.setWorldSeed(MatchSettingsService.normalizeSeed(section.getString("worldSeed")));
         }
+        if (section.isSet("worldGenerationVersion")) {
+            settings.setWorldGenerationVersion(MatchSettingsService.normalizeWorldGenerationVersion(
+                section.getString("worldGenerationVersion")));
+        }
         if (section.isSet("worldBorderLimit")) {
             settings.setWorldBorderLimit(section.getInt("worldBorderLimit", settings.getWorldBorderLimit()));
         }
@@ -124,6 +128,7 @@ public class MatchTemplateStore {
         section.set("speedrunnerSelection", settings.getSpeedrunnerSelection().name());
         section.set("speedrunnerId", settings.getSpeedrunnerId() == null ? null : settings.getSpeedrunnerId().toString());
         section.set("worldSeed", settings.getWorldSeed());
+        section.set("worldGenerationVersion", settings.getWorldGenerationVersion());
         section.set("worldBorderLimit", settings.getWorldBorderLimit());
         section.set("startingBorder", settings.getStartingBorder());
         section.set("speedrunnerKitId", settings.getSpeedrunnerKitId());

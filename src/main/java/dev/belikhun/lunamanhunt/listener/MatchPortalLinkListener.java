@@ -41,8 +41,19 @@ public class MatchPortalLinkListener implements Listener {
 			return;
 		}
 		Player player = event.getPlayer();
+		Location from = event.getFrom();
+		World fromWorld = from.getWorld();
+		if (fromWorld == null) {
+			debug("Player portal ignored (missing world): player=" + player.getName()
+				+ " cause=" + event.getCause());
+			return;
+		}
+		debug("Player portal event: player=" + player.getName() + " cause=" + event.getCause()
+			+ " from=" + fromWorld.getName());
 		Match match = lobbyManager.getMatchForPlayer(player.getUniqueId());
 		if (match == null) {
+			debug("Player portal ignored (no match): player=" + player.getName()
+				+ " from=" + fromWorld.getName());
 			return;
 		}
 		PortalType type = resolvePortalType(event);
@@ -50,11 +61,7 @@ public class MatchPortalLinkListener implements Listener {
 			debug("Player portal ignored (unknown type): player=" + player.getName());
 			return;
 		}
-		Location from = event.getFrom().clone();
-		World fromWorld = from.getWorld();
-		if (fromWorld == null) {
-			return;
-		}
+		from = from.clone();
 		debug("Player portal: player=" + player.getName() + " match=" + match.getId()
 			+ " type=" + type + " from=" + fromWorld.getName());
 		String linkedWorld = getLinkedWorld(match, fromWorld.getName(), type);
@@ -96,6 +103,8 @@ public class MatchPortalLinkListener implements Listener {
 		if (fromWorld == null || originalToWorld == null) {
 			return;
 		}
+		debug("Entity portal event: entity=" + event.getEntity().getType()
+			+ " from=" + fromWorld.getName() + " to=" + originalToWorld.getName());
 
 		PortalType type = resolvePortalType(fromWorld, originalToWorld);
 		if (type == null) {

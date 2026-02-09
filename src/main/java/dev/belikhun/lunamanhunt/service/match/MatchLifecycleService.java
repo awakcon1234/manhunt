@@ -10,6 +10,7 @@ import dev.belikhun.lunamanhunt.service.compass.CompassService;
 import dev.belikhun.lunamanhunt.service.kit.SpeedrunnerKitService;
 import dev.belikhun.lunamanhunt.service.lobby.LobbyManager;
 import dev.belikhun.lunamanhunt.service.integration.NetherPortalsService;
+import dev.belikhun.lunamanhunt.service.worldgen.WorldGenerationService;
 import dev.belikhun.lunamanhunt.util.Text;
 import dev.belikhun.lunamanhunt.util.UiColors;
 import org.bukkit.Bukkit;
@@ -56,6 +57,8 @@ public class MatchLifecycleService {
 	private final ConcurrentMap<String, BukkitTask> countdownTasks = new ConcurrentHashMap<>();
 	private final ConcurrentMap<String, BukkitTask> pendingActionTasks = new ConcurrentHashMap<>();
 	private final ConcurrentMap<String, BukkitTask> runningActionTasks = new ConcurrentHashMap<>();
+	private final ConcurrentMap<String, WarmupStatus> warmupStatuses = new ConcurrentHashMap<>();
+	private final ConcurrentMap<String, Long> preparationStartMillis = new ConcurrentHashMap<>();
 
 	public MatchLifecycleService(JavaPlugin plugin, LobbyManager lobbyManager, MatchManager matchManager,
 			CompassService compassService, SpeedrunnerKitService kitService, CardService cardService,
@@ -73,6 +76,7 @@ public class MatchLifecycleService {
 		if (match == null || match.getState() != MatchState.WORLD_CREATING) {
 			return;
 		}
+		preparationStartMillis.putIfAbsent(match.getId(), System.currentTimeMillis());
 		broadcast(match, "<yellow>ℹ</yellow> Trận đấu đang được chuẩn bị, hãy sẵn sàng!");
 		sendActionBar(match, "<yellow>⌛</yellow> Đang tạo thế giới: <white>0/" + WORLD_TOTAL + "</white>");
 		startWorldProgressTask(match);
@@ -107,7 +111,6 @@ public class MatchLifecycleService {
 			return;
 		}
 
-		stopWorldProgressTask(match.getId());
 		UUID speedrunnerId = resolveSpeedrunner(match);
 		if (speedrunnerId == null) {
 			markMatchFailed(match, "<red>❌</red> Không có người chơi để bắt đầu trận đấu.");
@@ -115,7 +118,6 @@ public class MatchLifecycleService {
 		}
 		match.setSpeedrunnerId(speedrunnerId);
 		assignHunters(match, speedrunnerId);
-		linkMatchPortals(worlds);
 		startOverworldWarmup(match, overworld);
 	}
 
@@ -211,6 +213,8 @@ public class MatchLifecycleService {
 		stopCountdownTask(match.getId());
 		stopPendingActionTask(match.getId());
 		stopRunningActionTask(match.getId());
+		warmupStatuses.remove(match.getId());
+		preparationStartMillis.remove(match.getId());
 		broadcast(match, message);
 	}
 
@@ -391,19 +395,188 @@ public class MatchLifecycleService {
 		stopWorldProgressTask(match.getId());
 		BukkitTask task = Bukkit.getScheduler().runTaskTimer(plugin, () -> {
 			MatchWorlds worlds = match.getWorlds();
-			if (match.getState() != MatchState.WORLD_CREATING || worlds == null) {
+			boolean warmupActive = warmupStatuses.containsKey(match.getId());
+			if ((match.getState() != MatchState.WORLD_CREATING && !warmupActive) || worlds == null) {
 				stopWorldProgressTask(match.getId());
 				return;
 			}
-			int ready = countReady(worlds);
-			String message = "<yellow>⌛</yellow> Đang tạo thế giới: <white>" + ready + "/" + WORLD_TOTAL + "</white>";
-			sendActionBar(match, message);
+			sendActionBar(match, buildWorldProgressMessage(match, worlds));
 		}, 0L, 20L);
 		worldProgressTasks.put(match.getId(), task);
 	}
 
 	private void stopWorldProgressTask(String matchId) {
 		stopTask(worldProgressTasks, matchId);
+	}
+
+	public void updateWorldProgressActionBar(String matchId) {
+		if (matchId == null) {
+			return;
+		}
+		Match match = matchManager.getMatch(matchId);
+		boolean warmupActive = warmupStatuses.containsKey(matchId);
+		if (match == null || (match.getState() != MatchState.WORLD_CREATING && !warmupActive)) {
+			return;
+		}
+		MatchWorlds worlds = match.getWorlds();
+		if (worlds == null) {
+			return;
+		}
+		sendActionBar(match, buildWorldProgressMessage(match, worlds));
+	}
+
+	private String buildWorldProgressMessage(Match match, MatchWorlds worlds) {
+		WorldGenerationService.GenerationProgress progress = matchManager.getGenerationProgress(match.getId());
+		WarmupStatus warmupStatus = warmupStatuses.get(match.getId());
+		int ready = countReady(worlds);
+		boolean isGenerating = progress != null
+			&& progress.getStage() == WorldGenerationService.GenerationStage.GENERATING;
+		String stageLabel = warmupStatus != null
+			? "Đang chuẩn bị Overworld"
+			: (progress == null ? "Đang tạo thế giới" : formatWorldGenStage(progress.getStage()));
+		long warmupRemaining = warmupStatus != null ? warmupStatus.getRemainingSeconds() : 0L;
+		long warmupTotal = warmupStatus != null
+			? warmupStatus.getTotalSeconds()
+			: estimateWarmupTotalSeconds();
+		long prepStart = preparationStartMillis.getOrDefault(match.getId(), System.currentTimeMillis());
+		long elapsedSeconds = Math.max(0L, (System.currentTimeMillis() - prepStart) / 1000L);
+		long worldgenRemaining = progress == null ? 0L : progress.getEtaSeconds();
+		double worldgenWeight = warmupStatus != null
+			? warmupStatus.getWorldgenWeight()
+			: computeWorldgenWeight(elapsedSeconds, worldgenRemaining, warmupTotal);
+		double overallProgress;
+		long totalRemaining;
+		if (warmupStatus != null) {
+			overallProgress = worldgenWeight + warmupStatus.getProgress() * (1.0 - worldgenWeight);
+			totalRemaining = warmupRemaining;
+		} else {
+			overallProgress = (progress == null ? 0.0 : progress.getOverallProgress()) * worldgenWeight;
+			totalRemaining = worldgenRemaining + warmupTotal;
+		}
+		int percent = (int) Math.round(Math.min(1.0, Math.max(0.0, overallProgress)) * 100.0);
+		String eta = formatEta(totalRemaining);
+		String countPart = isGenerating
+			? " <gray>(" + ready + "/" + WORLD_TOTAL + ")</gray>"
+			: "";
+		return "<yellow>⌛</yellow> <gold>" + stageLabel + "...</gold>" + countPart
+			+ " <dark_gray>●</dark_gray> <green>" + percent + "%</green> <dark_gray>●</dark_gray>"
+			+ " <yellow>⌚</yellow> <white>" + eta + "</white> <gray>còn lại</gray>";
+	}
+
+	private String formatWorldGenStage(WorldGenerationService.GenerationStage stage) {
+		if (stage == null) {
+			return "Đang chuẩn bị";
+		}
+		return switch (stage) {
+			case DOWNLOADING -> "Đang tải server";
+			case SETUP -> "Đang thiết lập";
+			case BOOTING -> "Đang khởi động";
+			case STARTING -> "Đang bắt đầu";
+			case GENERATING -> "Đang tạo thế giới";
+			case SAVING -> "Đang lưu";
+			case REGISTERING -> "Đang đăng ký";
+			case DONE -> "Hoàn tất";
+		};
+	}
+
+	private String formatEta(long seconds) {
+		if (seconds <= 0) {
+			return "??:??s";
+		}
+		Duration duration = Duration.ofSeconds(seconds);
+		long minutes = duration.toMinutes();
+		long remaining = duration.minusMinutes(minutes).toSeconds();
+		return String.format(java.util.Locale.US, "%02d:%02ds", minutes, remaining);
+	}
+
+	private long estimateWarmupEtaSeconds(int totalChunks, int completedChunks, int batchSize) {
+		if (totalChunks <= 0 || batchSize <= 0) {
+			return 0L;
+		}
+		int remaining = Math.max(0, totalChunks - completedChunks);
+		int ticksRemaining = (int) Math.ceil(remaining / (double) batchSize);
+		return Math.max(0L, Math.round(ticksRemaining / 20.0));
+	}
+
+	private long estimateWarmupTotalSeconds() {
+		int totalChunks = 7 * 7;
+		return estimateWarmupEtaSeconds(totalChunks, 0, 2);
+	}
+
+	private double computeWorldgenWeight(long elapsedSeconds, long remainingSeconds, long warmupSeconds) {
+		double worldgenTotal = Math.max(1.0, elapsedSeconds + Math.max(0L, remainingSeconds));
+		double warmupTotal = Math.max(1.0, warmupSeconds);
+		return worldgenTotal / (worldgenTotal + warmupTotal);
+	}
+
+	private double computeWorldgenWeightForWarmup(String matchId, long warmupSeconds) {
+		long prepStart = preparationStartMillis.getOrDefault(matchId, System.currentTimeMillis());
+		long elapsedSeconds = Math.max(0L, (System.currentTimeMillis() - prepStart) / 1000L);
+		WorldGenerationService.GenerationProgress progress = matchManager.getGenerationProgress(matchId);
+		long remainingSeconds = progress == null ? 0L : progress.getEtaSeconds();
+		return computeWorldgenWeight(elapsedSeconds, remainingSeconds, warmupSeconds);
+	}
+
+	private static class WarmupStatus {
+		private final int totalChunks;
+		private final int batchSize;
+		private final double worldgenWeight;
+		private volatile int completedChunks;
+		private volatile long lastUpdateMillis;
+		private volatile int lastCompletedChunks;
+		private volatile double chunksPerSecond;
+
+		private WarmupStatus(int totalChunks, int batchSize, double worldgenWeight) {
+			this.totalChunks = totalChunks;
+			this.batchSize = batchSize;
+			this.worldgenWeight = Math.min(1.0, Math.max(0.0, worldgenWeight));
+		}
+
+		void updateRate(int completedChunks, long nowMillis) {
+			this.completedChunks = Math.min(totalChunks, Math.max(0, completedChunks));
+			if (lastUpdateMillis <= 0) {
+				lastUpdateMillis = nowMillis;
+				lastCompletedChunks = this.completedChunks;
+				return;
+			}
+			long deltaMillis = nowMillis - lastUpdateMillis;
+			int deltaChunks = this.completedChunks - lastCompletedChunks;
+			if (deltaMillis <= 0 || deltaChunks <= 0) {
+				return;
+			}
+			double currentRate = (deltaChunks * 1000.0) / deltaMillis;
+			chunksPerSecond = chunksPerSecond <= 0.0
+				? currentRate
+				: chunksPerSecond * 0.7 + currentRate * 0.3;
+			lastUpdateMillis = nowMillis;
+			lastCompletedChunks = this.completedChunks;
+		}
+
+		double getProgress() {
+			if (totalChunks <= 0) {
+				return 0.0;
+			}
+			return Math.min(1.0, Math.max(0.0, completedChunks / (double) totalChunks));
+		}
+
+		long getRemainingSeconds() {
+			int remaining = Math.max(0, totalChunks - completedChunks);
+			if (chunksPerSecond > 0.0) {
+				double seconds = remaining / chunksPerSecond;
+				return Math.max(0L, Math.round(seconds));
+			}
+			int ticksRemaining = (int) Math.ceil(remaining / (double) Math.max(1, batchSize));
+			return Math.max(0L, Math.round(ticksRemaining / 20.0));
+		}
+
+		long getTotalSeconds() {
+			int ticksTotal = (int) Math.ceil(totalChunks / (double) Math.max(1, batchSize));
+			return Math.max(0L, Math.round(ticksTotal / 20.0));
+		}
+
+		double getWorldgenWeight() {
+			return worldgenWeight;
+		}
 	}
 
 	private void startOverworldWarmup(Match match, World overworld) {
@@ -418,28 +591,48 @@ public class MatchLifecycleService {
 			}
 		}
 		int total = chunks.size();
-		sendActionBar(match, "<yellow>⌛</yellow> Đang chuẩn bị Overworld: <white>0/" + total + "</white> <gray>(0%)</gray>");
+		int batch = 2;
+		WarmupStatus warmupStatus = new WarmupStatus(total, batch,
+			computeWorldgenWeightForWarmup(match.getId(), estimateWarmupEtaSeconds(total, 0, batch)));
+		warmupStatuses.put(match.getId(), warmupStatus);
+		updateWorldProgressActionBar(match.getId());
 
 		BukkitRunnable runnable = new BukkitRunnable() {
-			int index = 0;
+			int requested = 0;
+			int completed = 0;
 
 			@Override
 			public void run() {
 				if (match.getState() != MatchState.WORLD_READY) {
 					stopOverworldWarmupTask(match.getId());
+					warmupStatuses.remove(match.getId());
 					cancel();
 					return;
 				}
-				int batch = 2;
-				for (int i = 0; i < batch && index < total; i++) {
-					int[] coord = chunks.get(index++);
-					overworld.getChunkAt(coord[0], coord[1]);
+				int inFlight = requested - completed;
+				int toRequest = Math.min(batch - Math.max(0, inFlight), total - requested);
+				for (int i = 0; i < toRequest; i++) {
+					int[] coord = chunks.get(requested++);
+					overworld.getChunkAtAsync(coord[0], coord[1], true)
+						.whenComplete((chunk, error) -> Bukkit.getScheduler().runTask(plugin, () -> {
+							if (match.getState() != MatchState.WORLD_READY) {
+								return;
+							}
+							if (error != null) {
+								plugin.getLogger().warning("Failed to warm up chunk " + coord[0] + "," + coord[1]
+									+ ": " + error.getMessage());
+							}
+							completed++;
+							warmupStatus.updateRate(completed, System.currentTimeMillis());
+							updateWorldProgressActionBar(match.getId());
+						}));
 				}
-				int percent = (index * 100) / total;
-				String message = "<yellow>⌛</yellow> Đang chuẩn bị Overworld: <white>" + index + "/" + total + "</white> <gray>(" + percent + "%)</gray>";
-				sendActionBar(match, message);
-				if (index >= total) {
+				if (completed >= total) {
 					stopOverworldWarmupTask(match.getId());
+					warmupStatuses.remove(match.getId());
+					preparationStartMillis.remove(match.getId());
+					stopWorldProgressTask(match.getId());
+					clearActionBar(match);
 					cancel();
 					startCountdown(match, overworld);
 				}
@@ -455,6 +648,10 @@ public class MatchLifecycleService {
 
 	private void startCountdown(Match match, World overworld) {
 		stopCountdownTask(match.getId());
+		MatchWorlds worlds = match.getWorlds();
+		if (worlds != null) {
+			linkMatchPortals(worlds);
+		}
 		broadcast(match, "<yellow>⌛</yellow> Bắt đầu đếm ngược <white>" + COUNTDOWN_SECONDS + "</white> giây.");
 		BukkitRunnable runnable = new BukkitRunnable() {
 			int seconds = COUNTDOWN_SECONDS;
@@ -658,6 +855,10 @@ public class MatchLifecycleService {
 				player.sendActionBar(Text.mm(message));
 			}
 		}
+	}
+
+	private void clearActionBar(Match match) {
+		sendActionBar(match, "");
 	}
 
 	private void stopTask(ConcurrentMap<String, BukkitTask> tasks, String matchId) {

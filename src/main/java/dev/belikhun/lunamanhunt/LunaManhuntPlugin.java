@@ -36,6 +36,7 @@ import dev.belikhun.lunamanhunt.service.point.PointService;
 import dev.belikhun.lunamanhunt.service.spawn.LobbyItemService;
 import dev.belikhun.lunamanhunt.service.spawn.LobbyTeleportService;
 import dev.belikhun.lunamanhunt.service.spawn.SpawnService;
+import dev.belikhun.lunamanhunt.service.worldgen.WorldGenerationService;
 import io.papermc.paper.plugin.lifecycle.event.types.LifecycleEvents;
 import org.bukkit.permissions.Permission;
 import org.bukkit.permissions.PermissionDefault;
@@ -45,6 +46,7 @@ public final class LunaManhuntPlugin extends JavaPlugin {
     private PersistenceManager persistenceManager;
     private MultiverseService multiverseService;
     private MatchManager matchManager;
+    private WorldGenerationService worldGenerationService;
     private MatchSettingsService matchSettingsService;
     private SpeedrunnerKitService kitService;
     private LobbyManager lobbyManager;
@@ -69,7 +71,8 @@ public final class LunaManhuntPlugin extends JavaPlugin {
         this.persistenceManager = new PersistenceManager(this, matchSettingsService);
         this.multiverseService = new MultiverseService();
         this.netherPortalsService = new NetherPortalsService();
-        this.matchManager = new MatchManager(this, multiverseService);
+        this.worldGenerationService = new WorldGenerationService(this);
+        this.matchManager = new MatchManager(this, multiverseService, worldGenerationService);
         this.lobbyManager = new LobbyManager(matchManager, matchSettingsService);
         this.compassService = new CompassService(this, lobbyManager);
         this.pointService = new PointService();

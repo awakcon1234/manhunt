@@ -12,6 +12,7 @@ public class MatchSettings {
     private SpeedrunnerSelection speedrunnerSelection = SpeedrunnerSelection.RANDOM;
     private UUID speedrunnerId;
     private String worldSeed;
+    private String worldGenerationVersion;
     private int worldBorderLimit = WORLD_BORDER_LIMIT_DEFAULT;
     private int startingBorder = 10;
     private String speedrunnerKitId;
@@ -41,6 +42,14 @@ public class MatchSettings {
 
     public void setWorldSeed(String worldSeed) {
         this.worldSeed = worldSeed;
+    }
+
+    public String getWorldGenerationVersion() {
+        return worldGenerationVersion;
+    }
+
+    public void setWorldGenerationVersion(String worldGenerationVersion) {
+        this.worldGenerationVersion = worldGenerationVersion;
     }
 
     public int getWorldBorderLimit() {

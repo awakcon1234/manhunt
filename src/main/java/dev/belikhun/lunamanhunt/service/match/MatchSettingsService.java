@@ -4,15 +4,28 @@ import dev.belikhun.lunamanhunt.model.match.MatchSettings;
 import dev.belikhun.lunamanhunt.model.match.MatchVisibility;
 import dev.belikhun.lunamanhunt.model.match.SpeedrunnerSelection;
 import dev.belikhun.lunamanhunt.service.kit.SpeedrunnerKitService;
+import org.bukkit.Bukkit;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
+import java.util.Set;
 
 public class MatchSettingsService {
+	private static final Set<String> SUPPORTED_WORLD_GEN_VERSIONS = Set.of(
+		"1.7.10",
+		"1.8.9",
+		"1.11.2",
+		"1.12",
+		"1.15.2",
+		"1.16.1",
+		"1.21.11"
+	);
+
 	private final JavaPlugin plugin;
 	private final SpeedrunnerKitService kitService;
 
@@ -31,6 +44,10 @@ public class MatchSettingsService {
 
 		String worldSeed = normalizeSeed(config.getString("match.defaults.worldSeed"));
 		settings.setWorldSeed(worldSeed);
+
+		String genVersion = resolveWorldGenerationVersion(
+			config.getString("match.defaults.worldGenerationVersion"));
+		settings.setWorldGenerationVersion(genVersion);
 
 		int borderLimit = config.getInt("match.defaults.worldBorderLimit", settings.getWorldBorderLimit());
 		settings.setWorldBorderLimit(borderLimit > 0 ? borderLimit : settings.getWorldBorderLimit());
@@ -60,6 +77,23 @@ public class MatchSettingsService {
 		}
 
 		return settings;
+	}
+
+	public String resolveWorldGenerationVersion(String value) {
+		String resolved = normalizeWorldGenerationVersion(value);
+		if (SUPPORTED_WORLD_GEN_VERSIONS.contains(resolved)) {
+			return resolved;
+		}
+		String fallback = normalizeWorldGenerationVersion(Bukkit.getMinecraftVersion());
+		if (SUPPORTED_WORLD_GEN_VERSIONS.contains(fallback)) {
+			plugin.getLogger().warning("Unsupported world generation version '" + resolved
+				+ "'. Falling back to server version '" + fallback + "'.");
+			return fallback;
+		}
+		String defaultVersion = "1.21.11";
+		plugin.getLogger().warning("Unsupported world generation version '" + resolved
+			+ "'. Falling back to default '" + defaultVersion + "'.");
+		return defaultVersion;
 	}
 
 	public void applyKit(MatchSettings settings, String kitId) {
@@ -101,5 +135,20 @@ public class MatchSettingsService {
 		}
 		String trimmed = value.trim();
 		return trimmed.isEmpty() ? null : trimmed;
+	}
+
+	public static String normalizeWorldGenerationVersion(String value) {
+		if (value == null) {
+			return "";
+		}
+		String trimmed = value.trim();
+		if (trimmed.isEmpty() || "current".equalsIgnoreCase(trimmed)) {
+			return Bukkit.getMinecraftVersion();
+		}
+		return trimmed;
+	}
+
+	public static Set<String> getSupportedWorldGenVersions() {
+		return new LinkedHashSet<>(SUPPORTED_WORLD_GEN_VERSIONS);
 	}
 }

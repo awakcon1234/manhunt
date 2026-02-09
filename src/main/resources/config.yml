@@ -11,8 +11,15 @@ match:
   defaults:
     speedrunnerSelection: RANDOM
     worldSeed: ""
+    worldGenerationVersion: current
     worldBorderLimit: 3000
     startingBorder: 10
     visibility: PUBLIC
     speedrunnerKitId: starter
     speedrunnerKit: []
+
+generator:
+  javaCommand: "java"
+  maxMemoryMb: 512
+  startupTimeoutSeconds: 180
+  downloadUserAgent: "luna-manhunt/1.0 (https://github.com/Belikhun/LunaManhunt)"
