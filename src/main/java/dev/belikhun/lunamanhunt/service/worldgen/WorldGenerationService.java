@@ -47,6 +47,8 @@ public class WorldGenerationService {
 	private final int startupTimeoutSeconds;
 	private final String downloadUserAgent;
 	private final GenerationHistory history;
+	private final Path cacheBackupRoot;
+	private final Path librariesBackupRoot;
 
 	public WorldGenerationService(JavaPlugin plugin) {
 		this.plugin = Objects.requireNonNull(plugin, "plugin");
@@ -71,6 +73,8 @@ public class WorldGenerationService {
 			"luna-manhunt/1.0 (https://github.com/Belikhun/LunaManhunt)"
 		);
 		this.history = new GenerationHistory(generatorRoot.resolve(HISTORY_FILE), logger);
+		this.cacheBackupRoot = generatorRoot.resolve("paper-cache");
+		this.librariesBackupRoot = generatorRoot.resolve("paper-libraries");
 	}
 
 	public CompletableFuture<GenerationHandle> generateWorlds(String matchId, String overworldName, String netherName,
@@ -103,6 +107,7 @@ public class WorldGenerationService {
 		try {
 			deleteDirectory(workDir);
 			Files.createDirectories(workDir);
+			restorePaperArtifacts(workDir, version);
 
 			Path jarPath = ensureServerJar(version, tracker);
 			tracker.updateStage(GenerationStage.SETUP, 0.0);
@@ -174,6 +179,7 @@ public class WorldGenerationService {
 			if (process != null && process.isAlive()) {
 				process.destroyForcibly();
 			}
+			backupPaperArtifacts(workDir, version);
 			deleteDirectory(workDir);
 		}
 	}
@@ -519,6 +525,65 @@ public class WorldGenerationService {
 		} catch (IOException ex) {
 			logger.warning("[WorldGen] Failed to clean generator dir: " + ex.getMessage());
 		}
+	}
+
+	private void restorePaperArtifacts(Path workDir, String version) {
+		if (workDir == null) {
+			return;
+		}
+		restoreDirectory(cacheBackupRoot.resolve(version), workDir.resolve("cache"));
+		restoreDirectory(librariesBackupRoot.resolve(version), workDir.resolve("libraries"));
+	}
+
+	private void backupPaperArtifacts(Path workDir, String version) {
+		if (workDir == null || !Files.exists(workDir)) {
+			return;
+		}
+		backupDirectory(workDir.resolve("cache"), cacheBackupRoot.resolve(version));
+		backupDirectory(workDir.resolve("libraries"), librariesBackupRoot.resolve(version));
+	}
+
+	private void backupDirectory(Path sourceDir, Path backupDir) {
+		if (sourceDir == null || backupDir == null || !Files.exists(sourceDir)) {
+			return;
+		}
+		deleteDirectory(backupDir);
+		try {
+			Files.move(sourceDir, backupDir, StandardCopyOption.REPLACE_EXISTING);
+		} catch (IOException ex) {
+			logger.warning("[WorldGen] Failed to backup " + sourceDir + ": " + ex.getMessage());
+		}
+	}
+
+	private void restoreDirectory(Path backupDir, Path targetDir) {
+		if (backupDir == null || targetDir == null || !Files.exists(backupDir)) {
+			return;
+		}
+		if (Files.exists(targetDir)) {
+			return;
+		}
+		try {
+			copyDirectory(backupDir, targetDir);
+		} catch (IOException ex) {
+			logger.warning("[WorldGen] Failed to restore " + backupDir + ": " + ex.getMessage());
+		}
+	}
+
+	private void copyDirectory(Path source, Path target) throws IOException {
+		Files.walk(source).forEach(path -> {
+			Path relative = source.relativize(path);
+			Path destination = target.resolve(relative);
+			try {
+				if (Files.isDirectory(path)) {
+					Files.createDirectories(destination);
+				} else {
+					Files.createDirectories(destination.getParent());
+					Files.copy(path, destination, StandardCopyOption.REPLACE_EXISTING);
+				}
+			} catch (IOException ex) {
+				throw new WorldGenerationException("Failed to copy " + path + " to " + destination, ex);
+			}
+		});
 	}
 
 	public static class WorldGenerationException extends RuntimeException {
