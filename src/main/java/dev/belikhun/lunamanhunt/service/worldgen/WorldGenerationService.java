@@ -531,6 +531,7 @@ public class WorldGenerationService {
 		if (workDir == null) {
 			return;
 		}
+		logger.info("[WorldGen] Restoring Paper cache/libraries for version " + version + ".");
 		restoreDirectory(cacheBackupRoot.resolve(version), workDir.resolve("cache"));
 		restoreDirectory(librariesBackupRoot.resolve(version), workDir.resolve("libraries"));
 	}
@@ -539,17 +540,23 @@ public class WorldGenerationService {
 		if (workDir == null || !Files.exists(workDir)) {
 			return;
 		}
+		logger.info("[WorldGen] Backing up Paper cache/libraries for version " + version + ".");
 		backupDirectory(workDir.resolve("cache"), cacheBackupRoot.resolve(version));
 		backupDirectory(workDir.resolve("libraries"), librariesBackupRoot.resolve(version));
 	}
 
 	private void backupDirectory(Path sourceDir, Path backupDir) {
 		if (sourceDir == null || backupDir == null || !Files.exists(sourceDir)) {
+			if (sourceDir != null && backupDir != null) {
+				logger.info("[WorldGen] Skip backup (missing source): " + sourceDir);
+			}
 			return;
 		}
 		deleteDirectory(backupDir);
 		try {
+			Files.createDirectories(backupDir.getParent());
 			Files.move(sourceDir, backupDir, StandardCopyOption.REPLACE_EXISTING);
+			logger.info("[WorldGen] Backed up " + sourceDir + " -> " + backupDir);
 		} catch (IOException ex) {
 			logger.warning("[WorldGen] Failed to backup " + sourceDir + ": " + ex.getMessage());
 		}
@@ -557,13 +564,18 @@ public class WorldGenerationService {
 
 	private void restoreDirectory(Path backupDir, Path targetDir) {
 		if (backupDir == null || targetDir == null || !Files.exists(backupDir)) {
+			if (backupDir != null && targetDir != null) {
+				logger.info("[WorldGen] Skip restore (missing backup): " + backupDir);
+			}
 			return;
 		}
 		if (Files.exists(targetDir)) {
+			logger.info("[WorldGen] Skip restore (target exists): " + targetDir);
 			return;
 		}
 		try {
 			copyDirectory(backupDir, targetDir);
+			logger.info("[WorldGen] Restored " + backupDir + " -> " + targetDir);
 		} catch (IOException ex) {
 			logger.warning("[WorldGen] Failed to restore " + backupDir + ": " + ex.getMessage());
 		}
