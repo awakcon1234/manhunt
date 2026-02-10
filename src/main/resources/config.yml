@@ -27,3 +27,114 @@ generator:
   maxMemoryMb: 512
   startupTimeoutSeconds: 180
   downloadUserAgent: "luna-manhunt/1.0 (https://github.com/Belikhun/LunaManhunt)"
+
+scoreboard:
+  enabled: true
+  update-ticks: 10
+  templates:
+    lobby:
+      title: '<b><gradient:#b5fff0:#ffd2a8>LUNA</gradient><gradient:#ffd2a8:#ffb1f2>MANHUNT</gradient></b>'
+      lines:
+      - ''
+      - ' <white>👤<reset> %player_display%'
+      - ' <gray>Chưa tham gia phòng nào</gray>'
+      - ''
+      - ' <gray>»</gray> <white>Dùng <aqua>/match tạo</aqua> để bắt đầu</white>'
+      - ''
+      - ' <gray>maylocnuoc/manhunt'
+    match_lobby:
+      title: '<b><gradient:#ffd86b:#ff9f68>PHÒNG</gradient> <gradient:#ff9f68:#ff7bd9>CHỜ</gradient></b>'
+      lines:
+      - ''
+      - ' <white>👤<reset> %player_display% <dark_gray>●</dark_gray> %role_display%'
+      - ''
+      - ' <gray>Phòng:</gray> <white>%match_id%</white>'
+      - ' <gray>Chủ phòng:</gray> <white>%match_owner%</white>'
+      - ' <gray>Người chơi:</gray> <aqua>%match_players%</aqua>'
+      - ''
+      - ' <gray>»</gray> <white>Chờ chủ phòng bắt đầu</white>'
+      - ''
+      - ' <gray>maylocnuoc/manhunt'
+    match_preparing:
+      title: '<b><gradient:#ffe9a8:#b8ffeb>CHUẨN BỊ</gradient></b>'
+      lines:
+      - ''
+      - ' <yellow>⌛</yellow> %match_world_stage%'
+      - ' <gray>Tiến độ:</gray> <green>%match_world_progress%%</green>'
+      - ' <gray>Còn lại:</gray> <white>%match_world_eta%</white>'
+      - ' <gray>Thế giới:</gray> <white>%match_world_ready%</white>/<white>%match_world_total%</white>'
+      - ''
+      - ' <gray>Phòng:</gray> <white>%match_id%</white>'
+      - ''
+      - ' <gray>maylocnuoc/manhunt'
+    match_countdown:
+      title: '<b><gradient:#ffe39a:#ff8b9d>ĐẾM NGƯỢC</gradient></b>'
+      lines:
+      - ''
+      - ' <white>👤<reset> %player_display% <dark_gray>●</dark_gray> %role_display%'
+      - ''
+      - ' <#e7ffa3>⏳ <b>%match_countdown%</b>'
+      - ' <gray>Sẵn sàng bắt đầu!</gray>'
+      - ''
+      - ' <gray>Phòng:</gray> <white>%match_id%</white>'
+      - ''
+      - ' <gray>maylocnuoc/manhunt'
+    match_waiting_start:
+      title: '<b><gradient:#b8ffeb:#8fd3ff>SẴN SÀNG</gradient></b>'
+      lines:
+      - ''
+      - ' <white>👤<reset> %player_display% <dark_gray>●</dark_gray> %role_display%'
+      - ''
+      - ' <yellow>⚔</yellow> %match_pending_hint%'
+      - ''
+      - ' <gray>Thợ săn:</gray> <white>%match_hunters%</white>'
+      - ' <gray>Phòng:</gray> <white>%match_id%</white>'
+      - ''
+      - ' <gray>maylocnuoc/manhunt'
+    match_playing_speedrunner:
+      title: '<b><gradient:#b8ffeb:#ffcc7a>ĐANG CHẠY</gradient></b>'
+      header:
+      - ''
+      - ' <white>👤<reset> %player_display% <dark_gray>●</dark_gray> %role_display%'
+      - ''
+      - ' <#32faa7>⌚</#32faa7> <white>%match_timer%</white>'
+      - ' <#ffc012>🔥</#ffc012> <white>%match_points%</white>'
+      - ' <gray>Thợ săn:</gray> <white>%match_hunters%</white>'
+      - ''
+      - ' <#7fd36b>★</#7fd36b> <white>Hỗ trợ</white> <gray>&</gray> <#36a8ff>✦</#36a8ff> <white>Hiệu ứng</white>'
+      powerup_line: ' <#7fd36b>★</#7fd36b> <white>%card_name%</white> <gray>⌚ %card_time%</gray>'
+      powerup_empty: ' <gray>Không có hỗ trợ</gray>'
+      middle:
+      - ''
+      effect_line: ' <#36a8ff>✦</#36a8ff> <white>%card_name%</white> <gray>⌚ %card_time%</gray>'
+      effect_empty: ' <gray>Không có hiệu ứng</gray>'
+      footer:
+      - ''
+      - ' <gray>maylocnuoc/manhunt'
+    match_playing_hunter:
+      title: '<b><gradient:#b8ffeb:#ffcc7a>ĐANG CHẠY</gradient></b>'
+      header:
+      - ''
+      - ' <white>👤<reset> %player_display% <dark_gray>●</dark_gray> %role_display%'
+      - ''
+      - ' <#32faa7>⌚</#32faa7> <white>%match_timer%</white>'
+      - ' <gray>Thợ săn:</gray> <white>%match_hunters%</white>'
+      - ''
+      - ' <#ff6b6b>✦</#ff6b6b> <white>Lời nguyền đang chịu</white>'
+      curse_line: ' <#ff6b6b>✦</#ff6b6b> <white>%card_name%</white> <gray>⌚ %card_time%</gray>'
+      curse_empty: ' <gray>Không có lời nguyền</gray>'
+      footer:
+      - ''
+      - ' <gray>maylocnuoc/manhunt'
+    match_finished:
+      title: '<b><gradient:#ffd86b:#ff9f68>KẾT THÚC</gradient></b>'
+      lines:
+      - ''
+      - ' <white>👤<reset> %player_display% <dark_gray>●</dark_gray> %role_display%'
+      - ''
+      - ' <gold>★</gold> %match_winner_display%'
+      - ' <#32faa7>⌚</#32faa7> <white>%match_duration%</white>'
+      - ''
+      - ' <gray>Phòng:</gray> <white>%match_id%</white>'
+      - ''
+      - ' <gray>maylocnuoc/manhunt'

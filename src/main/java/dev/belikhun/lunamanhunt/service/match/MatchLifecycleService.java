@@ -60,10 +60,48 @@ public class MatchLifecycleService {
 	private final ConcurrentMap<String, BukkitTask> worldProgressTasks = new ConcurrentHashMap<>();
 	private final ConcurrentMap<String, BukkitTask> overworldWarmupTasks = new ConcurrentHashMap<>();
 	private final ConcurrentMap<String, BukkitTask> countdownTasks = new ConcurrentHashMap<>();
+	private final ConcurrentMap<String, Integer> countdownRemainingSeconds = new ConcurrentHashMap<>();
 	private final ConcurrentMap<String, BukkitTask> pendingActionTasks = new ConcurrentHashMap<>();
 	private final ConcurrentMap<String, BukkitTask> runningActionTasks = new ConcurrentHashMap<>();
 	private final ConcurrentMap<String, WarmupStatus> warmupStatuses = new ConcurrentHashMap<>();
 	private final ConcurrentMap<String, Long> preparationStartMillis = new ConcurrentHashMap<>();
+
+	public static final class WorldProgressSnapshot {
+		private final String stageLabel;
+		private final int readyWorlds;
+		private final int totalWorlds;
+		private final int percent;
+		private final long etaSeconds;
+
+		private WorldProgressSnapshot(String stageLabel, int readyWorlds, int totalWorlds, int percent,
+				long etaSeconds) {
+			this.stageLabel = stageLabel;
+			this.readyWorlds = readyWorlds;
+			this.totalWorlds = totalWorlds;
+			this.percent = percent;
+			this.etaSeconds = etaSeconds;
+		}
+
+		public String getStageLabel() {
+			return stageLabel;
+		}
+
+		public int getReadyWorlds() {
+			return readyWorlds;
+		}
+
+		public int getTotalWorlds() {
+			return totalWorlds;
+		}
+
+		public int getPercent() {
+			return percent;
+		}
+
+		public long getEtaSeconds() {
+			return etaSeconds;
+		}
+	}
 
 	public MatchLifecycleService(JavaPlugin plugin, LobbyManager lobbyManager, MatchManager matchManager,
 			CompassService compassService, SpeedrunnerKitService kitService, CardService cardService,
@@ -566,12 +604,50 @@ public class MatchLifecycleService {
 		sendActionBar(match, buildWorldProgressMessage(match, worlds));
 	}
 
+	public WorldProgressSnapshot getWorldProgressSnapshot(String matchId) {
+		if (matchId == null) {
+			return null;
+		}
+		Match match = matchManager.getMatch(matchId);
+		if (match == null || match.getWorlds() == null) {
+			return null;
+		}
+		MatchWorlds worlds = match.getWorlds();
+		return buildWorldProgressSnapshot(match, worlds);
+	}
+
+	public int getCountdownRemainingSeconds(String matchId) {
+		if (matchId == null) {
+			return -1;
+		}
+		Integer value = countdownRemainingSeconds.get(matchId);
+		return value == null ? -1 : value;
+	}
+
 	private String buildWorldProgressMessage(Match match, MatchWorlds worlds) {
+		WorldProgressSnapshot snapshot = buildWorldProgressSnapshot(match, worlds);
+		if (snapshot == null) {
+			return "<yellow>⌛</yellow> <gold>Đang chuẩn bị...</gold>";
+		}
+		WorldGenerationService.GenerationProgress progress = matchManager.getGenerationProgress(match.getId());
+		boolean isGenerating = progress != null
+			&& progress.getStage() == WorldGenerationService.GenerationStage.GENERATING;
+		String countPart = isGenerating
+			? " <gray>(" + snapshot.getReadyWorlds() + "/" + snapshot.getTotalWorlds() + ")</gray>"
+			: "";
+		return "<yellow>⌛</yellow> <gold>" + snapshot.getStageLabel() + "...</gold>" + countPart
+			+ " <dark_gray>●</dark_gray> <green>" + snapshot.getPercent() + "%</green> <dark_gray>●</dark_gray>"
+			+ " <yellow>⌚</yellow> <white>" + formatEta(snapshot.getEtaSeconds())
+			+ "</white> <gray>còn lại</gray>";
+	}
+
+	private WorldProgressSnapshot buildWorldProgressSnapshot(Match match, MatchWorlds worlds) {
+		if (match == null || worlds == null) {
+			return null;
+		}
 		WorldGenerationService.GenerationProgress progress = matchManager.getGenerationProgress(match.getId());
 		WarmupStatus warmupStatus = warmupStatuses.get(match.getId());
 		int ready = countReady(worlds);
-		boolean isGenerating = progress != null
-			&& progress.getStage() == WorldGenerationService.GenerationStage.GENERATING;
 		String stageLabel = warmupStatus != null
 			? "Đang chuẩn bị Overworld"
 			: (progress == null ? "Đang tạo thế giới" : formatWorldGenStage(progress.getStage()));
@@ -595,13 +671,7 @@ public class MatchLifecycleService {
 			totalRemaining = worldgenRemaining + warmupTotal;
 		}
 		int percent = (int) Math.round(Math.min(1.0, Math.max(0.0, overallProgress)) * 100.0);
-		String eta = formatEta(totalRemaining);
-		String countPart = isGenerating
-			? " <gray>(" + ready + "/" + WORLD_TOTAL + ")</gray>"
-			: "";
-		return "<yellow>⌛</yellow> <gold>" + stageLabel + "...</gold>" + countPart
-			+ " <dark_gray>●</dark_gray> <green>" + percent + "%</green> <dark_gray>●</dark_gray>"
-			+ " <yellow>⌚</yellow> <white>" + eta + "</white> <gray>còn lại</gray>";
+		return new WorldProgressSnapshot(stageLabel, ready, WORLD_TOTAL, percent, totalRemaining);
 	}
 
 	private String formatWorldGenStage(WorldGenerationService.GenerationStage stage) {
@@ -797,6 +867,7 @@ public class MatchLifecycleService {
 		}
 		broadcast(match, "<yellow>⌛</yellow> Bắt đầu đếm ngược <white>" + COUNTDOWN_SECONDS + "</white> giây.");
 		playMatchSound(match, Sound.UI_BUTTON_CLICK, 0.7f, 1.0f);
+		countdownRemainingSeconds.put(match.getId(), COUNTDOWN_SECONDS);
 		BukkitRunnable runnable = new BukkitRunnable() {
 			int seconds = COUNTDOWN_SECONDS;
 
@@ -813,6 +884,7 @@ public class MatchLifecycleService {
 					cancel();
 					return;
 				}
+				countdownRemainingSeconds.put(match.getId(), seconds);
 				showCountdownSubtitle(match, seconds);
 				playCountdownSound(match, seconds);
 				seconds--;
@@ -823,6 +895,7 @@ public class MatchLifecycleService {
 	}
 
 	private void stopCountdownTask(String matchId) {
+		countdownRemainingSeconds.remove(matchId);
 		stopTask(countdownTasks, matchId);
 	}
 

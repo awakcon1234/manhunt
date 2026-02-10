@@ -35,6 +35,7 @@ import dev.belikhun.lunamanhunt.service.match.MatchSettingsService;
 import dev.belikhun.lunamanhunt.service.match.WinConditionService;
 import dev.belikhun.lunamanhunt.service.persistence.PersistenceManager;
 import dev.belikhun.lunamanhunt.service.point.PointService;
+import dev.belikhun.lunamanhunt.service.scoreboard.ScoreboardService;
 import dev.belikhun.lunamanhunt.service.spawn.LobbyItemService;
 import dev.belikhun.lunamanhunt.service.spawn.LobbyTeleportService;
 import dev.belikhun.lunamanhunt.service.spawn.SpawnService;
@@ -63,6 +64,7 @@ public final class LunaManhuntPlugin extends JavaPlugin {
 	private MatchLifecycleService matchLifecycleService;
 	private MatchEndService matchEndService;
 	private NetherPortalsService netherPortalsService;
+	private ScoreboardService scoreboardService;
 
 	@Override
 	public void onEnable() {
@@ -93,6 +95,7 @@ public final class LunaManhuntPlugin extends JavaPlugin {
 			kitService, cardService, netherPortalsService, pointService);
 		this.matchManager.setLifecycleService(matchLifecycleService);
 		this.spawnService = new SpawnService(this, lobbyManager, matchManager, winConditionService, lobbyTeleportService);
+		this.scoreboardService = new ScoreboardService(this, lobbyManager, cardService, matchLifecycleService, pointService);
 
 		getServer().getPluginManager().registerEvents(new MatchWinListener(winConditionService), this);
 		getServer().getPluginManager().registerEvents(new CompassListener(compassService), this);
@@ -109,6 +112,7 @@ public final class LunaManhuntPlugin extends JavaPlugin {
 		getServer().getPluginManager().registerEvents(new MatchPortalLinkListener(lobbyManager, matchManager, getLogger()), this);
 		getServer().getPluginManager().registerEvents(new EndPortalListener(matchEndService, getLogger()), this);
 		compassService.startAutoUpdate();
+		scoreboardService.start();
 		MatchCommand matchCommand = new MatchCommand(lobbyManager, matchManager, guiService, lobbyItemService);
 		LmAdminCommand adminCommand = new LmAdminCommand(this, lobbyManager, matchManager);
 		SpawnCommand spawnCommand = new SpawnCommand(spawnService);
@@ -158,6 +162,9 @@ public final class LunaManhuntPlugin extends JavaPlugin {
 
 	@Override
 	public void onDisable() {
+		if (scoreboardService != null) {
+			scoreboardService.stop();
+		}
 		if (matchEndService != null && matchManager != null) {
 			for (var match : java.util.Set.copyOf(matchManager.getMatches())) {
 				matchEndService.forceCleanup(match);

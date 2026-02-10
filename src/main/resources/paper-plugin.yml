@@ -9,3 +9,5 @@ dependencies:
       required: true
     Multiverse-NetherPortals:
       required: true
+    PlaceholderAPI:
+      required: false

@@ -6,6 +6,8 @@ author: Belikhun
 depend:
   - Multiverse-Core
   - Multiverse-NetherPortals
+softdepend:
+  - PlaceholderAPI
 
 commands:
   match:
