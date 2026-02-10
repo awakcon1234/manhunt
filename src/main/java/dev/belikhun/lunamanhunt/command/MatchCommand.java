@@ -198,7 +198,7 @@ public class MatchCommand implements TabExecutor {
 		}
 		boolean started = matchManager.startMatch(match);
 		if (started) {
-			Text.msg(player, "<green>✔</green> Đang tạo thế giới cho trận đấu...");
+			Text.msg(player, "<yellow>⌛</yellow> Đang tạo thế giới cho trận đấu...");
 			playSuccessSound(player);
 			return;
 		}

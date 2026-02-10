@@ -861,19 +861,19 @@ public class MatchLifecycleService {
 
 	private void sendRunPendingGuideLines(Player player, boolean isSpeedrunner) {
 		Text.tell(player, "");
-		Text.tell(player, "<gray>+--------------------------------------------------+</gray>");
-		Text.tell(player, " <yellow>ℹ</yellow> <b><u>MANHUNT</u></b> <gray>•</gray> <white>Hướng dẫn nhanh</white>");
-		Text.tell(player, "<gray>+--------------------------------------------------+</gray>");
-		Text.tell(player, " <white>● Mục tiêu:</white> <#8fd3ff><b>Speedrunner</b></#8fd3ff> <white>hạ <b>Ender Dragon</b>.</white>");
-		Text.tell(player, " <white>● Điều kiện thắng:</white> <#ffb84d><b>Hunters</b></#ffb84d> <white>giết <b>Speedrunner</b>.</white>");
-		Text.tell(player, " <white>● Bắt đầu:</white> <white>Speedrunner đánh <b>một</b> Hunter.</white>");
-		Text.tell(player, " <white>● Khi bắt đầu:</white> <white>Hunters nhận <b>la bàn truy vết</b>.</white>");
+		Text.tell(player, "");
+		Text.tell(player, " <yellow>ℹ</yellow> <white><b>HƯỚNG DẪN NHANH</b></white>");
+		Text.tell(player, "");
+		Text.tell(player, " <yellow>●</yellow> <white>Mục tiêu: <#8fd3ff><b>Speedrunner</b></#8fd3ff> hạ <#8fd3ff><b>Ender Dragon</b></#8fd3ff></white>");
+		Text.tell(player, " <yellow>●</yellow> <white>Điều kiện thắng: <#ffb84d><b>Hunters</b></#ffb84d> giết <#ffb84d><b>Speedrunner</b></#ffb84d></white>");
+		Text.tell(player, " <yellow>●</yellow> <white>Bắt đầu: <#8fd3ff><b>Speedrunner</b></#8fd3ff> đánh <#ffb84d><b>một</b> Hunter</#ffb84d></white>");
+		Text.tell(player, " <yellow>●</yellow> <white>Hunters nhận <#ffb84d><b>la bàn truy vết</b></#ffb84d> khi bắt đầu</white>");
 		if (isSpeedrunner) {
-			Text.tell(player, " <#8fd3ff>● Vai trò của bạn:</#8fd3ff> <white><b>kết liễu rồng</b> và sinh tồn.</white>");
+			Text.tell(player, " <yellow>●</yellow> <white>Vai trò: <#8fd3ff><b>kết liễu rồng</b></#8fd3ff> và sinh tồn</white>");
 		} else {
-			Text.tell(player, " <#ffb84d>● Vai trò của bạn:</#ffb84d> <white><b>hạ Speedrunner</b> bằng truy đuổi.</white>");
+			Text.tell(player, " <yellow>●</yellow> <white>Vai trò: <#ffb84d><b>hạ Speedrunner</b></#ffb84d> bằng truy đuổi</white>");
 		}
-		Text.tell(player, "<gray>+--------------------------------------------------+</gray>");
+		Text.tell(player, "");
 	}
 
 	private void startPendingActionTask(Match match) {

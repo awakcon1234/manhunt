@@ -28,8 +28,13 @@ public class LobbyStateListener implements Listener {
 		player.getInventory().setArmorContents(null);
 		player.getInventory().setItemInOffHand(null);
 		lobbyTeleportService.teleportToLobby(player, false);
-		Text.msg(player, "<yellow>ℹ</yellow> Chào mừng đến với <white>LunaManhunt</white>!");
-		Text.msg(player, "<yellow>ℹ</yellow> Dùng " + UiColors.command("/match") + " để tạo hoặc tham gia phòng.");
+		Text.msg(player, "");
+		Text.msg(player, "");
+		Text.msg(player, "Chào mừng đến với <b><gradient:#FF7EE3:#ED80FF:#C27EFF:#EB86FF:#8768CC>LUNA</gradient></b> <b><gradient:#EC8C8C:#FFC58B>M</gradient><gradient:#FFC58B:#FFFF9E>A</gradient><gradient:#FFFF9E:#9AFF9A>NH</gradient><gradient:#9AFF9A:#97CFF5>U</gradient><gradient:#97CFF5:#A39AFF>N</gradient><gradient:#A39AFF:#EEA0FF>T</gradient></b>!");
+		Text.msg(player, "<yellow>ℹ</yellow> Dùng " + UiColors.command("/match") + " hoặc la bàn để tạo hoặc tham gia phòng.");
+		Text.msg(player, "");
+		Text.msg(player, "");
+
 		player.playSound(player.getLocation(), Sound.UI_TOAST_IN, 0.7f, 1.0f);
 	}
 

@@ -5,6 +5,7 @@ import dev.belikhun.lunamanhunt.model.match.MatchState;
 import dev.belikhun.lunamanhunt.service.lobby.LobbyManager;
 import dev.belikhun.lunamanhunt.util.Text;
 import org.bukkit.Bukkit;
+import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
 import org.bukkit.Sound;
 import org.bukkit.entity.Player;
@@ -223,15 +224,30 @@ public class CompassService {
 
 	public void updateAllForOnlinePlayers() {
 		for (Player player : Bukkit.getOnlinePlayers()) {
+			Match match = lobbyManager.getMatchForPlayer(player.getUniqueId());
+			if (match == null || match.getState() != MatchState.RUNNING) {
+				continue;
+			}
+			String matchId = match.getId();
 			ItemStack[] contents = player.getInventory().getContents();
 			if (contents == null) {
 				continue;
 			}
 			for (ItemStack item : contents) {
-				if (!isTrackingCompass(item) || !canUseCompass(player, item)) {
+				CompassMeta meta = getCompassMeta(item);
+				if (meta == null) {
 					continue;
 				}
-				updateCompass(item, player);
+				PersistentDataContainer data = meta.getPersistentDataContainer();
+				String compassId = data.get(compassIdKey, PersistentDataType.STRING);
+				if (compassId == null || compassId.isBlank()) {
+					continue;
+				}
+				String itemMatchId = data.get(matchIdKey, PersistentDataType.STRING);
+				if (itemMatchId == null || !itemMatchId.equals(matchId)) {
+					continue;
+				}
+				updateCompass(item, player, meta, compassId);
 			}
 		}
 	}
@@ -240,12 +256,27 @@ public class CompassService {
 		if (player == null) {
 			return false;
 		}
+		Match match = lobbyManager.getMatchForPlayer(player.getUniqueId());
+		if (match == null || match.getState() != MatchState.RUNNING) {
+			return false;
+		}
+		String matchId = match.getId();
 		ItemStack[] contents = player.getInventory().getContents();
 		if (contents == null) {
 			return false;
 		}
 		for (ItemStack item : contents) {
-			if (isTrackingCompass(item) && canUseCompass(player, item)) {
+			CompassMeta meta = getCompassMeta(item);
+			if (meta == null) {
+				continue;
+			}
+			PersistentDataContainer data = meta.getPersistentDataContainer();
+			String compassId = data.get(compassIdKey, PersistentDataType.STRING);
+			if (compassId == null || compassId.isBlank()) {
+				continue;
+			}
+			String itemMatchId = data.get(matchIdKey, PersistentDataType.STRING);
+			if (itemMatchId != null && itemMatchId.equals(matchId)) {
 				return true;
 			}
 		}
@@ -268,7 +299,7 @@ public class CompassService {
 		java.util.Iterator<ItemStack> iterator = drops.iterator();
 		while (iterator.hasNext()) {
 			ItemStack item = iterator.next();
-			if (!isTrackingCompass(item) || !canUseCompass(player, item)) {
+			if (!isTrackingCompassForPlayer(item, player, match.getId())) {
 				continue;
 			}
 			saved.add(item.clone());
@@ -301,7 +332,8 @@ public class CompassService {
 	}
 
 	public boolean isTrackingCompass(ItemStack item) {
-		if (item == null || !(item.getItemMeta() instanceof CompassMeta meta)) {
+		CompassMeta meta = getCompassMeta(item);
+		if (meta == null) {
 			return false;
 		}
 		PersistentDataContainer data = meta.getPersistentDataContainer();
@@ -312,7 +344,8 @@ public class CompassService {
 		if (player == null || item == null) {
 			return false;
 		}
-		if (!(item.getItemMeta() instanceof CompassMeta meta)) {
+		CompassMeta meta = getCompassMeta(item);
+		if (meta == null) {
 			return false;
 		}
 		PersistentDataContainer data = meta.getPersistentDataContainer();
@@ -322,5 +355,82 @@ public class CompassService {
 		}
 		Match match = lobbyManager.getMatchForPlayer(player.getUniqueId());
 		return match != null && match.getId().equals(matchId);
+	}
+
+	private CompassMeta getCompassMeta(ItemStack item) {
+		if (item == null || item.getType() != Material.COMPASS) {
+			return null;
+		}
+		if (item.getItemMeta() instanceof CompassMeta meta) {
+			return meta;
+		}
+		return null;
+	}
+
+	private boolean isTrackingCompassForPlayer(ItemStack item, Player player, String matchId) {
+		if (player == null || matchId == null) {
+			return false;
+		}
+		CompassMeta meta = getCompassMeta(item);
+		if (meta == null) {
+			return false;
+		}
+		PersistentDataContainer data = meta.getPersistentDataContainer();
+		String compassId = data.get(compassIdKey, PersistentDataType.STRING);
+		if (compassId == null || compassId.isBlank()) {
+			return false;
+		}
+		String itemMatchId = data.get(matchIdKey, PersistentDataType.STRING);
+		return itemMatchId != null && itemMatchId.equals(matchId);
+	}
+
+	private boolean updateCompass(ItemStack item, Player holder, CompassMeta meta, String compassIdValue) {
+		if (item == null || holder == null || meta == null || compassIdValue == null) {
+			return false;
+		}
+		UUID compassId;
+		try {
+			compassId = UUID.fromString(compassIdValue);
+		} catch (IllegalArgumentException ex) {
+			return false;
+		}
+		UUID targetId = compassTargets.get(compassId);
+		if (targetId == null) {
+			return false;
+		}
+		Long scrambleUntil = scrambledHunters.get(holder.getUniqueId());
+		if (scrambleUntil != null) {
+			if (System.currentTimeMillis() <= scrambleUntil) {
+				applyScrambledTarget(meta, holder, compassId);
+				item.setItemMeta(meta);
+				return true;
+			}
+			scrambledHunters.remove(holder.getUniqueId());
+		}
+		Player target = Bukkit.getPlayer(targetId);
+		if (target == null) {
+			return false;
+		}
+		if (!holder.getWorld().getUID().equals(target.getWorld().getUID())) {
+			boolean needsUpdate = !meta.isLodestoneTracked() || meta.getLodestone() != null;
+			if (needsUpdate) {
+				meta.setLodestone(null);
+				meta.setLodestoneTracked(true);
+				item.setItemMeta(meta);
+			}
+			lastCompassTargets.remove(compassId);
+			return true;
+		}
+
+		org.bukkit.Location targetLocation = target.getLocation();
+		org.bukkit.Location lastLocation = lastCompassTargets.get(compassId);
+		if (isSameBlockLocation(lastLocation, targetLocation)) {
+			return true;
+		}
+		meta.setLodestone(targetLocation);
+		meta.setLodestoneTracked(false);
+		item.setItemMeta(meta);
+		lastCompassTargets.put(compassId, snapshotBlockLocation(targetLocation));
+		return true;
 	}
 }

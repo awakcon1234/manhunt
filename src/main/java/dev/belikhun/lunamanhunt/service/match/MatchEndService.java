@@ -8,6 +8,7 @@ import dev.belikhun.lunamanhunt.service.card.CardService;
 import dev.belikhun.lunamanhunt.service.integration.MultiverseService;
 import dev.belikhun.lunamanhunt.service.integration.NetherPortalsService;
 import dev.belikhun.lunamanhunt.service.lobby.LobbyManager;
+import dev.belikhun.lunamanhunt.service.point.PointService;
 import dev.belikhun.lunamanhunt.service.spawn.LobbyTeleportService;
 import dev.belikhun.lunamanhunt.util.Text;
 import org.bukkit.configuration.file.YamlConfiguration;
@@ -46,6 +47,7 @@ public class MatchEndService {
 	private final NetherPortalsService netherPortalsService;
 	private final LobbyTeleportService lobbyTeleportService;
 	private final CardService cardService;
+	private final PointService pointService;
 	private final File cleanupFile;
 	private final Map<String, UUID> awaitingPortal = new ConcurrentHashMap<>();
 	private final Map<String, Integer> deleteWorldRetries = new ConcurrentHashMap<>();
@@ -61,6 +63,7 @@ public class MatchEndService {
 		this.netherPortalsService = Objects.requireNonNull(netherPortalsService, "netherPortalsService");
 		this.lobbyTeleportService = Objects.requireNonNull(lobbyTeleportService, "lobbyTeleportService");
 		this.cardService = Objects.requireNonNull(cardService, "cardService");
+		this.pointService = new PointService();
 		this.cleanupFile = new File(plugin.getDataFolder(), "cleanup-worlds.yml");
 	}
 
@@ -253,24 +256,24 @@ public class MatchEndService {
 	}
 
 	private List<String> buildWinnerBoard(Match match) {
-		String winnerLabel = match.getWinner() == MatchWinner.SPEEDRUNNER
-			? "<#8fd3ff>Speedrunner</#8fd3ff>"
-			: "<#ffb84d>Thợ săn</#ffb84d>";
-		String speedrunnerName = resolvePlayerName(match.getSpeedrunnerId());
-		String duration = formatDuration(resolveMatchDuration(match));
-		int points = match.getSpeedrunnerPoints();
+		String winnerName = match.getWinner() == MatchWinner.SPEEDRUNNER
+			? resolvePlayerName(match.getSpeedrunnerId())
+			: "Thợ săn";
+		String duration = formatDurationWithMillis(resolveMatchDuration(match));
+		String points = pointService.formatPoints(match.getSpeedrunnerPoints());
 		int huntersKilled = match.getStats().getHuntersKilled();
 		return List.of(
-			"<gray>+--------------------------------------------------+</gray>",
-			" <yellow>✔</yellow> <white><b>BẢNG KẾT QUẢ TRẬN ĐẤU</b></white>",
-			"<gray>+--------------------------------------------------+</gray>",
-			" <yellow>●</yellow> <white>Người chiến thắng: " + winnerLabel + "</white>",
-			" <yellow>●</yellow> <white>Speedrunner: <#8fd3ff>" + speedrunnerName + "</#8fd3ff></white>",
-			" <yellow>●</yellow> <white>Thời gian hoàn thành: <green>" + duration + "</green></white>",
-			" <yellow>●</yellow> <white>Điểm thu thập: <green>" + points + "</green></white>",
-			" <yellow>●</yellow> <white>Hunter bị hạ: <green>" + huntersKilled + "</green></white>",
-			" <yellow>●</yellow> <white>Mã phòng: <yellow>" + match.getId() + "</yellow></white>",
-			"<gray>+--------------------------------------------------+</gray>"
+			"",
+			"",
+			" <yellow>ℹ</yellow> <white><b>KẾT QUẢ</b></white>",
+			"",
+			" <yellow><b>" + winnerName + "</b></yellow>",
+			"",
+			" <#32faa7>⌚</#32faa7> <white>" + duration + "</white> <gray>●</gray> <white>"
+				+ points + "</white>",
+			" <yellow>●</yellow> <white>" + huntersKilled + " Hunter</white>",
+			"",
+			""
 		);
 	}
 
@@ -280,16 +283,18 @@ public class MatchEndService {
 		String endTime = formatDuration(stats.getTimeToEndMillis());
 		String damage = String.format(java.util.Locale.US, "%.1f", stats.getDamageToHunters());
 		return List.of(
-			"<gray>+--------------------------------------------------+</gray>",
-			" <yellow>ℹ</yellow> <white><b>THỐNG KÊ TRẬN ĐẤU</b></white>",
-			"<gray>+--------------------------------------------------+</gray>",
-			" <yellow>●</yellow> <white>Quái đã hạ: <green>" + stats.getMobKills() + "</green></white>",
-			" <yellow>●</yellow> <white>Vào Nether: <green>" + netherTime + "</green></white>",
-			" <yellow>●</yellow> <white>Vào End: <green>" + endTime + "</green></white>",
-			" <yellow>●</yellow> <white>Chết tự nhiên: <green>" + stats.getNaturalDeaths() + "</green></white>",
-			" <yellow>●</yellow> <white>Thẻ đã dùng: <green>" + stats.getCardsUsed() + "</green></white>",
-			" <yellow>●</yellow> <white>Sát thương lên Hunter: <green>" + damage + "</green></white>",
-			"<gray>+--------------------------------------------------+</gray>"
+			"",
+			"",
+			" <yellow>ℹ</yellow> <white><b>THỐNG KÊ</b></white>",
+			"",
+			" <#32faa7>⌚</#32faa7> <white>Nether: " + netherTime + "</white> <gray>●</gray> <white>End: " + endTime + "</white>",
+			" <yellow>●</yellow> <white>Mob: " + stats.getMobKills() + "</white> <gray>●</gray> <white>Chết tự nhiên: "
+				+ stats.getNaturalDeaths() + "</white>",
+			" <yellow>●</yellow> <white>Thẻ: " + stats.getCardsUsed() + "</white> <gray>●</gray> <white>Dmg Hunter: "
+				+ damage + "</white>",
+			"",
+			"",
+			""
 		);
 	}
 
@@ -308,6 +313,18 @@ public class MatchEndService {
 		long minutes = totalSeconds / 60L;
 		long seconds = totalSeconds % 60L;
 		return String.format(java.util.Locale.US, "%02d:%02d", minutes, seconds);
+	}
+
+	private String formatDurationWithMillis(Long millis) {
+		if (millis == null || millis < 0L) {
+			return "00:00:00.000";
+		}
+		long totalSeconds = millis / 1000L;
+		long hours = totalSeconds / 3600L;
+		long minutes = (totalSeconds % 3600L) / 60L;
+		long seconds = totalSeconds % 60L;
+		long ms = Math.max(0L, millis % 1000L);
+		return String.format(java.util.Locale.US, "%02d:%02d:%02d.%03d", hours, minutes, seconds, ms);
 	}
 
 	private String resolvePlayerName(UUID playerId) {

@@ -1667,7 +1667,7 @@ public class GuiService {
 		player.closeInventory();
 		boolean started = matchManager.startMatch(match);
 		if (started) {
-			Text.msg(player, "<green>✔</green> Đang tạo thế giới cho trận đấu...");
+			Text.msg(player, "<yellow>⌛</yellow> Đang tạo thế giới cho trận đấu...");
 			return;
 		}
 		Text.msg(player, "<red>❌</red> Không thể bắt đầu trận đấu lúc này.");
