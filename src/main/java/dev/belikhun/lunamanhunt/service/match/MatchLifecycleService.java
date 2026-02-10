@@ -126,7 +126,8 @@ public class MatchLifecycleService {
 		}
 		match.setSpeedrunnerId(speedrunnerId);
 		assignHunters(match, speedrunnerId);
-		broadcast(match, "<yellow>ℹ</yellow> Speedrunner: <yellow>" + resolvePlayerName(speedrunnerId) + "</yellow>.");
+		broadcast(match, "<yellow>ℹ</yellow> " + UiColors.speedrunner("Speedrunner")
+			+ ": <yellow>" + resolvePlayerName(speedrunnerId) + "</yellow>.");
 		startOverworldWarmup(match, overworld);
 	}
 
@@ -864,14 +865,19 @@ public class MatchLifecycleService {
 		Text.tell(player, "");
 		Text.tell(player, " <yellow>ℹ</yellow> <white><b>HƯỚNG DẪN NHANH</b></white>");
 		Text.tell(player, "");
-		Text.tell(player, " <yellow>●</yellow> <white>Mục tiêu: <#8fd3ff><b>Speedrunner</b></#8fd3ff> hạ <#8fd3ff><b>Ender Dragon</b></#8fd3ff></white>");
-		Text.tell(player, " <yellow>●</yellow> <white>Điều kiện thắng: <#ffb84d><b>Hunters</b></#ffb84d> giết <#ffb84d><b>Speedrunner</b></#ffb84d></white>");
-		Text.tell(player, " <yellow>●</yellow> <white>Bắt đầu: <#8fd3ff><b>Speedrunner</b></#8fd3ff> đánh <#ffb84d><b>một</b> Hunter</#ffb84d></white>");
-		Text.tell(player, " <yellow>●</yellow> <white>Hunters nhận <#ffb84d><b>la bàn truy vết</b></#ffb84d> khi bắt đầu</white>");
+		Text.tell(player, " <yellow>●</yellow> <white>Mục tiêu: " + UiColors.speedrunner("<b>Speedrunner</b>")
+			+ " hạ <#8fd3ff><b>Ender Dragon</b></#8fd3ff></white>");
+		Text.tell(player, " <yellow>●</yellow> <white>Điều kiện thắng: " + UiColors.hunter("<b>Hunters</b>")
+			+ " giết " + UiColors.speedrunner("<b>Speedrunner</b>") + "</white>");
+		Text.tell(player, " <yellow>●</yellow> <white>Bắt đầu: " + UiColors.speedrunner("<b>Speedrunner</b>")
+			+ " đánh một " + UiColors.hunter("<b>Hunter</b>") + "</white>");
+		Text.tell(player, " <yellow>●</yellow> <white>" + UiColors.hunter("<b>Hunters</b>")
+			+ " nhận <#ffb84d><b>la bàn truy vết</b></#ffb84d> khi bắt đầu</white>");
 		if (isSpeedrunner) {
 			Text.tell(player, " <yellow>●</yellow> <white>Vai trò: <#8fd3ff><b>kết liễu rồng</b></#8fd3ff> và sinh tồn</white>");
 		} else {
-			Text.tell(player, " <yellow>●</yellow> <white>Vai trò: <#ffb84d><b>hạ Speedrunner</b></#ffb84d> bằng truy đuổi</white>");
+			Text.tell(player, " <yellow>●</yellow> <white>Vai trò: <#ffb84d><b>hạ</b></#ffb84d> "
+				+ UiColors.speedrunner("<b>Speedrunner</b>") + " <#ffb84d><b>bằng truy đuổi</b></#ffb84d></white>");
 		}
 		Text.tell(player, "");
 	}
@@ -893,8 +899,10 @@ public class MatchLifecycleService {
 					player.setGameMode(GameMode.ADVENTURE);
 				}
 				String message = (speedrunnerId != null && speedrunnerId.equals(id))
-					? "<yellow>ℹ</yellow> <white>Bạn là Speedrunner</white> <gray>•</gray> <white>Hãy đánh một Hunter để bắt đầu</white>"
-					: "<yellow>ℹ</yellow> <white>Chờ Speedrunner đánh một Hunter để bắt đầu trận đấu</white>";
+					? "<yellow>ℹ</yellow> <white>Bạn là " + UiColors.speedrunner("Speedrunner")
+						+ "</white> <gray>•</gray> <white>Hãy đánh một " + UiColors.hunter("thợ săn") + " để bắt đầu</white>"
+					: "<yellow>ℹ</yellow> <white>Chờ " + UiColors.speedrunner("Speedrunner")
+						+ " đánh một " + UiColors.hunter("thợ săn") + " để bắt đầu trận đấu</white>";
 				player.sendActionBar(Text.mm(message));
 			}
 		}, 0L, RUN_ACTIONBAR_TICKS);

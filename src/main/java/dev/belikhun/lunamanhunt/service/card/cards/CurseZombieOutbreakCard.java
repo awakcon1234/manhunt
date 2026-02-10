@@ -4,6 +4,7 @@ import dev.belikhun.lunamanhunt.model.card.BaseCard;
 import dev.belikhun.lunamanhunt.model.card.CardRarity;
 import dev.belikhun.lunamanhunt.model.card.CardType;
 import dev.belikhun.lunamanhunt.service.card.CardContext;
+import dev.belikhun.lunamanhunt.util.UiColors;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.World;
@@ -17,7 +18,7 @@ public class CurseZombieOutbreakCard extends BaseCard {
 
 	public CurseZombieOutbreakCard() {
 		super("zombie_outbreak", "Bầy zombie", CardType.CURSE, CardRarity.EPIC, 3,
-			"Triệu hồi bầy zombie quanh thợ săn.", Material.ZOMBIE_SPAWN_EGG);
+			"Triệu hồi bầy zombie quanh " + UiColors.hunter("thợ săn") + ".", Material.ZOMBIE_SPAWN_EGG);
 	}
 
 	@Override

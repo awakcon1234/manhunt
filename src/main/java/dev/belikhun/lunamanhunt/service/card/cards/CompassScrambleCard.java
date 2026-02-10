@@ -6,12 +6,13 @@ import dev.belikhun.lunamanhunt.model.card.CardType;
 import dev.belikhun.lunamanhunt.model.match.Match;
 import dev.belikhun.lunamanhunt.service.card.CardContext;
 import dev.belikhun.lunamanhunt.service.compass.CompassService;
+import dev.belikhun.lunamanhunt.util.UiColors;
 import org.bukkit.Material;
 
 public class CompassScrambleCard extends BaseCard {
 	public CompassScrambleCard() {
 		super("compass_scramble", "Không thể tìm thấy", CardType.EFFECT, CardRarity.RARE, 2,
-			"Làm nhiễu la bàn thợ săn trong 1 phút.", Material.ENDER_PEARL, 60);
+			"Làm nhiễu la bàn " + UiColors.hunter("thợ săn") + " trong 1 phút.", Material.ENDER_PEARL, 60);
 	}
 
 	@Override

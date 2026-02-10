@@ -5,6 +5,8 @@ public final class UiColors {
 	public static final String TITLE_SECONDARY = "#3a4756";
 	public static final String TITLE_DANGER = "#3a1f1f";
 	public static final String COMMAND_HIGHLIGHT = "#59c3ff";
+	public static final String ROLE_SPEEDRUNNER = "#8fd3ff";
+	public static final String ROLE_HUNTER = "#ffb84d";
 
 	private UiColors() {
 	}
@@ -31,6 +33,14 @@ public final class UiColors {
 			+ "<hover:show_text:'<gray>Bấm để dán lệnh </gray>" + styled + "'>"
 			+ styled
 			+ "</hover></click>";
+	}
+
+	public static String speedrunner(String text) {
+		return wrap(ROLE_SPEEDRUNNER, text);
+	}
+
+	public static String hunter(String text) {
+		return wrap(ROLE_HUNTER, text);
 	}
 
 	public static String wrap(String hex, String text) {

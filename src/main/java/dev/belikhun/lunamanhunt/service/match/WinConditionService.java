@@ -8,6 +8,7 @@ import dev.belikhun.lunamanhunt.model.profile.PlayerProfile;
 import dev.belikhun.lunamanhunt.service.lobby.LobbyManager;
 import dev.belikhun.lunamanhunt.service.persistence.ProfileStore;
 import dev.belikhun.lunamanhunt.util.Text;
+import dev.belikhun.lunamanhunt.util.UiColors;
 import org.bukkit.Bukkit;
 import org.bukkit.Sound;
 import org.bukkit.entity.Player;
@@ -46,9 +47,9 @@ public class WinConditionService {
 		if (!match.getHunters().contains(killer.getUniqueId())) {
 			return false;
 		}
-		Text.msg(killer, "<green>✔</green> Bạn đã hạ Speedrunner!");
+		Text.msg(killer, "<green>✔</green> Bạn đã hạ " + UiColors.speedrunner("Speedrunner") + "!");
 		killer.playSound(killer.getLocation(), Sound.ENTITY_PLAYER_LEVELUP, 0.8f, 1.0f);
-		Text.msg(victim, "<red>❌</red> Bạn đã bị Hunter hạ gục.");
+		Text.msg(victim, "<red>❌</red> Bạn đã bị " + UiColors.hunter("thợ săn") + " hạ gục.");
 		victim.playSound(victim.getLocation(), Sound.UI_TOAST_OUT, 0.7f, 1.0f);
 		endWithHuntersByKill(match, deathLocation);
 		return true;
@@ -83,7 +84,8 @@ public class WinConditionService {
 		if (!isSpeedrunner(match, speedrunner.getUniqueId())) {
 			return false;
 		}
-		endWithHunters(match, "<red>❌</red> Speedrunner đã rời trận. Thợ săn chiến thắng!");
+		endWithHunters(match, "<red>❌</red> " + UiColors.speedrunner("Speedrunner")
+			+ " đã rời trận. " + UiColors.hunter("Thợ săn") + " chiến thắng!");
 		return true;
 	}
 
@@ -107,7 +109,8 @@ public class WinConditionService {
 
 	private void endWithHuntersByKill(Match match, org.bukkit.Location deathLocation) {
 		recordMatchHistory(match, MatchWinner.HUNTERS);
-		matchEndService.endWithHunters(match, "<green>✔</green> Thợ săn đã chiến thắng!", deathLocation, true);
+		matchEndService.endWithHunters(match, "<green>✔</green> " + UiColors.hunter("Thợ săn")
+			+ " đã chiến thắng!", deathLocation, true);
 	}
 
 	private void endWithHunters(Match match, String message) {
@@ -118,7 +121,8 @@ public class WinConditionService {
 	private void endWithSpeedrunner(Match match) {
 		recordSpeedrunTime(match);
 		recordMatchHistory(match, MatchWinner.SPEEDRUNNER);
-		matchEndService.endWithSpeedrunner(match, "<green>✔</green> Speedrunner đã chiến thắng!");
+		matchEndService.endWithSpeedrunner(match, "<green>✔</green> " + UiColors.speedrunner("Speedrunner")
+			+ " đã chiến thắng!");
 	}
 
 	private void recordSpeedrunTime(Match match) {

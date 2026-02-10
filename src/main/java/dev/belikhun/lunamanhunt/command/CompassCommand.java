@@ -5,6 +5,7 @@ import dev.belikhun.lunamanhunt.model.match.MatchState;
 import dev.belikhun.lunamanhunt.service.compass.CompassService;
 import dev.belikhun.lunamanhunt.service.lobby.LobbyManager;
 import dev.belikhun.lunamanhunt.util.Text;
+import dev.belikhun.lunamanhunt.util.UiColors;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
 import org.bukkit.command.TabExecutor;
@@ -47,7 +48,7 @@ public class CompassCommand implements TabExecutor {
 		}
 		UUID speedrunnerId = match.getSpeedrunnerId();
 		if (speedrunnerId != null && speedrunnerId.equals(player.getUniqueId())) {
-			Text.msg(player, "<red>❌</red> Chỉ thợ săn mới dùng lệnh này.");
+			Text.msg(player, "<red>❌</red> Chỉ " + UiColors.hunter("thợ săn") + " mới dùng lệnh này.");
 			return true;
 		}
 		if (compassService.hasTrackingCompass(player)) {

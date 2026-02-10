@@ -27,7 +27,10 @@
 
 ## UI text consistency
 - **Minecraft-safe symbols only** (do not use lookalikes):
-  - Bullet: `●` | Check: `✔` | Cross: `❌` | Info: `ℹ` | Time: `⌚` | Wait: `⌛ ⏳`
+  + Bullet: `●` | Check: `✔` | Cross: `❌` | Info: `ℹ` | Time: `⌚` | Wait: `⌛ ⏳`
+  + `🪓` `⛏` `⚔` `🗡` `🏹` `⬤` `█` `»` `▶` `★` `❤` `•` `☀` `⛀⛁💰` `☠` `☹` `👾` `👻` `🔧` `🌧` `☁` `☄` `⭐` `🔍` `☮` `☯` `⛔` `⚠` `🔔` `♣` `♦` `♥` `♠` `🔥` `❣` `💢💬` `💤` `☹` `☻` `☺` `☂` `☃` `™` `®` `©` `₪` `★` `☆` `✦`
+  + `≈⌀⌂【】⊻⊼⊽⋃↔↑↓→←◎☽ⒶⒷⒸⒹⒺⒻⒼⒽⒾⒿⓀⓁⓂⓃⓄⓅⓆⓇⓈⓉⓊⓋⓌⓍⓎⓏⓐⓑⓒⓓⓔⓕⓖⓗⓘⓙⓚⓛⓜⓝⓞⓟⓠⓡⓢⓣⓤⓥⓦⓧⓨⓩ∃∧∨∩⊂⊃∀ΞΓɐəɘεβɟɥɯɔиɹʁяʌʍλчΣΠηαʊїз¢№¿¡ƸӜƷξЖ`
+  + All block drawing unicode characters
 
 ## Conventions
 - Indentation rules are enforced by [.editorconfig](.editorconfig): tabs for Java, 2-space for YAML.

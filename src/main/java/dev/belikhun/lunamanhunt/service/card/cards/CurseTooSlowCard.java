@@ -4,6 +4,7 @@ import dev.belikhun.lunamanhunt.model.card.BaseCard;
 import dev.belikhun.lunamanhunt.model.card.CardRarity;
 import dev.belikhun.lunamanhunt.model.card.CardType;
 import dev.belikhun.lunamanhunt.service.card.CardContext;
+import dev.belikhun.lunamanhunt.util.UiColors;
 import org.bukkit.Material;
 import org.bukkit.potion.PotionEffect;
 import org.bukkit.potion.PotionEffectType;
@@ -11,7 +12,7 @@ import org.bukkit.potion.PotionEffectType;
 public class CurseTooSlowCard extends BaseCard {
 	public CurseTooSlowCard() {
 		super("too_slow", "Quá chậm", CardType.CURSE, CardRarity.COMMON, 1,
-			"Làm chậm thợ săn trong 1 phút.", Material.BLUE_ICE, 60);
+			"Làm chậm " + UiColors.hunter("thợ săn") + " trong 1 phút.", Material.BLUE_ICE, 60);
 	}
 
 	@Override

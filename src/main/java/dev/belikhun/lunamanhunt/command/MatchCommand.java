@@ -258,7 +258,7 @@ public class MatchCommand implements TabExecutor {
 			return;
 		}
 		match.getSettings().setSpeedrunnerKit(List.of());
-		Text.msg(player, "<green>✔</green> Đã xóa bộ đồ speedrunner.");
+		Text.msg(player, "<green>✔</green> Đã xóa bộ đồ " + UiColors.speedrunner("Speedrunner") + ".");
 		playSuccessSound(player);
 	}
 

@@ -11,6 +11,7 @@ import dev.belikhun.lunamanhunt.service.lobby.LobbyManager;
 import dev.belikhun.lunamanhunt.service.point.PointService;
 import dev.belikhun.lunamanhunt.service.spawn.LobbyTeleportService;
 import dev.belikhun.lunamanhunt.util.Text;
+import dev.belikhun.lunamanhunt.util.UiColors;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.Bukkit;
 import org.bukkit.Color;
@@ -37,6 +38,8 @@ import java.util.concurrent.ConcurrentHashMap;
 public class MatchEndService {
 	private static final int SPEEDRUNNER_CLEANUP_DELAY_TICKS = 20 * 5;
 	private static final int POST_TELEPORT_CLEANUP_DELAY_TICKS = 40;
+	private static final int HUNTER_LAST_BOARD_DELAY_TICKS = 20 * 17;
+	private static final int HUNTER_TELEPORT_DELAY_TICKS = HUNTER_LAST_BOARD_DELAY_TICKS + (20 * 5);
 	private static final int CLEANUP_RETRY_LIMIT = 5;
 	private static final int CLEANUP_RETRY_DELAY_TICKS = 40;
 	private static final int WORLD_DELETE_RETRY_LIMIT = 5;
@@ -82,7 +85,12 @@ public class MatchEndService {
 		broadcast(match, message);
 		scheduleEndBoards(match);
 		if (!showSequence) {
-			finishMatch(match, true, POST_TELEPORT_CLEANUP_DELAY_TICKS);
+			new BukkitRunnable() {
+				@Override
+				public void run() {
+					finishMatch(match, true, POST_TELEPORT_CLEANUP_DELAY_TICKS);
+				}
+			}.runTaskLater(plugin, HUNTER_TELEPORT_DELAY_TICKS);
 			return;
 		}
 		startHunterWinSequence(match, deathLocation);
@@ -96,7 +104,6 @@ public class MatchEndService {
 		match.setState(MatchState.ENDING);
 		broadcast(match, message);
 		scheduleEndBoards(match);
-		broadcast(match, "<yellow>ℹ</yellow> Speedrunner hãy vào cổng End để kết thúc trận đấu.");
 
 		UUID speedrunnerId = match.getSpeedrunnerId();
 		if (speedrunnerId != null) {
@@ -224,20 +231,46 @@ public class MatchEndService {
 			public void run() {
 				finishMatch(match, true, POST_TELEPORT_CLEANUP_DELAY_TICKS);
 			}
-		}.runTaskLater(plugin, 20L * 10);
+		}.runTaskLater(plugin, HUNTER_TELEPORT_DELAY_TICKS);
 	}
 
 	private void scheduleEndBoards(Match match) {
 		if (match == null) {
 			return;
 		}
-		sendBoard(match, buildWinnerBoard(match));
 		new BukkitRunnable() {
 			@Override
 			public void run() {
-				sendBoard(match, buildStatsBoard(match));
+				sendBoard(match, buildWinnerBoard(match));
 			}
-		}.runTaskLater(plugin, 20L * 5);
+		}.runTaskLater(plugin, 20L * 2);
+		new BukkitRunnable() {
+			@Override
+			public void run() {
+				sendBoard(match, buildSpeedrunnerStatsBoard(match));
+			}
+		}.runTaskLater(plugin, 20L * 7);
+		new BukkitRunnable() {
+			@Override
+			public void run() {
+				sendBoard(match, buildHunterStatsBoard(match));
+			}
+		}.runTaskLater(plugin, 20L * 12);
+		new BukkitRunnable() {
+			@Override
+			public void run() {
+				sendBoard(match, buildLastBoard(match));
+			}
+		}.runTaskLater(plugin, HUNTER_LAST_BOARD_DELAY_TICKS);
+	}
+
+	private List<String> buildLastBoard(Match match) {
+		if (match == null) {
+			return List.of();
+		}
+		return match.getWinner() == MatchWinner.SPEEDRUNNER
+			? buildSpeedrunnerPortalBoard(match)
+			: buildHunterTeleportBoard(match);
 	}
 
 	private void sendBoard(Match match, List<String> lines) {
@@ -257,42 +290,98 @@ public class MatchEndService {
 
 	private List<String> buildWinnerBoard(Match match) {
 		String winnerName = match.getWinner() == MatchWinner.SPEEDRUNNER
-			? resolvePlayerName(match.getSpeedrunnerId())
-			: "Thợ săn";
+			? "<yellow><b>" + resolvePlayerName(match.getSpeedrunnerId()) + "</b></yellow>"
+			: UiColors.hunter("<b>Thợ săn</b>");
+		String resultTitle = match.getWinner() == MatchWinner.SPEEDRUNNER
+			? UiColors.speedrunner("<b>SPEEDRUNNER CHIẾN THẮNG!</b>")
+			: UiColors.hunter("<b>THỢ SĂN CHIẾN THẮNG!</b>");
 		String duration = formatDurationWithMillis(resolveMatchDuration(match));
 		String points = pointService.formatPoints(match.getSpeedrunnerPoints());
 		int huntersKilled = match.getStats().getHuntersKilled();
 		return List.of(
 			"",
 			"",
-			" <yellow>ℹ</yellow> <white><b>KẾT QUẢ</b></white>",
+			" <yellow>●</yellow> " + resultTitle + " <gray>●</gray> <yellow>ℹ</yellow> <white><b>KẾT QUẢ:</b></white>",
 			"",
-			" <yellow><b>" + winnerName + "</b></yellow>",
+			" " + winnerName,
 			"",
 			" <#32faa7>⌚</#32faa7> <white>" + duration + "</white> <gray>●</gray> <white>"
 				+ points + "</white>",
-			" <yellow>●</yellow> <white>" + huntersKilled + " Hunter</white>",
+			" <yellow>●</yellow> <white>" + huntersKilled + "</white> " + UiColors.hunter("thợ săn"),
 			"",
 			""
 		);
 	}
 
-	private List<String> buildStatsBoard(Match match) {
+	private List<String> buildSpeedrunnerStatsBoard(Match match) {
 		var stats = match.getStats();
-		String netherTime = formatDuration(stats.getTimeToNetherMillis());
-		String endTime = formatDuration(stats.getTimeToEndMillis());
-		String damage = String.format(java.util.Locale.US, "%.1f", stats.getDamageToHunters());
+		String netherTime = formatDurationColored(stats.getTimeToNetherMillis());
+		String endTime = formatDurationColored(stats.getTimeToEndMillis());
+		String huntersKilled = formatCountColored(stats.getHuntersKilled());
+		String cardsUsed = formatCountColored(stats.getCardsUsed());
+		String damage = formatDamageColored(stats.getDamageToHunters());
 		return List.of(
 			"",
 			"",
-			" <yellow>ℹ</yellow> <white><b>THỐNG KÊ</b></white>",
+			" <yellow>ℹ</yellow> " + UiColors.speedrunner("<white><b>THỐNG KÊ SPEEDRUNNER</b></white>"),
 			"",
-			" <#32faa7>⌚</#32faa7> <white>Nether: " + netherTime + "</white> <gray>●</gray> <white>End: " + endTime + "</white>",
-			" <yellow>●</yellow> <white>Mob: " + stats.getMobKills() + "</white> <gray>●</gray> <white>Chết tự nhiên: "
-				+ stats.getNaturalDeaths() + "</white>",
-			" <yellow>●</yellow> <white>Thẻ: " + stats.getCardsUsed() + "</white> <gray>●</gray> <white>Dmg Hunter: "
-				+ damage + "</white>",
+			" <#32faa7>⌚</#32faa7> <white>Nether: </white>" + netherTime + " <gray>●</gray> <white>End: </white>" + endTime,
+			" <yellow>●</yellow> <white>Hạ </white>" + UiColors.hunter("thợ săn") + "<white>: </white>" + huntersKilled
+				+ " <gray>●</gray> <white>Thẻ dùng: </white>" + cardsUsed,
+			" <yellow>●</yellow> <white>Dmg </white>" + UiColors.hunter("thợ săn") + "<white>: </white>" + damage,
 			"",
+			"",
+			""
+		);
+	}
+
+	private List<String> buildHunterStatsBoard(Match match) {
+		var stats = match.getStats();
+		String mobKills = formatCountColored(stats.getMobKills());
+		String naturalDeaths = formatCountColored(stats.getNaturalDeaths());
+		String huntersKilled = formatCountColored(stats.getHuntersKilled());
+		String damageTaken = formatDamageColored(stats.getDamageToHunters());
+		return List.of(
+			"",
+			"",
+			" <yellow>ℹ</yellow> " + UiColors.hunter("<white><b>THỐNG KÊ THỢ SĂN</b></white>"),
+			"",
+			" <yellow>●</yellow> <white>Mob: </white>" + mobKills + " <gray>●</gray> <white>Chết tự nhiên: </white>"
+				+ naturalDeaths,
+			" <yellow>●</yellow> <white>Bị hạ gục: </white>" + huntersKilled + " <gray>●</gray> <white>Dmg nhận: </white>"
+				+ damageTaken,
+			"",
+			"",
+			""
+		);
+	}
+
+	private List<String> buildSpeedrunnerPortalBoard(Match match) {
+		if (match == null || match.getWinner() != MatchWinner.SPEEDRUNNER) {
+			return List.of();
+		}
+		return List.of(
+			"",
+			"",
+			" <yellow>ℹ</yellow> <white><b>TRẬN ĐẤU KẾT THÚC!</b></white>",
+			"",
+			" <yellow>●</yellow> <white>" + UiColors.speedrunner("Speedrunner")
+				+ " hãy nhảy vào cổng End để được đưa về sảnh</white>",
+			"",
+			""
+		);
+	}
+
+	private List<String> buildHunterTeleportBoard(Match match) {
+		if (match == null || match.getWinner() != MatchWinner.HUNTERS) {
+			return List.of();
+		}
+		return List.of(
+			"",
+			"",
+			" <yellow>ℹ</yellow> <white><b>TRẬN ĐẤU KẾT THÚC!</b></white>",
+			"",
+			" <yellow>●</yellow> <white>Tất cả người chơi sẽ được đưa về sảnh sau 5 giây</white>",
 			"",
 			""
 		);
@@ -313,6 +402,26 @@ public class MatchEndService {
 		long minutes = totalSeconds / 60L;
 		long seconds = totalSeconds % 60L;
 		return String.format(java.util.Locale.US, "%02d:%02d", minutes, seconds);
+	}
+
+	private String formatDurationColored(Long millis) {
+		if (millis == null || millis < 0L) {
+			return "<#ff6b6b>Chưa</#ff6b6b>";
+		}
+		return "<#7fd36b>" + formatDuration(millis) + "</#7fd36b>";
+	}
+
+	private String formatCountColored(int value) {
+		if (value <= 0) {
+			return "<#ff6b6b>0</#ff6b6b>";
+		}
+		return "<#7fd36b>" + value + "</#7fd36b>";
+	}
+
+	private String formatDamageColored(double value) {
+		String formatted = String.format(java.util.Locale.US, "%.1f", Math.max(0.0, value));
+		String color = value <= 0.0 ? "#ff6b6b" : "#7fd36b";
+		return "<" + color + ">" + formatted + "</" + color + ">";
 	}
 
 	private String formatDurationWithMillis(Long millis) {

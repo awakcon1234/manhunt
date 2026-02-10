@@ -4,6 +4,7 @@ import dev.belikhun.lunamanhunt.model.card.BaseCard;
 import dev.belikhun.lunamanhunt.model.card.CardRarity;
 import dev.belikhun.lunamanhunt.model.card.CardType;
 import dev.belikhun.lunamanhunt.service.card.CardContext;
+import dev.belikhun.lunamanhunt.util.UiColors;
 import org.bukkit.Material;
 import org.bukkit.potion.PotionEffect;
 import org.bukkit.potion.PotionEffectType;
@@ -11,7 +12,7 @@ import org.bukkit.potion.PotionEffectType;
 public class CurseShiningCard extends BaseCard {
 	public CurseShiningCard() {
 		super("shining", "Phát sáng", CardType.CURSE, CardRarity.COMMON, 1,
-			"Phát sáng thợ săn trong 2 phút.", Material.GLOW_INK_SAC, 120);
+			"Phát sáng " + UiColors.hunter("thợ săn") + " trong 2 phút.", Material.GLOW_INK_SAC, 120);
 	}
 
 	@Override

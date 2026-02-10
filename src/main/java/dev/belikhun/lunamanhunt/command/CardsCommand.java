@@ -6,6 +6,7 @@ import dev.belikhun.lunamanhunt.service.card.CardService;
 import dev.belikhun.lunamanhunt.service.gui.GuiService;
 import dev.belikhun.lunamanhunt.service.lobby.LobbyManager;
 import dev.belikhun.lunamanhunt.util.Text;
+import dev.belikhun.lunamanhunt.util.UiColors;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
 import org.bukkit.command.TabExecutor;
@@ -133,7 +134,7 @@ public class CardsCommand implements TabExecutor {
 			return null;
 		}
 		if (match.getSpeedrunnerId() == null || !match.getSpeedrunnerId().equals(player.getUniqueId())) {
-			Text.msg(player, "<red>❌</red> Chỉ speedrunner mới dùng được thẻ.");
+			Text.msg(player, "<red>❌</red> Chỉ " + UiColors.speedrunner("Speedrunner") + " mới dùng được thẻ.");
 			return null;
 		}
 		return match;

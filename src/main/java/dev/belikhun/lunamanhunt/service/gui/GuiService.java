@@ -249,7 +249,7 @@ public class GuiService {
 			return;
 		}
 		Inventory inventory = Bukkit.createInventory(new GuiHolder(GuiType.SPEEDRUNNER, match.getId()), 54,
-			Text.mm(UiColors.titlePrimary("Chọn speedrunner")));
+			Text.mm(UiColors.titlePrimary("Chọn ") + UiColors.speedrunner("Speedrunner")));
 		fillSpeedrunnerMenu(match, inventory);
 		player.openInventory(inventory);
 	}
@@ -260,7 +260,7 @@ public class GuiService {
 			return;
 		}
 		Inventory inventory = Bukkit.createInventory(new GuiHolder(GuiType.KIT_PREVIEW, match.getId()), 54,
-			Text.mm(UiColors.titlePrimary("Bộ đồ speedrunner")));
+			Text.mm(UiColors.titlePrimary("Bộ đồ ") + UiColors.speedrunner("Speedrunner")));
 		fillKitPreviewMenu(match, kit, inventory);
 		player.openInventory(inventory);
 	}
@@ -641,7 +641,7 @@ public class GuiService {
 
 		rows.add(new SettingRow(
 			Material.COMPASS,
-			"<yellow>ℹ</yellow> Speedrunner",
+			"<yellow>ℹ</yellow> " + UiColors.speedrunner("Speedrunner"),
 			List.of(
 				"<gray>Hiện tại: " + formatSpeedrunnerColored(settings) + "</gray>",
 				"<gray>Mặc định: " + formatSpeedrunnerColored(defaults) + "</gray>",
@@ -651,13 +651,15 @@ public class GuiService {
 			ACTION_SETTINGS_RESET_SPEEDRUNNER,
 			List.of(
 				buildOption(Material.COMPASS, "<yellow>ℹ</yellow> Ngẫu nhiên",
-					List.of("<gray>Tự chọn speedrunner.</gray>"), ACTION_SETTINGS_SPEEDRUNNER_RANDOM, null,
+					List.of("<gray>Tự chọn </gray>" + UiColors.speedrunner("Speedrunner") + "<gray>.</gray>"),
+					ACTION_SETTINGS_SPEEDRUNNER_RANDOM, null,
 					speedrunnerRandom),
 				buildOption(Material.PLAYER_HEAD, "<yellow>ℹ</yellow> Chọn người chơi",
 					List.of("<gray>Chọn từ danh sách.</gray>"), ACTION_SETTINGS_SPEEDRUNNER_PICK, null,
 					speedrunnerPick),
 				buildOption(Material.PLAYER_HEAD, "<yellow>ℹ</yellow> Là chính bạn",
-					List.of("<gray>Đặt bạn làm speedrunner.</gray>"), ACTION_SETTINGS_SPEEDRUNNER_ME, null,
+					List.of("<gray>Đặt bạn làm </gray>" + UiColors.speedrunner("Speedrunner") + "<gray>.</gray>"),
+					ACTION_SETTINGS_SPEEDRUNNER_ME, null,
 					speedrunnerMe)
 			)
 		));
@@ -907,7 +909,7 @@ public class GuiService {
 
 		rows.add(new SettingRow(
 			Material.CHEST,
-			"<yellow>ℹ</yellow> Bộ đồ speedrunner",
+			"<yellow>ℹ</yellow> Bộ đồ " + UiColors.speedrunner("Speedrunner"),
 			kitLore,
 			ACTION_SETTINGS_RESET_KIT,
 			kitOptions
@@ -1142,7 +1144,8 @@ public class GuiService {
 		inventory.setItem(31, buildInfoItem(Material.MAP,
 			"<yellow>ℹ</yellow> Tổng quan",
 			List.of(
-				"<gray>Speedrunner: " + formatSpeedrunnerColored(match.getSettings()) + "</gray>",
+				"<gray>" + UiColors.speedrunner("Speedrunner") + "<gray>: "
+					+ formatSpeedrunnerColored(match.getSettings()) + "</gray>",
 				"<gray>Viền tối đa: "
 					+ formatNumericValue(settings.getWorldBorderLimit(), defaults.getWorldBorderLimit()) + "</gray>",
 				" ",
@@ -1156,7 +1159,8 @@ public class GuiService {
 
 		List<String> settingsOverview = new ArrayList<>();
 		settingsOverview.add("<gray>● Hiển thị: " + formatVisibilityColored(settings.getVisibility()) + "</gray>");
-		settingsOverview.add("<gray>● Speedrunner: " + formatSpeedrunnerColored(settings) + "</gray>");
+		settingsOverview.add("<gray>● " + UiColors.speedrunner("Speedrunner") + "<gray>: "
+			+ formatSpeedrunnerColored(settings) + "</gray>");
 		settingsOverview.add("<gray>● Seed: " + seedText + "</gray>");
 		settingsOverview.add("<gray>● Phiên bản: "
 			+ formatGenVersionValue(settings.getWorldGenerationVersion(), defaults.getWorldGenerationVersion())
@@ -1220,7 +1224,7 @@ public class GuiService {
 					"<gray>Quyền: <white>Chủ phòng</white></gray>"
 				), ACTION_MATCH_INFO_CARDS, "0"));
 			inventory.setItem(16, buildActionItem(Material.CHEST,
-				"<yellow>ℹ</yellow> Bộ đồ speedrunner",
+				"<yellow>ℹ</yellow> Bộ đồ " + UiColors.speedrunner("Speedrunner"),
 				List.of(
 					"<gray>Bộ đồ hiện tại: " + kitText + "</gray>",
 					"<gray>Mặc định: " + defaultKitText + "</gray>",
@@ -1268,7 +1272,7 @@ public class GuiService {
 					"<gray>Trạng thái: <white>Chỉ xem</white></gray>"
 				), ACTION_MATCH_INFO_CARDS, "0"));
 			inventory.setItem(16, buildInfoItem(Material.CHEST,
-				"<yellow>ℹ</yellow> Bộ đồ speedrunner",
+				"<yellow>ℹ</yellow> Bộ đồ " + UiColors.speedrunner("Speedrunner"),
 				List.of(
 					"<gray>Bộ đồ hiện tại: " + kitText + "</gray>",
 					"<gray>Mặc định: " + defaultKitText + "</gray>",
@@ -1485,7 +1489,8 @@ public class GuiService {
 
 		inventory.setItem(45, buildActionItem(Material.COMPASS,
 			"<yellow>ℹ</yellow> Ngẫu nhiên",
-			List.of("<gray>Chọn speedrunner ngẫu nhiên.</gray>"), ACTION_SPEEDRUNNER_RANDOM, null));
+			List.of("<gray>Chọn </gray>" + UiColors.speedrunner("Speedrunner") + "<gray> ngẫu nhiên.</gray>"),
+			ACTION_SPEEDRUNNER_RANDOM, null));
 
 		inventory.setItem(53, buildActionItem(Material.ARROW,
 			"<yellow>ℹ</yellow> Quay lại",
@@ -1815,7 +1820,7 @@ public class GuiService {
 		MatchSettings defaults = matchSettingsService.createDefaults();
 		match.getSettings().setSpeedrunnerSelection(defaults.getSpeedrunnerSelection());
 		match.getSettings().setSpeedrunnerId(defaults.getSpeedrunnerId());
-		Text.msg(player, "<green>✔</green> Đã khôi phục speedrunner mặc định.");
+		Text.msg(player, "<green>✔</green> Đã khôi phục " + UiColors.speedrunner("Speedrunner") + " mặc định.");
 		openSettingsMenu(player, match, getSettingsPage(player));
 	}
 
@@ -2069,7 +2074,7 @@ public class GuiService {
 		}
 		match.getSettings().setSpeedrunnerSelection(SpeedrunnerSelection.RANDOM);
 		match.getSettings().setSpeedrunnerId(null);
-		Text.msg(player, "<green>✔</green> Đã chọn speedrunner ngẫu nhiên.");
+		Text.msg(player, "<green>✔</green> Đã chọn " + UiColors.speedrunner("Speedrunner") + " ngẫu nhiên.");
 		openSettingsMenu(player, match, getSettingsPage(player));
 	}
 
@@ -2080,7 +2085,7 @@ public class GuiService {
 		}
 		match.getSettings().setSpeedrunnerSelection(SpeedrunnerSelection.SPECIFIC);
 		match.getSettings().setSpeedrunnerId(player.getUniqueId());
-		Text.msg(player, "<green>✔</green> Đã chọn bạn làm speedrunner.");
+		Text.msg(player, "<green>✔</green> Đã chọn bạn làm " + UiColors.speedrunner("Speedrunner") + ".");
 		openSettingsMenu(player, match, getSettingsPage(player));
 	}
 
@@ -2101,7 +2106,7 @@ public class GuiService {
 		}
 		match.getSettings().setSpeedrunnerSelection(SpeedrunnerSelection.SPECIFIC);
 		match.getSettings().setSpeedrunnerId(targetUuid);
-		Text.msg(player, "<green>✔</green> Đã chọn speedrunner.");
+		Text.msg(player, "<green>✔</green> Đã chọn " + UiColors.speedrunner("Speedrunner") + ".");
 		openSettingsMenu(player, match, getSettingsPage(player));
 	}
 
@@ -2285,7 +2290,7 @@ public class GuiService {
 			return null;
 		}
 		if (match.getSpeedrunnerId() == null || !match.getSpeedrunnerId().equals(player.getUniqueId())) {
-			Text.msg(player, "<red>❌</red> Chỉ speedrunner mới dùng được thẻ.");
+			Text.msg(player, "<red>❌</red> Chỉ " + UiColors.speedrunner("Speedrunner") + " mới dùng được thẻ.");
 			return null;
 		}
 		return match;
@@ -2937,10 +2942,10 @@ public class GuiService {
 			return "Không rõ";
 		}
 		if (role.equalsIgnoreCase("SPEEDRUNNER")) {
-			return "Speedrunner";
+			return UiColors.speedrunner("Speedrunner");
 		}
 		if (role.equalsIgnoreCase("HUNTER")) {
-			return "Thợ săn";
+			return UiColors.hunter("Thợ săn");
 		}
 		return role;
 	}
@@ -2950,8 +2955,8 @@ public class GuiService {
 			return "Không rõ";
 		}
 		return switch (winner) {
-			case SPEEDRUNNER -> "Speedrunner";
-			case HUNTERS -> "Thợ săn";
+			case SPEEDRUNNER -> UiColors.speedrunner("Speedrunner");
+			case HUNTERS -> UiColors.hunter("Thợ săn");
 		};
 	}
 

@@ -1,6 +1,7 @@
 package dev.belikhun.lunamanhunt.service.kit;
 
 import dev.belikhun.lunamanhunt.model.kit.SpeedrunnerKitDefinition;
+import dev.belikhun.lunamanhunt.util.UiColors;
 import org.bukkit.Material;
 import org.bukkit.inventory.ItemStack;
 
@@ -117,7 +118,7 @@ public class SpeedrunnerKitStore {
 	private SpeedrunnerKitDefinition buildRangerKit() {
 		return new SpeedrunnerKitDefinition(
 			"ranger",
-			"Thợ săn",
+			UiColors.hunter("Thợ săn"),
 			Material.BOW,
 			List.of(
 				"<gray>Ưu tiên tầm xa và linh hoạt.</gray>",

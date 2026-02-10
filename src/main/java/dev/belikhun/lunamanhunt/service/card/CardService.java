@@ -258,7 +258,7 @@ public class CardService {
 		}
 		UUID speedrunnerId = match.getSpeedrunnerId();
 		if (speedrunnerId == null || !speedrunnerId.equals(player.getUniqueId())) {
-			Text.msg(player, "<red>❌</red> Chỉ speedrunner mới được dùng thẻ.");
+			Text.msg(player, "<red>❌</red> Chỉ " + UiColors.speedrunner("Speedrunner") + " mới được dùng thẻ.");
 			return false;
 		}
 		List<CardDefinition> pool = match.getDrawnCards();
@@ -286,7 +286,7 @@ public class CardService {
 		}
 		UUID speedrunnerId = match.getSpeedrunnerId();
 		if (speedrunnerId == null || !speedrunnerId.equals(player.getUniqueId())) {
-			Text.msg(player, "<red>❌</red> Chỉ speedrunner mới được giữ thẻ.");
+			Text.msg(player, "<red>❌</red> Chỉ " + UiColors.speedrunner("Speedrunner") + " mới được giữ thẻ.");
 			return false;
 		}
 		List<CardDefinition> pool = match.getDrawnCards();
@@ -324,7 +324,7 @@ public class CardService {
 		}
 		UUID speedrunnerId = match.getSpeedrunnerId();
 		if (speedrunnerId == null || !speedrunnerId.equals(player.getUniqueId())) {
-			Text.msg(player, "<red>❌</red> Chỉ speedrunner mới được bỏ thẻ.");
+			Text.msg(player, "<red>❌</red> Chỉ " + UiColors.speedrunner("Speedrunner") + " mới được bỏ thẻ.");
 			return false;
 		}
 		List<CardDefinition> slots = ensureCardSlots(match);
@@ -352,7 +352,7 @@ public class CardService {
 		}
 		UUID speedrunnerId = match.getSpeedrunnerId();
 		if (speedrunnerId == null || !speedrunnerId.equals(player.getUniqueId())) {
-			Text.msg(player, "<red>❌</red> Chỉ speedrunner mới được dùng thẻ.");
+			Text.msg(player, "<red>❌</red> Chỉ " + UiColors.speedrunner("Speedrunner") + " mới được dùng thẻ.");
 			return false;
 		}
 		if (!canUseCard(match, card)) {
@@ -427,9 +427,8 @@ public class CardService {
 		addPoint(match, 1);
 		drawNewCards(match);
 		Text.msg(player, "<green>✔</green> Bạn nhận được " + pointService.formatPoints(1)
-			+ " từ thành tựu. Hiện có: " + pointService.formatPoints(match.getSpeedrunnerPoints()) + ".");
-		Text.msg(player, "<yellow>ℹ</yellow> Dùng " + UiColors.command("/c") + " để sử dụng điểm.");
-		Text.msg(player, "<yellow>ℹ</yellow> Đã mở " + POOL_COUNT + " thẻ mới, hãy giữ vào ô thẻ.");
+			+ " từ thành tựu. Hiện có: " + pointService.formatPoints(match.getSpeedrunnerPoints()) + ". <gray>(" + UiColors.command("/c") + " để sử dụng điểm)</gray>");
+		Text.msg(player, "<yellow>ℹ</yellow> <green>Đã mở " + POOL_COUNT + " thẻ mới</green>, hãy giữ vào ô thẻ.");
 		player.playSound(player.getLocation(), Sound.BLOCK_NOTE_BLOCK_PLING, 0.7f, 1.3f);
 	}
 
@@ -622,7 +621,8 @@ public class CardService {
 		if (match == null || speedrunner == null || card == null) {
 			return;
 		}
-		String message = "<red>❌</red> Speedrunner <yellow>" + speedrunner.getName()
+		String message = "<red>❌</red> " + UiColors.speedrunner("Speedrunner") + " <yellow>"
+			+ speedrunner.getName()
 			+ "</yellow> đã dùng lời nguyền <yellow>" + card.getName() + "</yellow>.";
 		Set<UUID> targets = match.getHunters();
 		if (targets == null || targets.isEmpty()) {
