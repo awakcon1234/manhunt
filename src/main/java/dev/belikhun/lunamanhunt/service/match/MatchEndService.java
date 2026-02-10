@@ -325,10 +325,10 @@ public class MatchEndService {
 			"",
 			" <yellow>ℹ</yellow> " + UiColors.speedrunner("<white><b>THỐNG KÊ SPEEDRUNNER</b></white>"),
 			"",
-			" <#32faa7>⌚</#32faa7> <white>Nether: </white>" + netherTime + " <gray>●</gray> <white>End: </white>" + endTime,
-			" <yellow>●</yellow> <white>Hạ </white>" + UiColors.hunter("thợ săn") + "<white>: </white>" + huntersKilled
-				+ " <gray>●</gray> <white>Thẻ dùng: </white>" + cardsUsed,
-			" <yellow>●</yellow> <white>Dmg </white>" + UiColors.hunter("thợ săn") + "<white>: </white>" + damage,
+			" <white>Nether </white>" + netherTime + " <gray>●</gray> <white>End </white>" + endTime,
+			" <white>đã hạ </white><yellow>⚔</yellow> <white>" + huntersKilled + " </white>" + UiColors.hunter("thợ săn")
+				+ " <gray>●</gray> <white>tổng </white>" + damage + " <red>❤</red> <white>điểm sát thương</white>",
+			" <yellow>●</yellow> <white>thẻ dùng </white>" + cardsUsed,
 			"",
 			"",
 			""
@@ -346,10 +346,10 @@ public class MatchEndService {
 			"",
 			" <yellow>ℹ</yellow> " + UiColors.hunter("<white><b>THỐNG KÊ THỢ SĂN</b></white>"),
 			"",
-			" <yellow>●</yellow> <white>Mob: </white>" + mobKills + " <gray>●</gray> <white>Chết tự nhiên: </white>"
+			" <white>mob hạ </white><yellow>⚔</yellow> <white>" + mobKills + " <gray>●</gray> <white>chết tự nhiên </white>"
 				+ naturalDeaths,
-			" <yellow>●</yellow> <white>Bị hạ gục: </white>" + huntersKilled + " <gray>●</gray> <white>Dmg nhận: </white>"
-				+ damageTaken,
+			" <white>bị hạ </white><yellow>⚔</yellow> <white>" + huntersKilled + " <gray>●</gray> <white>tổng </white>"
+				+ damageTaken + " <red>❤</red> <white>dmg nhận</white>",
 			"",
 			"",
 			""
@@ -406,9 +406,9 @@ public class MatchEndService {
 
 	private String formatDurationColored(Long millis) {
 		if (millis == null || millis < 0L) {
-			return "<#ff6b6b>Chưa</#ff6b6b>";
+			return "<#ff6b6b>⌛ Chưa</#ff6b6b>";
 		}
-		return "<#7fd36b>" + formatDuration(millis) + "</#7fd36b>";
+		return "<#7fd36b>⌚ " + formatDuration(millis) + "</#7fd36b>";
 	}
 
 	private String formatCountColored(int value) {
