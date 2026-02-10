@@ -9,7 +9,6 @@ import dev.belikhun.lunamanhunt.service.lobby.LobbyManager;
 import dev.belikhun.lunamanhunt.service.persistence.ProfileStore;
 import dev.belikhun.lunamanhunt.util.Text;
 import dev.belikhun.lunamanhunt.util.UiColors;
-import org.bukkit.Bukkit;
 import org.bukkit.Sound;
 import org.bukkit.entity.Player;
 
@@ -176,16 +175,6 @@ public class WinConditionService {
 				}
 				profileStore.save(profile);
 			} catch (Exception ignored) {
-			}
-		}
-	}
-
-	private void broadcastMatch(Match match, String message) {
-		Set<UUID> recipients = Set.copyOf(match.getLobbyPlayers());
-		for (UUID id : recipients) {
-			Player player = Bukkit.getPlayer(id);
-			if (player != null) {
-				Text.msg(player, message);
 			}
 		}
 	}
