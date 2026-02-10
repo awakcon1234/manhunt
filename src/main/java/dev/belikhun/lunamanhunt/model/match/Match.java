@@ -9,128 +9,133 @@ import java.util.Set;
 import java.util.UUID;
 
 public class Match {
-    private final String id;
-    private final UUID ownerId;
-    private MatchState state;
-    private MatchSettings settings;
-    private MatchWorlds worlds;
-    private UUID speedrunnerId;
-    private MatchWinner winner;
-    private final Set<UUID> lobbyPlayers = new HashSet<>();
-    private final Set<UUID> hunters = new HashSet<>();
-    private final Set<UUID> invitedPlayers = new HashSet<>();
-    private final List<CardDefinition> drawnCards = new ArrayList<>();
-    private final List<CardDefinition> keptCards = new ArrayList<>();
-    private int speedrunnerPoints;
-    private long createdAtMillis;
-    private Long startedAtMillis;
-    private Long endedAtMillis;
+	private final String id;
+	private final UUID ownerId;
+	private MatchState state;
+	private MatchSettings settings;
+	private MatchWorlds worlds;
+	private UUID speedrunnerId;
+	private MatchWinner winner;
+	private final Set<UUID> lobbyPlayers = new HashSet<>();
+	private final Set<UUID> hunters = new HashSet<>();
+	private final Set<UUID> invitedPlayers = new HashSet<>();
+	private final List<CardDefinition> drawnCards = new ArrayList<>();
+	private final List<CardDefinition> keptCards = new ArrayList<>();
+	private final MatchStats stats = new MatchStats();
+	private int speedrunnerPoints;
+	private long createdAtMillis;
+	private Long startedAtMillis;
+	private Long endedAtMillis;
 
-    public Match(String id, UUID ownerId, MatchSettings settings) {
-        this.id = id;
-        this.ownerId = ownerId;
-        this.settings = settings;
-        this.state = MatchState.LOBBY;
-        this.createdAtMillis = System.currentTimeMillis();
-    }
+	public Match(String id, UUID ownerId, MatchSettings settings) {
+		this.id = id;
+		this.ownerId = ownerId;
+		this.settings = settings;
+		this.state = MatchState.LOBBY;
+		this.createdAtMillis = System.currentTimeMillis();
+	}
 
-    public String getId() {
-        return id;
-    }
+	public String getId() {
+		return id;
+	}
 
-    public UUID getOwnerId() {
-        return ownerId;
-    }
+	public UUID getOwnerId() {
+		return ownerId;
+	}
 
-    public MatchState getState() {
-        return state;
-    }
+	public MatchState getState() {
+		return state;
+	}
 
-    public void setState(MatchState state) {
-        this.state = state;
-    }
+	public void setState(MatchState state) {
+		this.state = state;
+	}
 
-    public MatchSettings getSettings() {
-        return settings;
-    }
+	public MatchSettings getSettings() {
+		return settings;
+	}
 
-    public void setSettings(MatchSettings settings) {
-        this.settings = settings;
-    }
+	public void setSettings(MatchSettings settings) {
+		this.settings = settings;
+	}
 
-    public MatchWorlds getWorlds() {
-        return worlds;
-    }
+	public MatchWorlds getWorlds() {
+		return worlds;
+	}
 
-    public void setWorlds(MatchWorlds worlds) {
-        this.worlds = worlds;
-    }
+	public void setWorlds(MatchWorlds worlds) {
+		this.worlds = worlds;
+	}
 
-    public UUID getSpeedrunnerId() {
-        return speedrunnerId;
-    }
+	public UUID getSpeedrunnerId() {
+		return speedrunnerId;
+	}
 
-    public void setSpeedrunnerId(UUID speedrunnerId) {
-        this.speedrunnerId = speedrunnerId;
-    }
+	public void setSpeedrunnerId(UUID speedrunnerId) {
+		this.speedrunnerId = speedrunnerId;
+	}
 
-    public MatchWinner getWinner() {
-        return winner;
-    }
+	public MatchWinner getWinner() {
+		return winner;
+	}
 
-    public void setWinner(MatchWinner winner) {
-        this.winner = winner;
-    }
+	public void setWinner(MatchWinner winner) {
+		this.winner = winner;
+	}
 
-    public Set<UUID> getLobbyPlayers() {
-        return lobbyPlayers;
-    }
+	public Set<UUID> getLobbyPlayers() {
+		return lobbyPlayers;
+	}
 
-    public Set<UUID> getHunters() {
-        return hunters;
-    }
+	public Set<UUID> getHunters() {
+		return hunters;
+	}
 
-    public Set<UUID> getInvitedPlayers() {
-        return invitedPlayers;
-    }
+	public Set<UUID> getInvitedPlayers() {
+		return invitedPlayers;
+	}
 
-    public List<CardDefinition> getDrawnCards() {
-        return drawnCards;
-    }
+	public List<CardDefinition> getDrawnCards() {
+		return drawnCards;
+	}
 
-    public List<CardDefinition> getKeptCards() {
-        return keptCards;
-    }
+	public List<CardDefinition> getKeptCards() {
+		return keptCards;
+	}
 
-    public int getSpeedrunnerPoints() {
-        return speedrunnerPoints;
-    }
+	public int getSpeedrunnerPoints() {
+		return speedrunnerPoints;
+	}
 
-    public void setSpeedrunnerPoints(int speedrunnerPoints) {
-        this.speedrunnerPoints = speedrunnerPoints;
-    }
+	public MatchStats getStats() {
+		return stats;
+	}
 
-    public long getCreatedAtMillis() {
-        return createdAtMillis;
-    }
+	public void setSpeedrunnerPoints(int speedrunnerPoints) {
+		this.speedrunnerPoints = speedrunnerPoints;
+	}
 
-    public void setCreatedAtMillis(long createdAtMillis) {
-        this.createdAtMillis = createdAtMillis;
-    }
+	public long getCreatedAtMillis() {
+		return createdAtMillis;
+	}
 
-    public Long getStartedAtMillis() {
-        return startedAtMillis;
-    }
+	public void setCreatedAtMillis(long createdAtMillis) {
+		this.createdAtMillis = createdAtMillis;
+	}
 
-    public void setStartedAtMillis(Long startedAtMillis) {
-        this.startedAtMillis = startedAtMillis;
-    }
+	public Long getStartedAtMillis() {
+		return startedAtMillis;
+	}
 
-    public Long getEndedAtMillis() {
-        return endedAtMillis;
-    }
+	public void setStartedAtMillis(Long startedAtMillis) {
+		this.startedAtMillis = startedAtMillis;
+	}
 
-    public void setEndedAtMillis(Long endedAtMillis) {
-        this.endedAtMillis = endedAtMillis;
-    }
+	public Long getEndedAtMillis() {
+		return endedAtMillis;
+	}
+
+	public void setEndedAtMillis(Long endedAtMillis) {
+		this.endedAtMillis = endedAtMillis;
+	}
 }

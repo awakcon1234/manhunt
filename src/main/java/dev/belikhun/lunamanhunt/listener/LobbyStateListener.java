@@ -2,6 +2,9 @@ package dev.belikhun.lunamanhunt.listener;
 
 import dev.belikhun.lunamanhunt.service.spawn.LobbyItemService;
 import dev.belikhun.lunamanhunt.service.spawn.LobbyTeleportService;
+import dev.belikhun.lunamanhunt.util.Text;
+import dev.belikhun.lunamanhunt.util.UiColors;
+import org.bukkit.Sound;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerChangedWorldEvent;
@@ -25,6 +28,9 @@ public class LobbyStateListener implements Listener {
 		player.getInventory().setArmorContents(null);
 		player.getInventory().setItemInOffHand(null);
 		lobbyTeleportService.teleportToLobby(player, false);
+		Text.msg(player, "<yellow>ℹ</yellow> Chào mừng đến với <white>LunaManhunt</white>!");
+		Text.msg(player, "<yellow>ℹ</yellow> Dùng " + UiColors.command("/match") + " để tạo hoặc tham gia phòng.");
+		player.playSound(player.getLocation(), Sound.UI_TOAST_IN, 0.7f, 1.0f);
 	}
 
 	@EventHandler

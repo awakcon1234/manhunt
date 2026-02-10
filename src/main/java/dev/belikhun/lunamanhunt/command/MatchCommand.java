@@ -9,6 +9,7 @@ import dev.belikhun.lunamanhunt.service.gui.GuiService;
 import dev.belikhun.lunamanhunt.util.Text;
 import dev.belikhun.lunamanhunt.util.UiColors;
 import dev.belikhun.lunamanhunt.service.spawn.LobbyItemService;
+import org.bukkit.Sound;
 import org.bukkit.Bukkit;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
@@ -116,6 +117,7 @@ public class MatchCommand implements TabExecutor {
 		Match match = lobbyManager.createMatch(player.getUniqueId());
 		Text.msg(player, "<green>✔</green> Đã tạo phòng <yellow>" + match.getId() + "</yellow>.");
 		lobbyItemService.applyLobbyStateIfEligible(player);
+		playSuccessSound(player);
 	}
 
 	private void handleJoin(Player player, String[] args) {
@@ -130,6 +132,7 @@ public class MatchCommand implements TabExecutor {
 		Text.msg(player, result.getMessage());
 		if (result.isSuccess()) {
 			lobbyItemService.applyLobbyStateIfEligible(player);
+			playSuccessSound(player);
 		}
 	}
 
@@ -155,6 +158,7 @@ public class MatchCommand implements TabExecutor {
 		Text.msg(player, result.getMessage());
 		if (result.isSuccess()) {
 			sendInviteMessage(target, match);
+			playSuccessSound(player);
 		}
 	}
 
@@ -163,12 +167,16 @@ public class MatchCommand implements TabExecutor {
 		Text.msg(player, result.getMessage());
 		if (result.isSuccess()) {
 			lobbyItemService.applyLobbyStateIfEligible(player);
+			playSuccessSound(player);
 		}
 	}
 
 	private void handleDecline(Player player) {
 		LobbyActionResult result = lobbyManager.declineInvite(player.getUniqueId());
 		Text.msg(player, result.getMessage());
+		if (result.isSuccess()) {
+			playSuccessSound(player);
+		}
 	}
 
 	private void handleStart(Player player) {
@@ -191,6 +199,7 @@ public class MatchCommand implements TabExecutor {
 		boolean started = matchManager.startMatch(match);
 		if (started) {
 			Text.msg(player, "<green>✔</green> Đang tạo thế giới cho trận đấu...");
+			playSuccessSound(player);
 			return;
 		}
 		Text.msg(player, "<red>❌</red> Không thể bắt đầu trận đấu lúc này.");
@@ -203,6 +212,9 @@ public class MatchCommand implements TabExecutor {
 		LobbyActionResult result = lobbyManager.leave(player.getUniqueId());
 		Text.msg(player, result.getMessage());
 		lobbyItemService.applyLobbyStateIfEligible(player);
+		if (result.isSuccess()) {
+			playSuccessSound(player);
+		}
 	}
 
 	private void handleSeed(Player player, String[] args) {
@@ -221,10 +233,12 @@ public class MatchCommand implements TabExecutor {
 		if (value.equalsIgnoreCase("xoa")) {
 			match.getSettings().setWorldSeed(null);
 			Text.msg(player, "<green>✔</green> Đã xóa seed.");
+			playSuccessSound(player);
 			return;
 		}
 		match.getSettings().setWorldSeed(value);
 		Text.msg(player, "<green>✔</green> Đã đặt seed.");
+		playSuccessSound(player);
 	}
 
 	private void handleKit(Player player, String[] args) {
@@ -245,6 +259,14 @@ public class MatchCommand implements TabExecutor {
 		}
 		match.getSettings().setSpeedrunnerKit(List.of());
 		Text.msg(player, "<green>✔</green> Đã xóa bộ đồ speedrunner.");
+		playSuccessSound(player);
+	}
+
+	private void playSuccessSound(Player player) {
+		if (player == null) {
+			return;
+		}
+		player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 0.7f, 1.0f);
 	}
 
 	private void sendHelp(Player player) {
@@ -275,6 +297,7 @@ public class MatchCommand implements TabExecutor {
 			+ "<red><click:run_command:'/m decline'><hover:show_text:'<gray>Bấm để từ chối</gray>'><b>[TỪ CHỐI]</b></hover></click></red> "
 			+ "<gray>(</gray>" + UiColors.command("/m accept") + "<gray> | </gray>"
 			+ UiColors.command("/m decline") + "<gray>)</gray>"));
+		target.playSound(target.getLocation(), Sound.UI_TOAST_IN, 0.7f, 1.0f);
 	}
 
 	private void handleGui(Player player) {

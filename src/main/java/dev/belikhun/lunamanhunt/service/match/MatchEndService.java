@@ -16,6 +16,7 @@ import org.bukkit.Color;
 import org.bukkit.GameMode;
 import org.bukkit.Location;
 import org.bukkit.World;
+import org.bukkit.Sound;
 import org.bukkit.entity.Firework;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.meta.FireworkMeta;
@@ -38,6 +39,7 @@ public class MatchEndService {
 	private static final int CLEANUP_RETRY_LIMIT = 5;
 	private static final int CLEANUP_RETRY_DELAY_TICKS = 40;
 	private static final int WORLD_DELETE_RETRY_LIMIT = 5;
+	private static final int WORLD_DELETE_SPACING_TICKS = 20;
 	private final JavaPlugin plugin;
 	private final LobbyManager lobbyManager;
 	private final MultiverseService multiverseService;
@@ -75,8 +77,9 @@ public class MatchEndService {
 		match.setWinner(MatchWinner.HUNTERS);
 		match.setState(MatchState.ENDING);
 		broadcast(match, message);
+		scheduleEndBoards(match);
 		if (!showSequence) {
-			finishMatch(match, true);
+			finishMatch(match, true, POST_TELEPORT_CLEANUP_DELAY_TICKS);
 			return;
 		}
 		startHunterWinSequence(match, deathLocation);
@@ -89,6 +92,7 @@ public class MatchEndService {
 		match.setWinner(MatchWinner.SPEEDRUNNER);
 		match.setState(MatchState.ENDING);
 		broadcast(match, message);
+		scheduleEndBoards(match);
 		broadcast(match, "<yellow>ℹ</yellow> Speedrunner hãy vào cổng End để kết thúc trận đấu.");
 
 		UUID speedrunnerId = match.getSpeedrunnerId();
@@ -115,13 +119,8 @@ public class MatchEndService {
 		awaitingPortal.remove(match.getId());
 		debugCleanup("Speedrunner portal accepted: player=" + player.getName()
 			+ " match=" + match.getId()
-			+ " delayTicks=" + SPEEDRUNNER_CLEANUP_DELAY_TICKS);
-		new BukkitRunnable() {
-			@Override
-			public void run() {
-				finishMatch(match, true);
-			}
-		}.runTaskLater(plugin, SPEEDRUNNER_CLEANUP_DELAY_TICKS);
+			+ " cleanupDelayTicks=" + SPEEDRUNNER_CLEANUP_DELAY_TICKS);
+		finishMatch(match, true, SPEEDRUNNER_CLEANUP_DELAY_TICKS);
 		return true;
 	}
 
@@ -220,9 +219,105 @@ public class MatchEndService {
 		new BukkitRunnable() {
 			@Override
 			public void run() {
-				finishMatch(match, true);
+				finishMatch(match, true, POST_TELEPORT_CLEANUP_DELAY_TICKS);
 			}
 		}.runTaskLater(plugin, 20L * 10);
+	}
+
+	private void scheduleEndBoards(Match match) {
+		if (match == null) {
+			return;
+		}
+		sendBoard(match, buildWinnerBoard(match));
+		new BukkitRunnable() {
+			@Override
+			public void run() {
+				sendBoard(match, buildStatsBoard(match));
+			}
+		}.runTaskLater(plugin, 20L * 5);
+	}
+
+	private void sendBoard(Match match, List<String> lines) {
+		if (match == null || lines == null || lines.isEmpty()) {
+			return;
+		}
+		for (UUID id : Set.copyOf(match.getLobbyPlayers())) {
+			Player player = Bukkit.getPlayer(id);
+			if (player == null) {
+				continue;
+			}
+			for (String line : lines) {
+				Text.tell(player, line);
+			}
+		}
+	}
+
+	private List<String> buildWinnerBoard(Match match) {
+		String winnerLabel = match.getWinner() == MatchWinner.SPEEDRUNNER
+			? "<#8fd3ff>Speedrunner</#8fd3ff>"
+			: "<#ffb84d>Thợ săn</#ffb84d>";
+		String speedrunnerName = resolvePlayerName(match.getSpeedrunnerId());
+		String duration = formatDuration(resolveMatchDuration(match));
+		int points = match.getSpeedrunnerPoints();
+		int huntersKilled = match.getStats().getHuntersKilled();
+		return List.of(
+			"<gray>+--------------------------------------------------+</gray>",
+			" <yellow>✔</yellow> <white><b>BẢNG KẾT QUẢ TRẬN ĐẤU</b></white>",
+			"<gray>+--------------------------------------------------+</gray>",
+			" <yellow>●</yellow> <white>Người chiến thắng: " + winnerLabel + "</white>",
+			" <yellow>●</yellow> <white>Speedrunner: <#8fd3ff>" + speedrunnerName + "</#8fd3ff></white>",
+			" <yellow>●</yellow> <white>Thời gian hoàn thành: <green>" + duration + "</green></white>",
+			" <yellow>●</yellow> <white>Điểm thu thập: <green>" + points + "</green></white>",
+			" <yellow>●</yellow> <white>Hunter bị hạ: <green>" + huntersKilled + "</green></white>",
+			" <yellow>●</yellow> <white>Mã phòng: <yellow>" + match.getId() + "</yellow></white>",
+			"<gray>+--------------------------------------------------+</gray>"
+		);
+	}
+
+	private List<String> buildStatsBoard(Match match) {
+		var stats = match.getStats();
+		String netherTime = formatDuration(stats.getTimeToNetherMillis());
+		String endTime = formatDuration(stats.getTimeToEndMillis());
+		String damage = String.format(java.util.Locale.US, "%.1f", stats.getDamageToHunters());
+		return List.of(
+			"<gray>+--------------------------------------------------+</gray>",
+			" <yellow>ℹ</yellow> <white><b>THỐNG KÊ TRẬN ĐẤU</b></white>",
+			"<gray>+--------------------------------------------------+</gray>",
+			" <yellow>●</yellow> <white>Quái đã hạ: <green>" + stats.getMobKills() + "</green></white>",
+			" <yellow>●</yellow> <white>Vào Nether: <green>" + netherTime + "</green></white>",
+			" <yellow>●</yellow> <white>Vào End: <green>" + endTime + "</green></white>",
+			" <yellow>●</yellow> <white>Chết tự nhiên: <green>" + stats.getNaturalDeaths() + "</green></white>",
+			" <yellow>●</yellow> <white>Thẻ đã dùng: <green>" + stats.getCardsUsed() + "</green></white>",
+			" <yellow>●</yellow> <white>Sát thương lên Hunter: <green>" + damage + "</green></white>",
+			"<gray>+--------------------------------------------------+</gray>"
+		);
+	}
+
+	private long resolveMatchDuration(Match match) {
+		long start = match.getStartedAtMillis() != null
+			? match.getStartedAtMillis()
+			: match.getCreatedAtMillis();
+		return Math.max(0L, System.currentTimeMillis() - start);
+	}
+
+	private String formatDuration(Long millis) {
+		if (millis == null || millis < 0L) {
+			return "Chưa";
+		}
+		long totalSeconds = millis / 1000L;
+		long minutes = totalSeconds / 60L;
+		long seconds = totalSeconds % 60L;
+		return String.format(java.util.Locale.US, "%02d:%02d", minutes, seconds);
+	}
+
+	private String resolvePlayerName(UUID playerId) {
+		Player online = playerId == null ? null : Bukkit.getPlayer(playerId);
+		if (online != null && online.getName() != null && !online.getName().isBlank()) {
+			return online.getName();
+		}
+		var offline = playerId == null ? null : Bukkit.getOfflinePlayer(playerId);
+		String name = offline == null ? null : offline.getName();
+		return name == null || name.isBlank() ? "Người chơi" : name;
 	}
 
 	private Location resolveHunterWinLocation(Match match, Location deathLocation) {
@@ -259,7 +354,7 @@ public class MatchEndService {
 		}.runTaskTimer(plugin, 0L, 10L);
 	}
 
-	private void finishMatch(Match match, boolean clearInventory) {
+	private void finishMatch(Match match, boolean clearInventory, long cleanupDelayTicks) {
 		awaitingPortal.remove(match.getId());
 		cardService.clearActiveCards(match);
 		match.setState(MatchState.CLEANUP);
@@ -277,14 +372,18 @@ public class MatchEndService {
 					player.getInventory().setItemInOffHand(null);
 					player.getInventory().setExtraContents(null);
 				}
+				player.setTotalExperience(0);
+				player.setLevel(0);
+				player.setExp(0.0f);
 				Text.msg(player, "<yellow>ℹ</yellow> Trận đấu đã kết thúc, đang đưa bạn về sảnh...");
+				player.playSound(player.getLocation(), Sound.UI_TOAST_OUT, 0.7f, 1.0f);
 				lobbyTeleportService.teleportToLobby(player, false);
 			}
 		}
-		scheduleCleanup(match);
+		scheduleCleanup(match, cleanupDelayTicks);
 	}
 
-	private void scheduleCleanup(Match match) {
+	private void scheduleCleanup(Match match, long delayTicks) {
 		if (match == null) {
 			return;
 		}
@@ -292,13 +391,13 @@ public class MatchEndService {
 			return;
 		}
 		debugCleanup("Cleanup scheduled: match=" + match.getId()
-			+ " delayTicks=" + POST_TELEPORT_CLEANUP_DELAY_TICKS);
+			+ " delayTicks=" + delayTicks);
 		new BukkitRunnable() {
 			@Override
 			public void run() {
 				cleanupWorlds(match);
 			}
-		}.runTaskLater(plugin, POST_TELEPORT_CLEANUP_DELAY_TICKS);
+		}.runTaskLater(plugin, Math.max(0L, delayTicks));
 	}
 
 	private void finalizeCleanup(Match match) {
@@ -342,10 +441,18 @@ public class MatchEndService {
 			worlds.getNetherName(),
 			worlds.getEndName()
 		);
-		deleteWorld(worlds.getOverworldName());
-		deleteWorld(worlds.getNetherName());
-		deleteWorld(worlds.getEndName());
+		scheduleDeleteWorld(worlds.getOverworldName(), 0);
+		scheduleDeleteWorld(worlds.getNetherName(), WORLD_DELETE_SPACING_TICKS);
+		scheduleDeleteWorld(worlds.getEndName(), WORLD_DELETE_SPACING_TICKS * 2L);
 		finalizeCleanup(match);
+	}
+
+	private void scheduleDeleteWorld(String worldName, long delayTicks) {
+		if (delayTicks <= 0L) {
+			deleteWorld(worldName);
+			return;
+		}
+		Bukkit.getScheduler().runTaskLater(plugin, () -> deleteWorld(worldName), delayTicks);
 	}
 
 	private boolean hasPlayersInMatchWorlds(MatchWorlds worlds) {
@@ -387,11 +494,13 @@ public class MatchEndService {
 		deleteWorldRetries.remove(worldName);
 		removeWorldFromMultiverse(worldName);
 		File folder = new File(Bukkit.getWorldContainer(), worldName);
-		if (deleteFolder(folder)) {
-			removeQueuedWorld(worldName);
-		} else {
-			queueWorldCleanup(worldName);
-		}
+		Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
+			if (deleteFolder(folder)) {
+				removeQueuedWorld(worldName);
+			} else {
+				queueWorldCleanup(worldName);
+			}
+		});
 	}
 
 	private void removeWorldFromMultiverse(String worldName) {

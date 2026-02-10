@@ -9,6 +9,7 @@ import dev.belikhun.lunamanhunt.service.lobby.LobbyManager;
 import dev.belikhun.lunamanhunt.service.persistence.ProfileStore;
 import dev.belikhun.lunamanhunt.util.Text;
 import org.bukkit.Bukkit;
+import org.bukkit.Sound;
 import org.bukkit.entity.Player;
 
 import java.util.Objects;
@@ -45,7 +46,10 @@ public class WinConditionService {
 		if (!match.getHunters().contains(killer.getUniqueId())) {
 			return false;
 		}
-
+		Text.msg(killer, "<green>✔</green> Bạn đã hạ Speedrunner!");
+		killer.playSound(killer.getLocation(), Sound.ENTITY_PLAYER_LEVELUP, 0.8f, 1.0f);
+		Text.msg(victim, "<red>❌</red> Bạn đã bị Hunter hạ gục.");
+		victim.playSound(victim.getLocation(), Sound.UI_TOAST_OUT, 0.7f, 1.0f);
 		endWithHuntersByKill(match, deathLocation);
 		return true;
 	}
@@ -62,7 +66,8 @@ public class WinConditionService {
 		if (!isSpeedrunner(match, killer.getUniqueId())) {
 			return false;
 		}
-
+		Text.msg(killer, "<green>✔</green> Bạn đã hạ Ender Dragon! Hãy vào cổng End để kết thúc.");
+		killer.playSound(killer.getLocation(), Sound.UI_TOAST_CHALLENGE_COMPLETE, 0.8f, 1.0f);
 		endWithSpeedrunner(match);
 		return true;
 	}

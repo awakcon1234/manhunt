@@ -10,6 +10,7 @@ import dev.belikhun.lunamanhunt.service.compass.CompassService;
 import dev.belikhun.lunamanhunt.service.kit.SpeedrunnerKitService;
 import dev.belikhun.lunamanhunt.service.lobby.LobbyManager;
 import dev.belikhun.lunamanhunt.service.integration.NetherPortalsService;
+import dev.belikhun.lunamanhunt.service.point.PointService;
 import dev.belikhun.lunamanhunt.service.worldgen.WorldGenerationService;
 import dev.belikhun.lunamanhunt.util.Text;
 import dev.belikhun.lunamanhunt.util.UiColors;
@@ -20,6 +21,8 @@ import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.Sound;
 import org.bukkit.World;
+import org.bukkit.advancement.Advancement;
+import org.bukkit.advancement.AdvancementProgress;
 import org.bukkit.entity.Player;
 import org.bukkit.GameMode;
 import org.bukkit.inventory.ItemStack;
@@ -52,6 +55,7 @@ public class MatchLifecycleService {
 	private final SpeedrunnerKitService kitService;
 	private final CardService cardService;
 	private final NetherPortalsService netherPortalsService;
+	private final PointService pointService;
 	private final Random random = new Random();
 	private final ConcurrentMap<String, BukkitTask> worldProgressTasks = new ConcurrentHashMap<>();
 	private final ConcurrentMap<String, BukkitTask> overworldWarmupTasks = new ConcurrentHashMap<>();
@@ -63,7 +67,7 @@ public class MatchLifecycleService {
 
 	public MatchLifecycleService(JavaPlugin plugin, LobbyManager lobbyManager, MatchManager matchManager,
 			CompassService compassService, SpeedrunnerKitService kitService, CardService cardService,
-			NetherPortalsService netherPortalsService) {
+			NetherPortalsService netherPortalsService, PointService pointService) {
 		this.plugin = Objects.requireNonNull(plugin, "plugin");
 		this.lobbyManager = Objects.requireNonNull(lobbyManager, "lobbyManager");
 		this.matchManager = Objects.requireNonNull(matchManager, "matchManager");
@@ -71,6 +75,7 @@ public class MatchLifecycleService {
 		this.kitService = Objects.requireNonNull(kitService, "kitService");
 		this.cardService = Objects.requireNonNull(cardService, "cardService");
 		this.netherPortalsService = Objects.requireNonNull(netherPortalsService, "netherPortalsService");
+		this.pointService = Objects.requireNonNull(pointService, "pointService");
 	}
 
 	public void handleWorldsCreating(Match match) {
@@ -79,6 +84,7 @@ public class MatchLifecycleService {
 		}
 		preparationStartMillis.putIfAbsent(match.getId(), System.currentTimeMillis());
 		broadcast(match, "<yellow>ℹ</yellow> Trận đấu đang được chuẩn bị, hãy sẵn sàng!");
+		playMatchSound(match, Sound.UI_TOAST_IN, 0.7f, 1.0f);
 		sendActionBar(match, "<yellow>⌛</yellow> Đang tạo thế giới: <white>0/" + WORLD_TOTAL + "</white>");
 		startWorldProgressTask(match);
 	}
@@ -95,6 +101,7 @@ public class MatchLifecycleService {
 		String label = formatWorldLabel(bukkitWorld.getEnvironment());
 		String seed = formatSeedValue(bukkitWorld.getSeed());
 		broadcast(match, "<green>✔</green> Thế giới <yellow>" + label + "</yellow> đã tạo xong. Seed: " + seed + ".");
+		playMatchSound(match, Sound.BLOCK_NOTE_BLOCK_PLING, 0.7f, 1.2f);
 	}
 
 	public void handleWorldsReady(Match match) {
@@ -119,6 +126,7 @@ public class MatchLifecycleService {
 		}
 		match.setSpeedrunnerId(speedrunnerId);
 		assignHunters(match, speedrunnerId);
+		broadcast(match, "<yellow>ℹ</yellow> Speedrunner: <yellow>" + resolvePlayerName(speedrunnerId) + "</yellow>.");
 		startOverworldWarmup(match, overworld);
 	}
 
@@ -163,6 +171,8 @@ public class MatchLifecycleService {
 		if (!matchManager.beginRun(match)) {
 			return false;
 		}
+		clearMatchAdvancements(match);
+		clearMatchExperience(match);
 		stopPendingActionTask(match.getId());
 		applyWorldBorderLimit(match);
 		setGameMode(match, GameMode.SURVIVAL);
@@ -178,11 +188,58 @@ public class MatchLifecycleService {
 		if (speedrunner != null) {
 			Text.msg(speedrunner, "<green>✔</green> Bạn nhận được <white>1</white> điểm khởi đầu và <white>7</white> thẻ mới.");
 			Text.msg(speedrunner, "<yellow>ℹ</yellow> Dùng " + UiColors.command("/c") + " để sử dụng điểm.");
+			speedrunner.playSound(speedrunner.getLocation(), Sound.BLOCK_NOTE_BLOCK_PLING, 0.7f, 1.2f);
 		}
 		playMatchStartSound(match);
 		broadcast(match, "<green>✔</green> Trận đấu bắt đầu. Chúc may mắn!");
 		startRunningActionTask(match);
 		return true;
+	}
+
+	private void clearMatchAdvancements(Match match) {
+		if (match == null) {
+			return;
+		}
+		for (UUID id : Set.copyOf(match.getLobbyPlayers())) {
+			Player player = Bukkit.getPlayer(id);
+			if (player != null) {
+				clearPlayerAdvancements(player);
+			}
+		}
+	}
+
+	private void clearPlayerAdvancements(Player player) {
+		if (player == null) {
+			return;
+		}
+		for (java.util.Iterator<Advancement> it = Bukkit.advancementIterator(); it.hasNext(); ) {
+			Advancement advancement = it.next();
+			AdvancementProgress progress = player.getAdvancementProgress(advancement);
+			for (String criteria : List.copyOf(progress.getAwardedCriteria())) {
+				progress.revokeCriteria(criteria);
+			}
+		}
+	}
+
+	private void clearMatchExperience(Match match) {
+		if (match == null) {
+			return;
+		}
+		for (UUID id : Set.copyOf(match.getLobbyPlayers())) {
+			Player player = Bukkit.getPlayer(id);
+			if (player != null) {
+				clearPlayerExperience(player);
+			}
+		}
+	}
+
+	private void clearPlayerExperience(Player player) {
+		if (player == null) {
+			return;
+		}
+		player.setTotalExperience(0);
+		player.setLevel(0);
+		player.setExp(0.0f);
 	}
 
 	public boolean shouldCancelPendingDamage(Player attacker, Player victim) {
@@ -717,6 +774,8 @@ public class MatchLifecycleService {
 					stopWorldProgressTask(match.getId());
 					clearActionBar(match);
 					cancel();
+					broadcast(match, "<green>✔</green> Overworld đã sẵn sàng. Chuẩn bị đếm ngược...");
+					playMatchSound(match, Sound.UI_BUTTON_CLICK, 0.7f, 1.1f);
 					startCountdown(match, overworld);
 				}
 			}
@@ -736,6 +795,7 @@ public class MatchLifecycleService {
 			linkMatchPortals(worlds);
 		}
 		broadcast(match, "<yellow>⌛</yellow> Bắt đầu đếm ngược <white>" + COUNTDOWN_SECONDS + "</white> giây.");
+		playMatchSound(match, Sound.UI_BUTTON_CLICK, 0.7f, 1.0f);
 		BukkitRunnable runnable = new BukkitRunnable() {
 			int seconds = COUNTDOWN_SECONDS;
 
@@ -778,6 +838,8 @@ public class MatchLifecycleService {
 		giveSpeedrunnerKit(match, match.getSpeedrunnerId());
 		match.setState(MatchState.RUN_PENDING);
 		broadcastMatchInfo(match, overworld);
+		broadcast(match, "<green>✔</green> Đã đưa vào thế giới trận đấu. Hãy sẵn sàng!");
+		playMatchSound(match, Sound.UI_TOAST_IN, 0.7f, 1.0f);
 		sendRunPendingGuide(match);
 		startPendingActionTask(match);
 	}
@@ -854,9 +916,20 @@ public class MatchLifecycleService {
 			if (startedAt == null) {
 				return;
 			}
+			UUID speedrunnerId = match.getSpeedrunnerId();
 			String timeText = formatRunTime(System.currentTimeMillis() - startedAt);
-			String message = "<#32faa7>⌚</#32faa7> <white>" + timeText + "</white>";
-			sendActionBar(match, message);
+			for (UUID id : Set.copyOf(match.getLobbyPlayers())) {
+				Player player = Bukkit.getPlayer(id);
+				if (player == null) {
+					continue;
+				}
+				String message = "<#32faa7>⌚</#32faa7> <white>" + timeText + "</white>";
+				if (speedrunnerId != null && speedrunnerId.equals(id)) {
+					message = message + " <gray>•</gray> <white>" + pointService.formatPoints(match.getSpeedrunnerPoints())
+						+ "</white>";
+				}
+				player.sendActionBar(Text.mm(message));
+			}
 		}, 0L, RUN_ACTIONBAR_TICKS);
 		runningActionTasks.put(match.getId(), task);
 	}
@@ -938,6 +1011,28 @@ public class MatchLifecycleService {
 				player.sendActionBar(Text.mm(message));
 			}
 		}
+	}
+
+	private void playMatchSound(Match match, Sound sound, float volume, float pitch) {
+		if (match == null || sound == null) {
+			return;
+		}
+		for (UUID id : Set.copyOf(match.getLobbyPlayers())) {
+			Player player = Bukkit.getPlayer(id);
+			if (player != null) {
+				player.playSound(player.getLocation(), sound, volume, pitch);
+			}
+		}
+	}
+
+	private String resolvePlayerName(UUID playerId) {
+		Player online = Bukkit.getPlayer(playerId);
+		if (online != null && online.getName() != null && !online.getName().isBlank()) {
+			return online.getName();
+		}
+		var offline = Bukkit.getOfflinePlayer(playerId);
+		String name = offline == null ? null : offline.getName();
+		return name == null || name.isBlank() ? "Người chơi" : name;
 	}
 
 	private void clearActionBar(Match match) {

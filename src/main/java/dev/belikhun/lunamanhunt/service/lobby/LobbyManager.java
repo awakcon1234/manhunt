@@ -10,6 +10,7 @@ import dev.belikhun.lunamanhunt.util.Text;
 
 import org.bukkit.Bukkit;
 import org.bukkit.OfflinePlayer;
+import org.bukkit.Sound;
 import org.bukkit.entity.Player;
 
 import java.util.Map;
@@ -61,7 +62,11 @@ public class LobbyManager {
 		if (match == null) {
 			return LobbyActionResult.fail("<red>❌</red> Bạn không có lời mời nào.");
 		}
-		return join(playerId, match.getId());
+		LobbyActionResult result = join(playerId, match.getId());
+		if (result.isSuccess()) {
+			notifyInviteAccepted(match, playerId);
+		}
+		return result;
 	}
 
 	public LobbyActionResult declineInvite(UUID playerId) {
@@ -70,7 +75,34 @@ public class LobbyManager {
 			return LobbyActionResult.fail("<red>❌</red> Bạn không có lời mời nào.");
 		}
 		match.getInvitedPlayers().remove(playerId);
+		notifyInviteDeclined(match, playerId);
 		return LobbyActionResult.ok("<green>✔</green> Đã từ chối lời mời vào phòng <yellow>" + match.getId() + "</yellow>.", match);
+	}
+
+	private void notifyInviteAccepted(Match match, UUID playerId) {
+		if (match == null || playerId == null) {
+			return;
+		}
+		Player owner = Bukkit.getPlayer(match.getOwnerId());
+		if (owner == null) {
+			return;
+		}
+		String name = resolvePlayerName(playerId);
+		Text.msg(owner, "<green>✔</green> <yellow>" + name + "</yellow> đã chấp nhận lời mời.");
+		owner.playSound(owner.getLocation(), Sound.UI_BUTTON_CLICK, 0.7f, 1.0f);
+	}
+
+	private void notifyInviteDeclined(Match match, UUID playerId) {
+		if (match == null || playerId == null) {
+			return;
+		}
+		Player owner = Bukkit.getPlayer(match.getOwnerId());
+		if (owner == null) {
+			return;
+		}
+		String name = resolvePlayerName(playerId);
+		Text.msg(owner, "<yellow>ℹ</yellow> <yellow>" + name + "</yellow> đã từ chối lời mời.");
+		owner.playSound(owner.getLocation(), Sound.UI_BUTTON_CLICK, 0.7f, 0.9f);
 	}
 
 	public LobbyActionResult join(UUID playerId, String matchId) {

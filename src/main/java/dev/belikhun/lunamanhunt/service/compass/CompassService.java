@@ -6,6 +6,7 @@ import dev.belikhun.lunamanhunt.service.lobby.LobbyManager;
 import dev.belikhun.lunamanhunt.util.Text;
 import org.bukkit.Bukkit;
 import org.bukkit.NamespacedKey;
+import org.bukkit.Sound;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.CompassMeta;
@@ -69,6 +70,7 @@ public class CompassService {
 		compassTargets.put(compassId, speedrunnerId);
 		hunter.getInventory().addItem(compass);
 		Text.msg(hunter, "<green>✔</green> Bạn đã nhận la bàn truy tìm.");
+		hunter.playSound(hunter.getLocation(), Sound.BLOCK_NOTE_BLOCK_PLING, 0.7f, 1.2f);
 	}
 
 	public void startAutoUpdate() {

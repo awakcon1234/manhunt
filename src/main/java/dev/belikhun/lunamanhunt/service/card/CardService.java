@@ -40,6 +40,7 @@ import net.kyori.adventure.text.format.TextDecoration;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
+import org.bukkit.Sound;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
@@ -309,6 +310,7 @@ public class CardService {
 		slots.set(emptyIndex, card);
 		pool.set(poolIndex, null);
 		Text.msg(player, "<green>✔</green> Đã giữ thẻ <yellow>" + card.getName() + "</yellow>.");
+		player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 0.7f, 1.1f);
 		return true;
 	}
 
@@ -336,6 +338,7 @@ public class CardService {
 		}
 		slots.set(slotIndex, null);
 		Text.msg(player, "<green>✔</green> Đã bỏ thẻ <yellow>" + card.getName() + "</yellow>.");
+		player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 0.7f, 0.9f);
 		return true;
 	}
 
@@ -364,8 +367,10 @@ public class CardService {
 			broadcastCurseUsed(match, player, card);
 		}
 		trackActiveCard(match, card);
+		match.getStats().incrementCardsUsed();
 		match.setSpeedrunnerPoints(match.getSpeedrunnerPoints() - card.getCost());
 		Text.msg(player, "<green>✔</green> Đã dùng thẻ <yellow>" + card.getName() + "</yellow>.");
+		player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 0.7f, 1.0f);
 		return true;
 	}
 
@@ -421,9 +426,11 @@ public class CardService {
 		}
 		addPoint(match, 1);
 		drawNewCards(match);
-		Text.msg(player, "<green>✔</green> Bạn nhận được " + pointService.formatPoints(1) + " từ thành tựu.");
+		Text.msg(player, "<green>✔</green> Bạn nhận được " + pointService.formatPoints(1)
+			+ " từ thành tựu. Hiện có: " + pointService.formatPoints(match.getSpeedrunnerPoints()) + ".");
 		Text.msg(player, "<yellow>ℹ</yellow> Dùng " + UiColors.command("/c") + " để sử dụng điểm.");
 		Text.msg(player, "<yellow>ℹ</yellow> Đã mở " + POOL_COUNT + " thẻ mới, hãy giữ vào ô thẻ.");
+		player.playSound(player.getLocation(), Sound.BLOCK_NOTE_BLOCK_PLING, 0.7f, 1.3f);
 	}
 
 	public void sendCardList(Player player, Match match) {
