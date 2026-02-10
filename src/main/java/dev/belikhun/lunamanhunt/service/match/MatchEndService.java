@@ -33,6 +33,10 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
 public class MatchEndService {
+	private static final int SPEEDRUNNER_CLEANUP_DELAY_TICKS = 20 * 5;
+	private static final int POST_TELEPORT_CLEANUP_DELAY_TICKS = 40;
+	private static final int CLEANUP_RETRY_LIMIT = 5;
+	private static final int CLEANUP_RETRY_DELAY_TICKS = 40;
 	private static final int WORLD_DELETE_RETRY_LIMIT = 5;
 	private final JavaPlugin plugin;
 	private final LobbyManager lobbyManager;
@@ -43,6 +47,8 @@ public class MatchEndService {
 	private final File cleanupFile;
 	private final Map<String, UUID> awaitingPortal = new ConcurrentHashMap<>();
 	private final Map<String, Integer> deleteWorldRetries = new ConcurrentHashMap<>();
+	private final Map<String, Integer> cleanupRetries = new ConcurrentHashMap<>();
+	private final Map<String, Boolean> cleanupScheduled = new ConcurrentHashMap<>();
 
 	public MatchEndService(JavaPlugin plugin, LobbyManager lobbyManager, MultiverseService multiverseService,
 			NetherPortalsService netherPortalsService, LobbyTeleportService lobbyTeleportService,
@@ -94,19 +100,29 @@ public class MatchEndService {
 		startEndFireworks(match);
 	}
 
-	public void handleSpeedrunnerPortal(Player player) {
+	public boolean handleSpeedrunnerPortal(Player player) {
 		if (player == null) {
-			return;
+			return false;
 		}
 		Match match = lobbyManager.getMatchForPlayer(player.getUniqueId());
 		if (match == null || match.getWinner() != MatchWinner.SPEEDRUNNER) {
-			return;
+			return false;
 		}
 		UUID expected = awaitingPortal.get(match.getId());
 		if (expected == null || !expected.equals(player.getUniqueId())) {
-			return;
+			return false;
 		}
-		finishMatch(match, false);
+		awaitingPortal.remove(match.getId());
+		debugCleanup("Speedrunner portal accepted: player=" + player.getName()
+			+ " match=" + match.getId()
+			+ " delayTicks=" + SPEEDRUNNER_CLEANUP_DELAY_TICKS);
+		new BukkitRunnable() {
+			@Override
+			public void run() {
+				finishMatch(match, true);
+			}
+		}.runTaskLater(plugin, SPEEDRUNNER_CLEANUP_DELAY_TICKS);
+		return true;
 	}
 
 	public void forceCleanup(Match match) {
@@ -261,11 +277,32 @@ public class MatchEndService {
 					player.getInventory().setItemInOffHand(null);
 					player.getInventory().setExtraContents(null);
 				}
+				Text.msg(player, "<yellow>ℹ</yellow> Trận đấu đã kết thúc, đang đưa bạn về sảnh...");
 				lobbyTeleportService.teleportToLobby(player, false);
 			}
 		}
+		scheduleCleanup(match);
+	}
 
-		cleanupWorlds(match);
+	private void scheduleCleanup(Match match) {
+		if (match == null) {
+			return;
+		}
+		if (cleanupScheduled.putIfAbsent(match.getId(), Boolean.TRUE) != null) {
+			return;
+		}
+		debugCleanup("Cleanup scheduled: match=" + match.getId()
+			+ " delayTicks=" + POST_TELEPORT_CLEANUP_DELAY_TICKS);
+		new BukkitRunnable() {
+			@Override
+			public void run() {
+				cleanupWorlds(match);
+			}
+		}.runTaskLater(plugin, POST_TELEPORT_CLEANUP_DELAY_TICKS);
+	}
+
+	private void finalizeCleanup(Match match) {
+		cleanupScheduled.remove(match.getId());
 		match.getHunters().clear();
 		match.getDrawnCards().clear();
 		match.getKeptCards().clear();
@@ -278,8 +315,28 @@ public class MatchEndService {
 	private void cleanupWorlds(Match match) {
 		MatchWorlds worlds = match.getWorlds();
 		if (worlds == null) {
+			finalizeCleanup(match);
 			return;
 		}
+		if (hasPlayersInMatchWorlds(worlds)) {
+			int retries = cleanupRetries.getOrDefault(match.getId(), 0);
+			if (retries >= CLEANUP_RETRY_LIMIT) {
+				cleanupRetries.remove(match.getId());
+				debugCleanup("Cleanup deferred to queue: match=" + match.getId());
+				queueWorldCleanup(worlds.getOverworldName());
+				queueWorldCleanup(worlds.getNetherName());
+				queueWorldCleanup(worlds.getEndName());
+				finalizeCleanup(match);
+				return;
+			}
+			cleanupRetries.put(match.getId(), retries + 1);
+			debugCleanup("Cleanup delayed (players still in worlds): match=" + match.getId()
+				+ " retry=" + (retries + 1) + "/" + CLEANUP_RETRY_LIMIT);
+			Bukkit.getScheduler().runTaskLater(plugin, () -> cleanupWorlds(match), CLEANUP_RETRY_DELAY_TICKS);
+			return;
+		}
+		cleanupRetries.remove(match.getId());
+		debugCleanup("Cleanup starting: match=" + match.getId());
 		netherPortalsService.unlinkMatchWorlds(
 			worlds.getOverworldName(),
 			worlds.getNetherName(),
@@ -288,6 +345,20 @@ public class MatchEndService {
 		deleteWorld(worlds.getOverworldName());
 		deleteWorld(worlds.getNetherName());
 		deleteWorld(worlds.getEndName());
+		finalizeCleanup(match);
+	}
+
+	private boolean hasPlayersInMatchWorlds(MatchWorlds worlds) {
+		World overworld = Bukkit.getWorld(worlds.getOverworldName());
+		if (overworld != null && !overworld.getPlayers().isEmpty()) {
+			return true;
+		}
+		World nether = Bukkit.getWorld(worlds.getNetherName());
+		if (nether != null && !nether.getPlayers().isEmpty()) {
+			return true;
+		}
+		World end = Bukkit.getWorld(worlds.getEndName());
+		return end != null && !end.getPlayers().isEmpty();
 	}
 
 	private void deleteWorld(String worldName) {
@@ -356,6 +427,10 @@ public class MatchEndService {
 			}
 		}
 		return folder.delete();
+	}
+
+	private void debugCleanup(String message) {
+		plugin.getLogger().info("[CleanupDebug] " + message);
 	}
 
 	private void queueWorldCleanup(String worldName) {

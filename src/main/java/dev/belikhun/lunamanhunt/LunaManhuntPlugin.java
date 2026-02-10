@@ -105,7 +105,7 @@ public final class LunaManhuntPlugin extends JavaPlugin {
         getServer().getPluginManager().registerEvents(new CardEffectListener(cardService), this);
         getServer().getPluginManager().registerEvents(new RunStartListener(matchLifecycleService), this);
         getServer().getPluginManager().registerEvents(new MatchPortalLinkListener(lobbyManager, matchManager, getLogger()), this);
-        getServer().getPluginManager().registerEvents(new EndPortalListener(matchEndService), this);
+        getServer().getPluginManager().registerEvents(new EndPortalListener(matchEndService, getLogger()), this);
         compassService.startAutoUpdate();
         MatchCommand matchCommand = new MatchCommand(lobbyManager, matchManager, guiService, lobbyItemService);
         LmAdminCommand adminCommand = new LmAdminCommand(this, lobbyManager, matchManager);
