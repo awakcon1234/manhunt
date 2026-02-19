@@ -44,7 +44,6 @@ public class ScoreboardService {
 	private static final int PROFILE_CACHE_MS = 5000;
 	private static final int DEBUG_LOG_INTERVAL_MS = 5000;
 	private static final int DEBUG_TICK_LOG_INTERVAL_MS = 10000;
-	private static final String DEFAULT_ROOM_ID_GRADIENT = "#7ED6FF:#A78BFA";
 	private static final String TEMPLATE_LOBBY = "lobby";
 	private static final String TEMPLATE_MATCH_LOBBY = "match_lobby";
 	private static final String TEMPLATE_PREPARING = "match_preparing";
@@ -279,7 +278,7 @@ public class ScoreboardService {
 			placeholders.put("match_setting_world_version", "-");
 			placeholders.put("match_setting_kit_id", "-");
 			placeholders.put("match_setting_speedrunner_selection", "-");
-			placeholders.put("match_id_chip", "<#7ED6FF>⌂</#7ED6FF> <b><gradient:#7ED6FF:#A78BFA>#-</gradient></b>");
+			placeholders.put("match_id_chip", UiColors.matchIdChip("-"));
 			placeholders.put("match_owner_chip", "<gray>👑 -</gray>");
 			placeholders.put("match_players_chip", "<gray>👻 0</gray>");
 			placeholders.put("match_hunters_chip", "<gray>👻 0</gray>");
@@ -420,8 +419,8 @@ public class ScoreboardService {
 		if (placeholders == null) {
 			return;
 		}
-			String matchId = safeStr(placeholders.get("match_id"));
-			placeholders.put("match_id_chip", formatMatchIdChip(matchId));
+		String matchId = safeStr(placeholders.get("match_id"));
+		placeholders.put("match_id_chip", UiColors.matchIdChip(matchId));
 		placeholders.put("match_owner_chip", "<yellow>👑</yellow> <white>"
 			+ safeStr(placeholders.get("match_owner")) + "</white>");
 		placeholders.put("match_players_chip", "<aqua>👻</aqua> <white>"
@@ -577,7 +576,7 @@ public class ScoreboardService {
 				Map<String, String> linePlaceholders = new HashMap<>(placeholders);
 				linePlaceholders.put("history_index", String.valueOf(index));
 				linePlaceholders.put("history_match_id", safeStr(entry.matchId));
-				linePlaceholders.put("history_match_id_chip", formatMatchIdText(entry.matchId));
+				linePlaceholders.put("history_match_id_chip", UiColors.matchIdText(entry.matchId));
 				linePlaceholders.put("history_role_display", entry.roleDisplay);
 				linePlaceholders.put("history_outcome", entry.outcomeDisplay);
 				linePlaceholders.put("history_duration", entry.durationDisplay);
@@ -963,93 +962,6 @@ public class ScoreboardService {
 		long minutes = duration.toMinutes();
 		long remaining = duration.minusMinutes(minutes).toSeconds();
 		return String.format(Locale.US, "%02d:%02ds", minutes, remaining);
-	}
-
-	private String resolveRoomIdGradient(String matchId) {
-		if (matchId == null || matchId.isBlank() || "-".equals(matchId)) {
-			return DEFAULT_ROOM_ID_GRADIENT;
-		}
-		String normalizedId = matchId.toUpperCase(Locale.ROOT);
-		int idHash = normalizedId.hashCode();
-
-		int startHue = Math.floorMod(idHash, 360);
-		int hueOffset = 30 + Math.floorMod(idHash >>> 8, 90);
-		int endHue = Math.floorMod(startHue + hueOffset, 360);
-
-		int startSaturation = 78 + Math.floorMod(idHash >>> 4, 18);
-		int endSaturation = 78 + Math.floorMod(idHash >>> 12, 18);
-		int startLightness = 58 + Math.floorMod(idHash >>> 20, 12);
-		int endLightness = 54 + Math.floorMod(idHash >>> 24, 12);
-
-		String startHex = hslToHex(startHue, startSaturation, startLightness);
-		String endHex = hslToHex(endHue, endSaturation, endLightness);
-		return startHex + ":" + endHex;
-	}
-
-	private String formatMatchIdText(String matchId) {
-		String safeId = safeStr(matchId);
-		String roomGradient = resolveRoomIdGradient(safeId);
-		return "<b><gradient:" + roomGradient + ">#" + safeId + "</gradient></b>";
-	}
-
-	private String formatMatchIdChip(String matchId) {
-		return "<white>⌂</white> " + formatMatchIdText(matchId);
-	}
-
-	private String hslToHex(int hueDegrees, int saturationPercent, int lightnessPercent) {
-		double hue = Math.floorMod(hueDegrees, 360) / 360.0;
-		double saturation = clampUnit(saturationPercent / 100.0);
-		double lightness = clampUnit(lightnessPercent / 100.0);
-
-		double red;
-		double green;
-		double blue;
-		if (saturation == 0.0) {
-			red = lightness;
-			green = lightness;
-			blue = lightness;
-		} else {
-			double q = lightness < 0.5
-				? lightness * (1.0 + saturation)
-				: lightness + saturation - (lightness * saturation);
-			double p = (2.0 * lightness) - q;
-			red = hueToRgb(p, q, hue + (1.0 / 3.0));
-			green = hueToRgb(p, q, hue);
-			blue = hueToRgb(p, q, hue - (1.0 / 3.0));
-		}
-
-		int redChannel = clampColorChannel((int) Math.round(red * 255.0));
-		int greenChannel = clampColorChannel((int) Math.round(green * 255.0));
-		int blueChannel = clampColorChannel((int) Math.round(blue * 255.0));
-		return String.format(Locale.US, "#%02X%02X%02X", redChannel, greenChannel, blueChannel);
-	}
-
-	private double hueToRgb(double p, double q, double t) {
-		double adjusted = t;
-		if (adjusted < 0.0) {
-			adjusted += 1.0;
-		}
-		if (adjusted > 1.0) {
-			adjusted -= 1.0;
-		}
-		if (adjusted < (1.0 / 6.0)) {
-			return p + ((q - p) * 6.0 * adjusted);
-		}
-		if (adjusted < 0.5) {
-			return q;
-		}
-		if (adjusted < (2.0 / 3.0)) {
-			return p + ((q - p) * ((2.0 / 3.0) - adjusted) * 6.0);
-		}
-		return p;
-	}
-
-	private double clampUnit(double value) {
-		return Math.max(0.0, Math.min(1.0, value));
-	}
-
-	private int clampColorChannel(int value) {
-		return Math.max(0, Math.min(255, value));
 	}
 
 	private int safeInt(String value, int def) {

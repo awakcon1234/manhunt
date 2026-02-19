@@ -5,6 +5,7 @@ import dev.belikhun.lunamanhunt.model.match.MatchState;
 import dev.belikhun.lunamanhunt.service.gui.GuiService;
 import dev.belikhun.lunamanhunt.service.lobby.LobbyManager;
 import dev.belikhun.lunamanhunt.util.Text;
+import dev.belikhun.lunamanhunt.util.UiColors;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.TextDecoration;
 import org.bukkit.Bukkit;
@@ -139,7 +140,7 @@ public class LobbyItemService {
 		if (meta != null) {
 			meta.displayName(mmNoItalic("<yellow>Thông tin phòng</yellow>"));
 			meta.lore(mmNoItalic(List.of(
-				"<gray>Mã phòng: <white>" + match.getId() + "</white></gray>",
+				"<gray>Mã phòng: " + UiColors.matchIdText(match.getId()) + "</gray>",
 				"<gray>Bấm để xem chi tiết.</gray>"
 			)));
 			meta.getPersistentDataContainer().set(actionKey, PersistentDataType.STRING, ACTION_MATCH_INFO);

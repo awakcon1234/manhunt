@@ -206,7 +206,8 @@ public final class LunaManhuntPlugin extends JavaPlugin {
 			return;
 		}
 		try {
-			placeholderExpansion = new LunaPlaceholderExpansion(this, lobbyManager);
+			placeholderExpansion = new LunaPlaceholderExpansion(this, lobbyManager,
+				persistenceManager.getProfileStore());
 			if (placeholderExpansion.register()) {
 				getLogger().info("PlaceholderAPI expansion đã đăng ký: %lunamanhunt_*%.");
 				return;

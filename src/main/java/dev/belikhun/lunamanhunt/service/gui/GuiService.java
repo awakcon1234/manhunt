@@ -1132,7 +1132,7 @@ public class GuiService {
 		inventory.setItem(4, buildInfoItem(Material.BOOK,
 			"<yellow>ℹ</yellow> Thông tin phòng",
 			List.of(
-				"<gray>Mã phòng: <white>" + match.getId() + "</white></gray>",
+				"<gray>Mã phòng: " + UiColors.matchIdText(match.getId()) + "</gray>",
 				"<gray>Chủ phòng: <#7fd36b>" + ownerName + "</#7fd36b></gray>",
 				" ",
 				"<gray>Hiển thị: " + formatVisibilityColored(match.getSettings().getVisibility()) + "</gray>",
@@ -2610,7 +2610,7 @@ public class GuiService {
 		ItemStack item = new ItemStack(material);
 		ItemMeta meta = item.getItemMeta();
 		if (meta != null) {
-			meta.displayName(mmNoItalic("<yellow>Mã phòng: <white>" + match.getId() + "</white></yellow>"));
+			meta.displayName(mmNoItalic("<yellow>Mã phòng: " + UiColors.matchIdText(match.getId()) + "</yellow>"));
 			meta.lore(mmNoItalic(List.of(
 				"<gray>● Chủ phòng: <#7fd36b>" + ownerName + "</#7fd36b></gray>",
 				"<gray>● Hiển thị: " + formatVisibilityColored(match.getSettings().getVisibility()) + "</gray>",
@@ -2781,7 +2781,7 @@ public class GuiService {
 			MatchHistoryEntry entry = history.get(i);
 			long timeMillis = entry.getEndedAtMillis() > 0 ? entry.getEndedAtMillis()
 				: entry.getStartedAtMillis();
-			lore.add("<gray>● <white>" + safeText(entry.getMatchId(), "?") + "</white> - "
+			lore.add("<gray>● " + UiColors.matchIdText(entry.getMatchId()) + " - "
 				+ formatHistoryOutcome(entry) + "</gray>");
 			lore.add("<gray>  " + formatRelativeTime(timeMillis) + "</gray>");
 			shown++;
@@ -2804,7 +2804,7 @@ public class GuiService {
 		String timestamp = formatTimestamp(entry.getEndedAtMillis() > 0 ? entry.getEndedAtMillis()
 			: entry.getStartedAtMillis());
 		return buildInfoItem(Material.PAPER,
-			"<yellow>Trận <white>" + matchId + "</white></yellow>",
+			"<yellow>Trận " + UiColors.matchIdText(matchId) + "</yellow>",
 			List.of(
 				"<gray>Vai trò: <white>" + role + "</white></gray>",
 				"<gray>Kết quả: " + outcome + "</gray>",

@@ -2,22 +2,64 @@ package dev.belikhun.lunamanhunt.service.integration;
 
 import dev.belikhun.lunamanhunt.LunaManhuntPlugin;
 import dev.belikhun.lunamanhunt.model.match.Match;
+import dev.belikhun.lunamanhunt.model.match.MatchState;
+import dev.belikhun.lunamanhunt.model.profile.MatchHistoryEntry;
+import dev.belikhun.lunamanhunt.model.profile.PlayerProfile;
 import dev.belikhun.lunamanhunt.service.lobby.LobbyManager;
+import dev.belikhun.lunamanhunt.service.persistence.ProfileStore;
 import dev.belikhun.lunamanhunt.util.UiColors;
 import me.clip.placeholderapi.expansion.PlaceholderExpansion;
+import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 
+import java.time.Duration;
+import java.util.HashMap;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
 
 public class LunaPlaceholderExpansion extends PlaceholderExpansion {
+	private static final long PROFILE_CACHE_MS = 5000L;
+
 	private final LunaManhuntPlugin plugin;
 	private final LobbyManager lobbyManager;
+	private final ProfileStore profileStore;
+	private final Map<UUID, CachedProfileSnapshot> profileCache = new HashMap<>();
 
-	public LunaPlaceholderExpansion(LunaManhuntPlugin plugin, LobbyManager lobbyManager) {
+	private static final class CachedProfileSnapshot {
+		private final long loadedAtMillis;
+		private final ProfileSnapshot snapshot;
+
+		private CachedProfileSnapshot(long loadedAtMillis, ProfileSnapshot snapshot) {
+			this.loadedAtMillis = loadedAtMillis;
+			this.snapshot = snapshot;
+		}
+	}
+
+	private static final class ProfileSnapshot {
+		private final int wins;
+		private final int losses;
+		private final int totalMatches;
+		private final String winRate;
+		private final String bestTime;
+		private final int huntersKilled;
+
+		private ProfileSnapshot(int wins, int losses, int totalMatches, String winRate, String bestTime,
+				int huntersKilled) {
+			this.wins = wins;
+			this.losses = losses;
+			this.totalMatches = totalMatches;
+			this.winRate = winRate;
+			this.bestTime = bestTime;
+			this.huntersKilled = huntersKilled;
+		}
+	}
+
+	public LunaPlaceholderExpansion(LunaManhuntPlugin plugin, LobbyManager lobbyManager, ProfileStore profileStore) {
 		this.plugin = Objects.requireNonNull(plugin, "plugin");
 		this.lobbyManager = Objects.requireNonNull(lobbyManager, "lobbyManager");
+		this.profileStore = Objects.requireNonNull(profileStore, "profileStore");
 	}
 
 	@Override
@@ -49,11 +91,18 @@ public class LunaPlaceholderExpansion extends PlaceholderExpansion {
 		String key = params.toLowerCase(Locale.ROOT);
 		Match match = lobbyManager.getMatchForPlayer(player.getUniqueId());
 		String role = resolveRole(player.getUniqueId(), match);
+		ProfileSnapshot profile = getProfileSnapshot(player.getUniqueId());
 
 		return switch (key) {
+			case "match_exists" -> match == null ? "false" : "true";
 			case "match_id" -> match == null || match.getId() == null || match.getId().isBlank()
 				? "-"
 				: match.getId();
+			case "match_players" -> String.valueOf(match == null ? 0 : match.getLobbyPlayers().size());
+			case "match_hunters" -> String.valueOf(match == null ? 0 : match.getHunters().size());
+			case "match_owner" -> resolvePlayerName(match == null ? null : match.getOwnerId());
+			case "match_speedrunner" -> resolvePlayerName(match == null ? null : match.getSpeedrunnerId());
+			case "match_timer" -> resolveMatchTimer(match);
 			case "role" -> role;
 			case "role_display" -> resolveRoleDisplay(role);
 			case "role_color" -> switch (role) {
@@ -62,6 +111,13 @@ public class LunaPlaceholderExpansion extends PlaceholderExpansion {
 				default -> "#FFFFFF";
 			};
 			case "match_state" -> resolveMatchState(match);
+			case "match_state_display" -> resolveMatchStateDisplay(match);
+			case "profile_total_wins" -> String.valueOf(profile.wins);
+			case "profile_total_losses" -> String.valueOf(profile.losses);
+			case "profile_total_matches" -> String.valueOf(profile.totalMatches);
+			case "profile_win_rate" -> profile.winRate;
+			case "profile_best_time" -> profile.bestTime;
+			case "profile_kills" -> String.valueOf(profile.huntersKilled);
 			default -> null;
 		};
 	}
@@ -83,6 +139,105 @@ public class LunaPlaceholderExpansion extends PlaceholderExpansion {
 			return "none";
 		}
 		return match.getState().name().toLowerCase(Locale.ROOT);
+	}
+
+	private String resolveMatchStateDisplay(Match match) {
+		if (match == null || match.getState() == null) {
+			return "Chưa tham gia";
+		}
+		MatchState state = match.getState();
+		return switch (state) {
+			case LOBBY -> "Phòng chờ";
+			case WORLD_CREATING -> "Đang tạo thế giới";
+			case WORLD_READY -> "Thế giới sẵn sàng";
+			case RUN_PENDING -> "Chờ bắt đầu";
+			case RUNNING -> "Đang chạy";
+			case ENDING -> "Kết thúc";
+			case CLEANUP -> "Đang dọn dẹp";
+			case FINISHED -> "Đã xong";
+		};
+	}
+
+	private String resolveMatchTimer(Match match) {
+		if (match == null) {
+			return "--:--.---";
+		}
+		Long startedAt = match.getStartedAtMillis();
+		if (startedAt == null || startedAt <= 0) {
+			return "00:00.000";
+		}
+		long endAt = match.getEndedAtMillis() != null && match.getEndedAtMillis() > 0
+			? match.getEndedAtMillis()
+			: System.currentTimeMillis();
+		long elapsed = Math.max(0L, endAt - startedAt);
+		return formatTimer(elapsed);
+	}
+
+	private String formatTimer(long millis) {
+		Duration duration = Duration.ofMillis(Math.max(0L, millis));
+		long totalMillis = duration.toMillis();
+		long minutes = totalMillis / 60000L;
+		long seconds = (totalMillis / 1000L) % 60L;
+		long ms = totalMillis % 1000L;
+		return String.format(Locale.US, "%02d:%02d.%03d", minutes, seconds, ms);
+	}
+
+	private String resolvePlayerName(UUID playerId) {
+		if (playerId == null) {
+			return "-";
+		}
+		Player online = Bukkit.getPlayer(playerId);
+		if (online != null && online.getName() != null && !online.getName().isBlank()) {
+			return online.getName();
+		}
+		String id = playerId.toString();
+		return id.length() <= 8 ? id : id.substring(0, 8);
+	}
+
+	private ProfileSnapshot getProfileSnapshot(UUID playerId) {
+		long now = System.currentTimeMillis();
+		CachedProfileSnapshot cached = profileCache.get(playerId);
+		if (cached != null && now - cached.loadedAtMillis <= PROFILE_CACHE_MS) {
+			return cached.snapshot;
+		}
+		ProfileSnapshot snapshot = loadProfileSnapshot(playerId);
+		profileCache.put(playerId, new CachedProfileSnapshot(now, snapshot));
+		return snapshot;
+	}
+
+	private ProfileSnapshot loadProfileSnapshot(UUID playerId) {
+		PlayerProfile profile;
+		try {
+			profile = profileStore.load(playerId);
+		} catch (Exception ignored) {
+			profile = new PlayerProfile(playerId);
+		}
+
+		int wins = Math.max(0, profile.getTotalWins());
+		int losses = Math.max(0, profile.getTotalLosses());
+		int total = Math.max(profile.getMatchHistory().size(), wins + losses);
+		double rate = total <= 0 ? 0.0 : (wins * 100.0) / total;
+
+		int huntersKilled = 0;
+		for (MatchHistoryEntry entry : profile.getMatchHistory()) {
+			if (entry == null) {
+				continue;
+			}
+			huntersKilled += Math.max(0, entry.getHuntersKilled());
+		}
+
+		String bestTime = profile.getBestTimeMillis() > 0
+			? formatTimer(profile.getBestTimeMillis())
+			: "--:--.---";
+
+		return new ProfileSnapshot(
+			wins,
+			losses,
+			total,
+			String.format(Locale.US, "%.1f", rate),
+			bestTime,
+			huntersKilled
+		);
 	}
 
 	private String resolveRole(UUID playerId, Match match) {
