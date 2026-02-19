@@ -26,3 +26,9 @@ Identifier: `%lunamanhunt_*%`
 | `%lunamanhunt_profile_win_rate%` | Tỉ lệ thắng theo % (1 chữ số thập phân) | `60.0` |
 | `%lunamanhunt_profile_best_time%` | Kỷ lục speedrun cá nhân dạng `mm:ss.SSS` | `18:24.903` hoặc `--:--.---` |
 | `%lunamanhunt_profile_kills%` | Tổng số hunter bị hạ trong lịch sử | `37` |
+
+## Cấu hình hiển thị tên người chơi
+
+- `ui.player-name-format`: định dạng tên người chơi dùng chung trong thông báo/UI, hỗ trợ MiniMessage và PlaceholderAPI.
+- Mặc định: `<gradient:#7fd36b:#8fd3ff>%player_name%</gradient>`.
+- Placeholder nội bộ luôn hỗ trợ: `%player_name%`, `%player_display_name%`, `%player_uuid%`.

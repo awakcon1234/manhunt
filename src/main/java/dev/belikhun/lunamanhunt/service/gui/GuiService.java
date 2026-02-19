@@ -333,7 +333,7 @@ public class GuiService {
 		UUID resolvedId = targetId == null ? viewer.getUniqueId() : targetId;
 		profileViewTargets.put(viewer.getUniqueId(), resolvedId);
 		PlayerProfile profile = profileStore.load(resolvedId);
-		String targetName = resolvePlayerName(resolvedId);
+		String targetName = resolvePlayerNameDisplay(resolvedId);
 		Inventory inventory = Bukkit.createInventory(new GuiHolder(GuiType.PROFILE, null), 27,
 			Text.mm(UiColors.titlePrimary("Hồ sơ") + " " + UiColors.titleSecondary(targetName)));
 		fillProfileMenu(viewer, profile, inventory, resolvedId);
@@ -1104,11 +1104,7 @@ public class GuiService {
 	}
 
 	private void fillMatchInfoMenu(Player player, Match match, Inventory inventory) {
-		String ownerName = "Không rõ";
-		Player owner = Bukkit.getPlayer(match.getOwnerId());
-		if (owner != null) {
-			ownerName = owner.getName();
-		}
+		String ownerName = resolvePlayerNameDisplay(match.getOwnerId());
 		MatchSettings settings = match.getSettings();
 		MatchSettings defaults = matchSettingsService.createDefaults();
 		String seedText = formatSeedValue(settings.getWorldSeed(), defaults.getWorldSeed());
@@ -2351,10 +2347,7 @@ public class GuiService {
 		if (id == null) {
 			return "<#ff6b6b>Chưa đặt</#ff6b6b>";
 		}
-		Player player = Bukkit.getPlayer(id);
-		return player == null
-			? "<#ff6b6b>Chưa đặt</#ff6b6b>"
-			: "<#7fd36b>" + player.getName() + "</#7fd36b>";
+		return Text.playerNameDisplay(id);
 	}
 
 	private String formatSeedValue(String seed, String defaultSeed) {
@@ -2601,11 +2594,7 @@ public class GuiService {
 			case PRIVATE -> Material.RED_CONCRETE;
 		};
 
-		String ownerName = "Không rõ";
-		Player owner = Bukkit.getPlayer(match.getOwnerId());
-		if (owner != null) {
-			ownerName = owner.getName();
-		}
+		String ownerName = resolvePlayerNameDisplay(match.getOwnerId());
 
 		ItemStack item = new ItemStack(material);
 		ItemMeta meta = item.getItemMeta();
@@ -2629,7 +2618,7 @@ public class GuiService {
 		ItemStack item = new ItemStack(Material.PLAYER_HEAD);
 		ItemMeta meta = item.getItemMeta();
 		if (meta != null) {
-			meta.displayName(mmNoItalic("<yellow>" + target.getName() + "</yellow>"));
+			meta.displayName(mmNoItalic(resolvePlayerNameDisplay(target.getUniqueId())));
 			meta.lore(mmNoItalic(List.of("<gray>Bấm để mời người chơi này.</gray>")));
 			meta.getPersistentDataContainer().set(actionKey, PersistentDataType.STRING, ACTION_INVITE_PLAYER);
 			meta.getPersistentDataContainer().set(targetKey, PersistentDataType.STRING, target.getUniqueId().toString());
@@ -2864,7 +2853,7 @@ public class GuiService {
 			int maxShown = 8;
 			int shown = Math.min(maxShown, players.size());
 			for (int i = 0; i < shown; i++) {
-				lore.add("<gray>● <white>" + resolvePlayerName(players.get(i)) + "</white></gray>");
+				lore.add("<gray>● " + resolvePlayerNameDisplay(players.get(i)) + "</gray>");
 			}
 			if (players.size() > maxShown) {
 				int remaining = players.size() - maxShown;
@@ -2882,7 +2871,7 @@ public class GuiService {
 		if (meta instanceof SkullMeta skullMeta) {
 			OfflinePlayer offline = Bukkit.getOfflinePlayer(playerId);
 			skullMeta.setOwningPlayer(offline);
-			skullMeta.displayName(mmNoItalic("<yellow>" + name + "</yellow>"));
+			skullMeta.displayName(mmNoItalic(resolvePlayerNameDisplay(playerId)));
 			skullMeta.lore(mmNoItalic(List.of(
 				"<gray>Bấm để xem hồ sơ.</gray>"
 			)));
@@ -2890,7 +2879,7 @@ public class GuiService {
 			skullMeta.getPersistentDataContainer().set(targetKey, PersistentDataType.STRING, playerId.toString());
 			item.setItemMeta(skullMeta);
 		} else if (meta != null) {
-			meta.displayName(mmNoItalic("<yellow>" + name + "</yellow>"));
+			meta.displayName(mmNoItalic(resolvePlayerNameDisplay(playerId)));
 			meta.lore(mmNoItalic(List.of("<gray>Bấm để xem hồ sơ.</gray>")));
 			meta.getPersistentDataContainer().set(actionKey, PersistentDataType.STRING, ACTION_MATCH_PLAYER_PROFILE);
 			meta.getPersistentDataContainer().set(targetKey, PersistentDataType.STRING, playerId.toString());
@@ -2900,13 +2889,11 @@ public class GuiService {
 	}
 
 	private String resolvePlayerName(UUID playerId) {
-		Player online = Bukkit.getPlayer(playerId);
-		if (online != null && online.getName() != null && !online.getName().isBlank()) {
-			return online.getName();
-		}
-		OfflinePlayer offline = Bukkit.getOfflinePlayer(playerId);
-		String name = offline == null ? null : offline.getName();
-		return name == null || name.isBlank() ? "Người chơi" : name;
+		return Text.plainPlayerName(playerId);
+	}
+
+	private String resolvePlayerNameDisplay(UUID playerId) {
+		return Text.playerNameDisplay(playerId);
 	}
 
 	private int getHistoryPageCount(int totalEntries) {
@@ -3160,14 +3147,14 @@ public class GuiService {
 		ItemMeta meta = item.getItemMeta();
 		if (meta instanceof SkullMeta skullMeta) {
 			skullMeta.setOwningPlayer(target);
-			skullMeta.displayName(mmNoItalic("<yellow>" + target.getName() + "</yellow>"));
+			skullMeta.displayName(mmNoItalic(resolvePlayerNameDisplay(target.getUniqueId())));
 			skullMeta.lore(mmNoItalic(List.of("<gray>Bấm để chọn người chơi này.</gray>")));
 			skullMeta.getPersistentDataContainer().set(actionKey, PersistentDataType.STRING, ACTION_SPEEDRUNNER_PICK);
 			skullMeta.getPersistentDataContainer().set(targetKey, PersistentDataType.STRING,
 				target.getUniqueId().toString());
 			item.setItemMeta(skullMeta);
 		} else if (meta != null) {
-			meta.displayName(mmNoItalic("<yellow>" + target.getName() + "</yellow>"));
+			meta.displayName(mmNoItalic(resolvePlayerNameDisplay(target.getUniqueId())));
 			meta.lore(mmNoItalic(List.of("<gray>Bấm để chọn người chơi này.</gray>")));
 			meta.getPersistentDataContainer().set(actionKey, PersistentDataType.STRING, ACTION_SPEEDRUNNER_PICK);
 			meta.getPersistentDataContainer().set(targetKey, PersistentDataType.STRING,

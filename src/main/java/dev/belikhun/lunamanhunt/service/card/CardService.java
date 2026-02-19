@@ -621,9 +621,9 @@ public class CardService {
 		if (match == null || speedrunner == null || card == null) {
 			return;
 		}
-		String message = "<red>❌</red> " + UiColors.roleSpeedrunner() + " <yellow>"
-			+ speedrunner.getName()
-			+ "</yellow> đã dùng lời nguyền <yellow>" + card.getName() + "</yellow>.";
+		String message = "<red>❌</red> " + UiColors.roleSpeedrunner() + " "
+			+ Text.playerNameDisplay(speedrunner.getUniqueId())
+			+ " đã dùng lời nguyền <yellow>" + card.getName() + "</yellow>.";
 		Set<UUID> targets = match.getHunters();
 		if (targets == null || targets.isEmpty()) {
 			targets = match.getLobbyPlayers();

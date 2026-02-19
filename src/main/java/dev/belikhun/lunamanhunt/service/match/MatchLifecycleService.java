@@ -167,7 +167,7 @@ public class MatchLifecycleService {
 		match.setSpeedrunnerId(speedrunnerId);
 		assignHunters(match, speedrunnerId);
 		broadcast(match, "<yellow>ℹ</yellow> " + UiColors.roleSpeedrunner()
-			+ ": <yellow>" + resolvePlayerName(speedrunnerId) + "</yellow>.");
+			+ ": " + resolvePlayerName(speedrunnerId) + ".");
 		startOverworldWarmup(match, overworld);
 	}
 
@@ -1124,13 +1124,7 @@ public class MatchLifecycleService {
 	}
 
 	private String resolvePlayerName(UUID playerId) {
-		Player online = Bukkit.getPlayer(playerId);
-		if (online != null && online.getName() != null && !online.getName().isBlank()) {
-			return online.getName();
-		}
-		var offline = Bukkit.getOfflinePlayer(playerId);
-		String name = offline == null ? null : offline.getName();
-		return name == null || name.isBlank() ? "Người chơi" : name;
+		return Text.playerNameDisplay(playerId);
 	}
 
 	private void clearActionBar(Match match) {

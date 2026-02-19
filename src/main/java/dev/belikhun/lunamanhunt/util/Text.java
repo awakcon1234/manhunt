@@ -7,10 +7,16 @@ import net.kyori.adventure.text.format.TextDecoration;
 import net.kyori.adventure.text.minimessage.MiniMessage;
 import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
+import org.bukkit.Bukkit;
+import org.bukkit.OfflinePlayer;
 import org.bukkit.command.CommandSender;
+import org.bukkit.entity.Player;
+import org.bukkit.plugin.java.JavaPlugin;
 
+import java.lang.reflect.Method;
 import java.util.List;
 import java.util.Locale;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 /**
@@ -145,5 +151,65 @@ public final class Text {
 		return base
 			.clickEvent(ClickEvent.suggestCommand(command))
 			.hoverEvent(HoverEvent.showText(c("&7Bấm để dán: &b" + command)));
+	}
+
+	public static String playerNameDisplay(UUID playerId) {
+		return playerNameDisplay(playerId, null);
+	}
+
+	public static String playerNameDisplay(UUID playerId, Player viewer) {
+		String format = "<white>%player_name%</white>";
+		try {
+			JavaPlugin plugin = JavaPlugin.getProvidingPlugin(Text.class);
+			if (plugin != null && plugin.getConfig() != null) {
+				format = plugin.getConfig().getString("ui.player-name-format", format);
+			}
+		} catch (Throwable ignored) {
+		}
+
+		Player online = playerId == null ? null : Bukkit.getPlayer(playerId);
+		String plainName = resolvePlainPlayerName(playerId);
+		String safeName = plainName.replace("<", "\\<").replace(">", "\\>");
+		String value = format == null || format.isBlank() ? "<white>%player_name%</white>" : format;
+		value = value
+			.replace("%player_name%", safeName)
+			.replace("%player_display_name%", safeName)
+			.replace("%player_uuid%", playerId == null ? "" : playerId.toString());
+
+		if (online != null) {
+			value = applyPapi(online, value);
+		}
+		return value;
+	}
+
+	public static String plainPlayerName(UUID playerId) {
+		return resolvePlainPlayerName(playerId);
+	}
+
+	private static String resolvePlainPlayerName(UUID playerId) {
+		Player online = playerId == null ? null : Bukkit.getPlayer(playerId);
+		if (online != null && online.getName() != null && !online.getName().isBlank()) {
+			return online.getName();
+		}
+		OfflinePlayer offline = playerId == null ? null : Bukkit.getOfflinePlayer(playerId);
+		String name = offline == null ? null : offline.getName();
+		return name == null || name.isBlank() ? "Người chơi" : name;
+	}
+
+	private static String applyPapi(Player player, String text) {
+		if (player == null || text == null || text.isBlank()) {
+			return text == null ? "" : text;
+		}
+		if (!Bukkit.getPluginManager().isPluginEnabled("PlaceholderAPI")) {
+			return text;
+		}
+		try {
+			Class<?> clazz = Class.forName("me.clip.placeholderapi.PlaceholderAPI");
+			Method method = clazz.getMethod("setPlaceholders", Player.class, String.class);
+			Object result = method.invoke(null, player, text);
+			return result instanceof String string ? string : text;
+		} catch (Throwable ignored) {
+			return text;
+		}
 	}
 }

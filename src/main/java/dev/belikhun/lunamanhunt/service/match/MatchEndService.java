@@ -291,7 +291,7 @@ public class MatchEndService {
 
 	private List<String> buildWinnerBoard(Match match) {
 		String winnerName = match.getWinner() == MatchWinner.SPEEDRUNNER
-			? "<yellow><b>" + resolvePlayerName(match.getSpeedrunnerId()) + "</b></yellow>"
+			? "<b>" + resolvePlayerName(match.getSpeedrunnerId()) + "</b>"
 			: UiColors.roleHunterBold();
 		String resultTitle = match.getWinner() == MatchWinner.SPEEDRUNNER
 			? UiColors.speedrunner("<b>SPEEDRUNNER CHIẾN THẮNG!</b>")
@@ -438,13 +438,7 @@ public class MatchEndService {
 	}
 
 	private String resolvePlayerName(UUID playerId) {
-		Player online = playerId == null ? null : Bukkit.getPlayer(playerId);
-		if (online != null && online.getName() != null && !online.getName().isBlank()) {
-			return online.getName();
-		}
-		var offline = playerId == null ? null : Bukkit.getOfflinePlayer(playerId);
-		String name = offline == null ? null : offline.getName();
-		return name == null || name.isBlank() ? "Người chơi" : name;
+		return Text.playerNameDisplay(playerId);
 	}
 
 	private Location resolveHunterWinLocation(Match match, Location deathLocation) {

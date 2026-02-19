@@ -152,14 +152,15 @@ public class LobbyItemService {
 	private ItemStack buildProfileItem(Player player) {
 		ItemStack item = new ItemStack(Material.PLAYER_HEAD);
 		ItemMeta meta = item.getItemMeta();
+		String displayName = Text.playerNameDisplay(player.getUniqueId());
 		if (meta instanceof SkullMeta skullMeta) {
 			skullMeta.setOwningPlayer(player);
-			skullMeta.displayName(mmNoItalic("<yellow>Hồ sơ của " + player.getName() + "</yellow>"));
+			skullMeta.displayName(mmNoItalic("<yellow>Hồ sơ của </yellow>" + displayName));
 			skullMeta.lore(mmNoItalic(List.of("<gray>Bấm để xem hồ sơ cá nhân.</gray>")));
 			skullMeta.getPersistentDataContainer().set(actionKey, PersistentDataType.STRING, ACTION_PROFILE);
 			item.setItemMeta(skullMeta);
 		} else if (meta != null) {
-			meta.displayName(mmNoItalic("<yellow>Hồ sơ của " + player.getName() + "</yellow>"));
+			meta.displayName(mmNoItalic("<yellow>Hồ sơ của </yellow>" + displayName));
 			meta.lore(mmNoItalic(List.of("<gray>Bấm để xem hồ sơ cá nhân.</gray>")));
 			meta.getPersistentDataContainer().set(actionKey, PersistentDataType.STRING, ACTION_PROFILE);
 			item.setItemMeta(meta);

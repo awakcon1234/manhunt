@@ -9,7 +9,6 @@ import dev.belikhun.lunamanhunt.service.match.MatchManager;
 import dev.belikhun.lunamanhunt.util.Text;
 
 import org.bukkit.Bukkit;
-import org.bukkit.OfflinePlayer;
 import org.bukkit.Sound;
 import org.bukkit.entity.Player;
 
@@ -88,7 +87,7 @@ public class LobbyManager {
 			return;
 		}
 		String name = resolvePlayerName(playerId);
-		Text.msg(owner, "<green>✔</green> <yellow>" + name + "</yellow> đã chấp nhận lời mời.");
+		Text.msg(owner, "<green>✔</green> " + name + " đã chấp nhận lời mời.");
 		owner.playSound(owner.getLocation(), Sound.UI_BUTTON_CLICK, 0.7f, 1.0f);
 	}
 
@@ -101,7 +100,7 @@ public class LobbyManager {
 			return;
 		}
 		String name = resolvePlayerName(playerId);
-		Text.msg(owner, "<yellow>ℹ</yellow> <yellow>" + name + "</yellow> đã từ chối lời mời.");
+		Text.msg(owner, "<yellow>ℹ</yellow> " + name + " đã từ chối lời mời.");
 		owner.playSound(owner.getLocation(), Sound.UI_BUTTON_CLICK, 0.7f, 0.9f);
 	}
 
@@ -171,8 +170,8 @@ public class LobbyManager {
 		}
 		String name = resolvePlayerName(playerId);
 		int count = match.getLobbyPlayers().size();
-		broadcastLobby(match, "<yellow>ℹ</yellow> <yellow>" + name
-			+ "</yellow> đã vào phòng. <gray>(" + count + " người)</gray>");
+		broadcastLobby(match, "<yellow>ℹ</yellow> " + name
+			+ " đã vào phòng. <gray>(" + count + " người)</gray>");
 	}
 
 	private void announceMemberLeft(Match match, UUID playerId) {
@@ -181,8 +180,8 @@ public class LobbyManager {
 		}
 		String name = resolvePlayerName(playerId);
 		int count = match.getLobbyPlayers().size();
-		broadcastLobby(match, "<yellow>ℹ</yellow> <yellow>" + name
-			+ "</yellow> đã rời phòng. <gray>(" + count + " người)</gray>");
+		broadcastLobby(match, "<yellow>ℹ</yellow> " + name
+			+ " đã rời phòng. <gray>(" + count + " người)</gray>");
 	}
 
 	private void broadcastLobby(Match match, String message) {
@@ -203,13 +202,7 @@ public class LobbyManager {
 	}
 
 	private String resolvePlayerName(UUID playerId) {
-		Player online = Bukkit.getPlayer(playerId);
-		if (online != null && online.getName() != null && !online.getName().isBlank()) {
-			return online.getName();
-		}
-		OfflinePlayer offline = Bukkit.getOfflinePlayer(playerId);
-		String name = offline == null ? null : offline.getName();
-		return name == null || name.isBlank() ? "Người chơi" : name;
+		return Text.playerNameDisplay(playerId);
 	}
 
 	public LobbyActionResult disbandMatch(Match match) {
