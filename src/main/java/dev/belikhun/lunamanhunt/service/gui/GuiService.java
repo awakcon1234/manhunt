@@ -2682,15 +2682,83 @@ public class GuiService {
 			.toList();
 	}
 
+	private ProfileStats computeProfileStats(PlayerProfile profile) {
+		if (profile == null) {
+			return new ProfileStats("0h 00m", "0%", "0%", 0, 0, 0);
+		}
+		long playtime = 0L;
+		int hunterWins = 0;
+		int hunterTotal = 0;
+		int speedrunnerWins = 0;
+		int speedrunnerTotal = 0;
+		int kills = 0;
+		for (MatchHistoryEntry entry : profile.getMatchHistory()) {
+			playtime += Math.max(0L, entry.getDurationMillis());
+			if ("HUNTER".equalsIgnoreCase(entry.getRole())) {
+				hunterTotal++;
+				if (entry.isWon()) hunterWins++;
+			} else if ("SPEEDRUNNER".equalsIgnoreCase(entry.getRole())) {
+				speedrunnerTotal++;
+				if (entry.isWon()) speedrunnerWins++;
+				kills += Math.max(0, entry.getHuntersKilled());
+			}
+		}
+		String playtimeDisplay = formatPlaytime(playtime);
+		String hunterWinrate = formatWinrate(hunterWins, hunterTotal);
+		String speedrunnerWinrate = formatWinrate(speedrunnerWins, speedrunnerTotal);
+		return new ProfileStats(playtimeDisplay, hunterWinrate, speedrunnerWinrate, hunterWins, speedrunnerWins, kills);
+	}
+
+	private String formatPlaytime(long millis) {
+		long safeMillis = Math.max(0L, millis);
+		long totalSeconds = safeMillis / 1000L;
+		long hours = totalSeconds / 3600L;
+		long minutes = (totalSeconds % 3600L) / 60L;
+		return String.format(java.util.Locale.US, "%dh %02dm", hours, minutes);
+	}
+
+	private String formatWinrate(int wins, int total) {
+		if (total <= 0) {
+			return "0%";
+		}
+		double rate = (wins * 100.0) / total;
+		return String.format(java.util.Locale.US, "%.1f%%", rate);
+	}
+
+	private static final class ProfileStats {
+		private final String playtime;
+		private final String hunterWinrate;
+		private final String speedrunnerWinrate;
+		private final int hunterWins;
+		private final int speedrunnerWins;
+		private final int kills;
+
+		private ProfileStats(String playtime, String hunterWinrate, String speedrunnerWinrate,
+				int hunterWins, int speedrunnerWins, int kills) {
+			this.playtime = playtime;
+			this.hunterWinrate = hunterWinrate;
+			this.speedrunnerWinrate = speedrunnerWinrate;
+			this.hunterWins = hunterWins;
+			this.speedrunnerWins = speedrunnerWins;
+			this.kills = kills;
+		}
+	}
+
 	private ItemStack buildProfileSummaryItem(OfflinePlayer player, PlayerProfile profile) {
 		ItemStack item = new ItemStack(Material.PLAYER_HEAD);
 		ItemMeta meta = item.getItemMeta();
 		String bestTime = formatDuration(profile.getBestTimeMillis());
+		ProfileStats stats = computeProfileStats(profile);
 		List<String> lore = List.of(
-			"<gray>Thành tích tốt nhất: <white>" + bestTime + "</white></gray>",
-			"<gray>Số lần thắng: <white>" + formatNumber(profile.getTotalWins()) + "</white></gray>",
-			"<gray>Số lần thua: <white>" + formatNumber(profile.getTotalLosses()) + "</white></gray>",
-			"<gray>Số lần chạy: <white>" + formatNumber(profile.getRunTimesMillis().size()) + "</white></gray>"
+			"<gray>Tổng thời gian chơi: <white>" + stats.playtime + "</white></gray>",
+			"<gray>Kỷ lục cá nhân: <white>" + bestTime + "</white></gray>",
+			"<gray>Hạ thợ săn: <white>" + formatNumber(stats.kills) + "</white></gray>",
+			" ",
+			"<gray>Thợ săn thắng: <white>" + formatNumber(stats.hunterWins) + "</white></gray>",
+			"<gray>Tỉ lệ thợ săn: <white>" + stats.hunterWinrate + "</white></gray>",
+			" ",
+			"<gray>Speedrunner thắng: <white>" + formatNumber(stats.speedrunnerWins) + "</white></gray>",
+			"<gray>Tỉ lệ speedrunner: <white>" + stats.speedrunnerWinrate + "</white></gray>"
 		);
 		if (meta instanceof SkullMeta skullMeta) {
 			skullMeta.setOwningPlayer(player);

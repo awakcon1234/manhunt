@@ -14,6 +14,9 @@ public class Match {
 	private MatchState state;
 	private MatchSettings settings;
 	private MatchWorlds worlds;
+	private Long overworldSeed;
+	private Long netherSeed;
+	private Long endSeed;
 	private UUID speedrunnerId;
 	private MatchWinner winner;
 	private final Set<UUID> lobbyPlayers = new HashSet<>();
@@ -65,6 +68,30 @@ public class Match {
 
 	public void setWorlds(MatchWorlds worlds) {
 		this.worlds = worlds;
+	}
+
+	public Long getOverworldSeed() {
+		return overworldSeed;
+	}
+
+	public void setOverworldSeed(Long overworldSeed) {
+		this.overworldSeed = overworldSeed;
+	}
+
+	public Long getNetherSeed() {
+		return netherSeed;
+	}
+
+	public void setNetherSeed(Long netherSeed) {
+		this.netherSeed = netherSeed;
+	}
+
+	public Long getEndSeed() {
+		return endSeed;
+	}
+
+	public void setEndSeed(Long endSeed) {
+		this.endSeed = endSeed;
 	}
 
 	public UUID getSpeedrunnerId() {

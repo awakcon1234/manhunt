@@ -1,6 +1,7 @@
 package dev.belikhun.lunamanhunt.listener;
 
 import dev.belikhun.lunamanhunt.service.match.MatchEndService;
+import dev.belikhun.lunamanhunt.util.Debug;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
@@ -97,6 +98,9 @@ public class EndPortalListener implements Listener {
 	}
 
 	private void debug(String message) {
+		if (!Debug.isEnabled()) {
+			return;
+		}
 		logger.info("[PortalDebug] " + message);
 	}
 }

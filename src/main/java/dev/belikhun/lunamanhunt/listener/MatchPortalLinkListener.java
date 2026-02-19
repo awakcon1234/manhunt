@@ -4,6 +4,7 @@ import dev.belikhun.lunamanhunt.model.match.Match;
 import dev.belikhun.lunamanhunt.model.match.MatchWorlds;
 import dev.belikhun.lunamanhunt.service.lobby.LobbyManager;
 import dev.belikhun.lunamanhunt.service.match.MatchManager;
+import dev.belikhun.lunamanhunt.util.Debug;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.Material;
@@ -262,6 +263,9 @@ public class MatchPortalLinkListener implements Listener {
 	}
 
 	private void debug(String message) {
+		if (!Debug.isEnabled()) {
+			return;
+		}
 		logger.info("[PortalDebug] " + message);
 	}
 

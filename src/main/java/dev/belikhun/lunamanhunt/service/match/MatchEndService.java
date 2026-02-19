@@ -12,6 +12,7 @@ import dev.belikhun.lunamanhunt.service.point.PointService;
 import dev.belikhun.lunamanhunt.service.spawn.LobbyTeleportService;
 import dev.belikhun.lunamanhunt.util.Text;
 import dev.belikhun.lunamanhunt.util.UiColors;
+import dev.belikhun.lunamanhunt.util.Debug;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.Bukkit;
 import org.bukkit.Color;
@@ -665,6 +666,9 @@ public class MatchEndService {
 	}
 
 	private void debugCleanup(String message) {
+		if (!Debug.isEnabled()) {
+			return;
+		}
 		plugin.getLogger().info("[CleanupDebug] " + message);
 	}
 

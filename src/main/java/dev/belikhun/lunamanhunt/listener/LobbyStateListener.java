@@ -1,9 +1,14 @@
 package dev.belikhun.lunamanhunt.listener;
 
+import dev.belikhun.lunamanhunt.model.match.Match;
+import dev.belikhun.lunamanhunt.model.match.MatchState;
+import dev.belikhun.lunamanhunt.service.lobby.LobbyManager;
 import dev.belikhun.lunamanhunt.service.spawn.LobbyItemService;
 import dev.belikhun.lunamanhunt.service.spawn.LobbyTeleportService;
 import dev.belikhun.lunamanhunt.util.Text;
 import dev.belikhun.lunamanhunt.util.UiColors;
+import io.papermc.paper.event.player.AsyncPlayerSpawnLocationEvent;
+
 import org.bukkit.Sound;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
@@ -15,15 +20,22 @@ import java.util.Objects;
 public class LobbyStateListener implements Listener {
 	private final LobbyItemService lobbyItemService;
 	private final LobbyTeleportService lobbyTeleportService;
+	private final LobbyManager lobbyManager;
 
-	public LobbyStateListener(LobbyItemService lobbyItemService, LobbyTeleportService lobbyTeleportService) {
+	public LobbyStateListener(LobbyItemService lobbyItemService, LobbyTeleportService lobbyTeleportService,
+			LobbyManager lobbyManager) {
 		this.lobbyItemService = Objects.requireNonNull(lobbyItemService, "lobbyItemService");
 		this.lobbyTeleportService = Objects.requireNonNull(lobbyTeleportService, "lobbyTeleportService");
+		this.lobbyManager = Objects.requireNonNull(lobbyManager, "lobbyManager");
 	}
 
 	@EventHandler
 	public void onJoin(PlayerJoinEvent event) {
 		var player = event.getPlayer();
+		Match match = lobbyManager.getMatchForPlayer(player.getUniqueId());
+		if (match != null && match.getState() != MatchState.LOBBY) {
+			return;
+		}
 		player.getInventory().clear();
 		player.getInventory().setArmorContents(null);
 		player.getInventory().setItemInOffHand(null);
@@ -36,6 +48,26 @@ public class LobbyStateListener implements Listener {
 		Text.msg(player, "");
 
 		player.playSound(player.getLocation(), Sound.UI_TOAST_IN, 0.7f, 1.0f);
+	}
+
+	@EventHandler
+	public void onSpawnLocation(AsyncPlayerSpawnLocationEvent event) {
+		var connection = event.getConnection();
+		if (connection == null) {
+			return;
+		}
+		var profile = connection.getProfile();
+		if (profile == null || profile.getId() == null) {
+			return;
+		}
+		Match match = lobbyManager.getMatchForPlayer(profile.getId());
+		if (match != null && match.getState() != MatchState.LOBBY) {
+			return;
+		}
+		var spawn = lobbyTeleportService.resolveLobbySpawn(null);
+		if (spawn != null) {
+			event.setSpawnLocation(spawn);
+		}
 	}
 
 	@EventHandler

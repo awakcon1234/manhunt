@@ -15,6 +15,7 @@ import dev.belikhun.lunamanhunt.listener.GuiListener;
 import dev.belikhun.lunamanhunt.listener.LobbyHotbarListener;
 import dev.belikhun.lunamanhunt.listener.LobbyItemGuardListener;
 import dev.belikhun.lunamanhunt.listener.LobbyStateListener;
+import dev.belikhun.lunamanhunt.listener.MatchConnectionListener;
 import dev.belikhun.lunamanhunt.listener.MatchPortalLinkListener;
 import dev.belikhun.lunamanhunt.listener.MatchStatsListener;
 import dev.belikhun.lunamanhunt.listener.MatchWinListener;
@@ -30,6 +31,7 @@ import dev.belikhun.lunamanhunt.service.kit.SpeedrunnerKitStore;
 import dev.belikhun.lunamanhunt.service.lobby.LobbyManager;
 import dev.belikhun.lunamanhunt.service.match.MatchManager;
 import dev.belikhun.lunamanhunt.service.match.MatchEndService;
+import dev.belikhun.lunamanhunt.service.match.MatchDisconnectService;
 import dev.belikhun.lunamanhunt.service.match.MatchLifecycleService;
 import dev.belikhun.lunamanhunt.service.match.MatchSettingsService;
 import dev.belikhun.lunamanhunt.service.match.WinConditionService;
@@ -40,6 +42,7 @@ import dev.belikhun.lunamanhunt.service.spawn.LobbyItemService;
 import dev.belikhun.lunamanhunt.service.spawn.LobbyTeleportService;
 import dev.belikhun.lunamanhunt.service.spawn.SpawnService;
 import dev.belikhun.lunamanhunt.service.worldgen.WorldGenerationService;
+import dev.belikhun.lunamanhunt.util.Debug;
 import io.papermc.paper.plugin.lifecycle.event.types.LifecycleEvents;
 import org.bukkit.permissions.Permission;
 import org.bukkit.permissions.PermissionDefault;
@@ -63,6 +66,7 @@ public final class LunaManhuntPlugin extends JavaPlugin {
 	private LobbyItemService lobbyItemService;
 	private MatchLifecycleService matchLifecycleService;
 	private MatchEndService matchEndService;
+	private MatchDisconnectService matchDisconnectService;
 	private NetherPortalsService netherPortalsService;
 	private ScoreboardService scoreboardService;
 
@@ -70,6 +74,10 @@ public final class LunaManhuntPlugin extends JavaPlugin {
 	public void onEnable() {
 		saveDefaultConfig();
 		registerCardPermissions();
+		Debug.setEnabled(getConfig().getBoolean("debug.enabled", false));
+		if (Debug.isEnabled()) {
+			getLogger().info("[Debug] Global debug logging enabled.");
+		}
 		this.kitService = new SpeedrunnerKitService(new SpeedrunnerKitStore());
 		this.matchSettingsService = new MatchSettingsService(this, kitService);
 		this.persistenceManager = new PersistenceManager(this, matchSettingsService);
@@ -91,20 +99,24 @@ public final class LunaManhuntPlugin extends JavaPlugin {
 		this.matchEndService.processQueuedWorlds();
 		this.winConditionService = new WinConditionService(lobbyManager, persistenceManager.getProfileStore(),
 			matchEndService);
+		this.matchDisconnectService = new MatchDisconnectService(this, lobbyManager, winConditionService);
 		this.matchLifecycleService = new MatchLifecycleService(this, lobbyManager, matchManager, compassService,
 			kitService, cardService, netherPortalsService, pointService);
 		this.matchManager.setLifecycleService(matchLifecycleService);
 		this.spawnService = new SpawnService(this, lobbyManager, matchManager, winConditionService, lobbyTeleportService);
-		this.scoreboardService = new ScoreboardService(this, lobbyManager, cardService, matchLifecycleService, pointService);
+		this.scoreboardService = new ScoreboardService(this, lobbyManager, cardService, matchLifecycleService,
+			pointService, persistenceManager.getProfileStore());
 
 		getServer().getPluginManager().registerEvents(new MatchWinListener(winConditionService), this);
+		getServer().getPluginManager().registerEvents(new MatchConnectionListener(matchDisconnectService), this);
 		getServer().getPluginManager().registerEvents(new CompassListener(compassService), this);
 		getServer().getPluginManager().registerEvents(new SpawnConfirmListener(spawnService), this);
 		getServer().getPluginManager().registerEvents(new GuiListener(guiService), this);
 		getServer().getPluginManager().registerEvents(new GuiInputListener(this, guiService), this);
 		getServer().getPluginManager().registerEvents(new LobbyHotbarListener(lobbyItemService), this);
 		getServer().getPluginManager().registerEvents(new LobbyItemGuardListener(lobbyItemService), this);
-		getServer().getPluginManager().registerEvents(new LobbyStateListener(lobbyItemService, lobbyTeleportService), this);
+		getServer().getPluginManager().registerEvents(
+			new LobbyStateListener(lobbyItemService, lobbyTeleportService, lobbyManager), this);
 		getServer().getPluginManager().registerEvents(new CardListener(cardService), this);
 		getServer().getPluginManager().registerEvents(new CardEffectListener(cardService), this);
 		getServer().getPluginManager().registerEvents(new RunStartListener(matchLifecycleService), this);

@@ -88,12 +88,46 @@ public class WinConditionService {
 		return true;
 	}
 
+	public boolean handleSpeedrunnerDisconnect(Match match) {
+		if (!isMatchOngoing(match)) {
+			return false;
+		}
+		UUID speedrunnerId = match.getSpeedrunnerId();
+		if (speedrunnerId == null) {
+			return false;
+		}
+		endWithHunters(match, "<red>❌</red> " + UiColors.speedrunner("Speedrunner")
+			+ " đã mất kết nối quá lâu. " + UiColors.hunter("Thợ săn") + " chiến thắng!");
+		return true;
+	}
+
+	public boolean handleAllHuntersDisconnected(Match match) {
+		if (!isMatchOngoing(match)) {
+			return false;
+		}
+		if (match.getSpeedrunnerId() == null) {
+			return false;
+		}
+		endWithSpeedrunnerNoTime(match, "<green>✔</green> " + UiColors.speedrunner("Speedrunner")
+			+ " đã chiến thắng vì tất cả " + UiColors.hunter("thợ săn") + " đã rời trận!");
+		return true;
+	}
+
 	private boolean isMatchRunning(Match match) {
 		return match != null && match.getState() == MatchState.RUNNING;
 	}
 
 	private boolean isMatchActive(Match match) {
 		return match != null && match.getState() != MatchState.LOBBY && match.getState() != MatchState.FINISHED;
+	}
+
+	private boolean isMatchOngoing(Match match) {
+		if (match == null) {
+			return false;
+		}
+		MatchState state = match.getState();
+		return state != MatchState.LOBBY && state != MatchState.FINISHED
+			&& state != MatchState.ENDING && state != MatchState.CLEANUP;
 	}
 
 	private boolean sameMatch(Match match, UUID playerId) {
@@ -122,6 +156,11 @@ public class WinConditionService {
 		recordMatchHistory(match, MatchWinner.SPEEDRUNNER);
 		matchEndService.endWithSpeedrunner(match, "<green>✔</green> " + UiColors.speedrunner("Speedrunner")
 			+ " đã chiến thắng!");
+	}
+
+	private void endWithSpeedrunnerNoTime(Match match, String message) {
+		recordMatchHistory(match, MatchWinner.SPEEDRUNNER);
+		matchEndService.endWithSpeedrunner(match, message);
 	}
 
 	private void recordSpeedrunTime(Match match) {
@@ -154,6 +193,7 @@ public class WinConditionService {
 		long start = startedAt == null ? match.getCreatedAtMillis() : startedAt;
 		long endedAt = System.currentTimeMillis();
 		long duration = Math.max(0L, endedAt - start);
+		int huntersKilled = match.getStats().getHuntersKilled();
 		for (UUID playerId : Set.copyOf(match.getLobbyPlayers())) {
 			boolean isSpeedrunner = speedrunnerId != null && speedrunnerId.equals(playerId);
 			boolean won = winner == MatchWinner.SPEEDRUNNER ? isSpeedrunner : !isSpeedrunner;
@@ -167,6 +207,10 @@ public class WinConditionService {
 				entry.setStartedAtMillis(start);
 				entry.setEndedAtMillis(endedAt);
 				entry.setDurationMillis(duration);
+				entry.setHuntersKilled(isSpeedrunner ? huntersKilled : 0);
+				entry.setOverworldSeed(match.getOverworldSeed());
+				entry.setNetherSeed(match.getNetherSeed());
+				entry.setEndSeed(match.getEndSeed());
 				profile.getMatchHistory().add(entry);
 				if (won) {
 					profile.setTotalWins(profile.getTotalWins() + 1);

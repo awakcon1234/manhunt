@@ -3,12 +3,16 @@ package dev.belikhun.lunamanhunt.service.scoreboard;
 import dev.belikhun.lunamanhunt.model.match.Match;
 import dev.belikhun.lunamanhunt.model.match.MatchState;
 import dev.belikhun.lunamanhunt.model.match.MatchWinner;
+import dev.belikhun.lunamanhunt.model.profile.MatchHistoryEntry;
+import dev.belikhun.lunamanhunt.model.profile.PlayerProfile;
 import dev.belikhun.lunamanhunt.service.lobby.LobbyManager;
 import dev.belikhun.lunamanhunt.service.card.CardService;
 import dev.belikhun.lunamanhunt.service.card.ActiveCard;
 import dev.belikhun.lunamanhunt.model.card.CardType;
 import dev.belikhun.lunamanhunt.service.match.MatchLifecycleService;
 import dev.belikhun.lunamanhunt.service.point.PointService;
+import dev.belikhun.lunamanhunt.service.persistence.ProfileStore;
+import dev.belikhun.lunamanhunt.util.Debug;
 import dev.belikhun.lunamanhunt.util.Text;
 import dev.belikhun.lunamanhunt.util.UiColors;
 import net.kyori.adventure.text.Component;
@@ -36,6 +40,10 @@ public class ScoreboardService {
 	private static final int PLACEHOLDER_REFRESH_MS = 5000;
 	private static final int DEFAULT_UPDATE_TICKS = 10;
 	private static final int ACTIVE_LINES_MAX = 4;
+	private static final int HISTORY_LINES_MAX = 3;
+	private static final int PROFILE_CACHE_MS = 5000;
+	private static final int DEBUG_LOG_INTERVAL_MS = 5000;
+	private static final int DEBUG_TICK_LOG_INTERVAL_MS = 10000;
 	private static final String TEMPLATE_LOBBY = "lobby";
 	private static final String TEMPLATE_MATCH_LOBBY = "match_lobby";
 	private static final String TEMPLATE_PREPARING = "match_preparing";
@@ -50,14 +58,19 @@ public class ScoreboardService {
 	private final CardService cardService;
 	private final MatchLifecycleService lifecycleService;
 	private final PointService pointService;
+	private final ProfileStore profileStore;
 	private final Map<UUID, PlayerEntry> players = new HashMap<>();
 	private final Set<UUID> onlineIdsTmp = new HashSet<>();
+	private final Map<UUID, ProfileSnapshot> profileCache = new HashMap<>();
+	private final Map<UUID, Long> debugNextLogMillis = new HashMap<>();
 	private ScoreboardLibrary library;
 	private int taskId = -1;
 	private boolean placeholderApiEnabled = false;
 	private long placeholderApiNextRefreshMs = 0L;
 	private boolean enabled = true;
 	private int updatePeriodTicks = DEFAULT_UPDATE_TICKS;
+	private boolean debugEnabled = false;
+	private long debugNextTickLogMillis = 0L;
 
 	private static final class PlayerEntry {
 		private Sidebar sidebar;
@@ -66,12 +79,13 @@ public class ScoreboardService {
 	}
 
 	public ScoreboardService(JavaPlugin plugin, LobbyManager lobbyManager, CardService cardService,
-			MatchLifecycleService lifecycleService, PointService pointService) {
+			MatchLifecycleService lifecycleService, PointService pointService, ProfileStore profileStore) {
 		this.plugin = Objects.requireNonNull(plugin, "plugin");
 		this.lobbyManager = Objects.requireNonNull(lobbyManager, "lobbyManager");
 		this.cardService = Objects.requireNonNull(cardService, "cardService");
 		this.lifecycleService = Objects.requireNonNull(lifecycleService, "lifecycleService");
 		this.pointService = Objects.requireNonNull(pointService, "pointService");
+		this.profileStore = Objects.requireNonNull(profileStore, "profileStore");
 	}
 
 	public void start() {
@@ -79,8 +93,16 @@ public class ScoreboardService {
 			return;
 		}
 		this.enabled = cfgBool("scoreboard.enabled", true);
+		this.debugEnabled = Debug.isEnabled();
 		if (!enabled) {
 			return;
+		}
+		if (!debugEnabled) {
+			debugNextLogMillis.clear();
+		}
+		if (Debug.isEnabled()) {
+			plugin.getLogger().info("[ScoreboardDebug] enabled=" + enabled
+				+ " updateTicks=" + updatePeriodTicks);
 		}
 		try {
 			library = ScoreboardLibrary.loadScoreboardLibrary(plugin);
@@ -127,13 +149,30 @@ public class ScoreboardService {
 		}
 		refreshPlaceholderApiEnabledIfNeeded(System.currentTimeMillis());
 		cleanupOfflinePlayers();
+		logTickDebug();
 
 		for (Player player : Bukkit.getOnlinePlayers()) {
 			try {
 				tickPlayer(player);
-			} catch (Throwable ignored) {
+			} catch (Throwable t) {
+				if (debugEnabled) {
+					plugin.getLogger().warning("[ScoreboardDebug] tickPlayer failed: player="
+						+ (player == null ? "?" : player.getName()) + " error=" + t.getClass().getSimpleName());
+				}
 			}
 		}
+	}
+
+	private void logTickDebug() {
+		if (!debugEnabled) {
+			return;
+		}
+		long now = System.currentTimeMillis();
+		if (now < debugNextTickLogMillis) {
+			return;
+		}
+		debugNextTickLogMillis = now + DEBUG_TICK_LOG_INTERVAL_MS;
+		plugin.getLogger().info("[ScoreboardDebug] tick online=" + Bukkit.getOnlinePlayers().size());
 	}
 
 	private void tickPlayer(Player player) {
@@ -142,7 +181,9 @@ public class ScoreboardService {
 		Map<String, String> placeholders = buildPlaceholders(player, match);
 		Component title = parse(player, cfgString("scoreboard.templates." + template + ".title", ""), placeholders);
 		java.util.List<Component> lines;
-		if (TEMPLATE_PLAYING_SPEEDRUNNER.equals(template) || TEMPLATE_PLAYING_HUNTER.equals(template)) {
+		if (TEMPLATE_LOBBY.equals(template)) {
+			lines = buildLobbyLines(player, placeholders);
+		} else if (TEMPLATE_PLAYING_SPEEDRUNNER.equals(template) || TEMPLATE_PLAYING_HUNTER.equals(template)) {
 			lines = buildRunningLines(player, match, template, placeholders);
 		} else {
 			lines = parseLines(player,
@@ -186,6 +227,38 @@ public class ScoreboardService {
 		return TEMPLATE_LOBBY;
 	}
 
+	private void logDebugState(Player player, Match match, String template) {
+		if (!debugEnabled || player == null) {
+			return;
+		}
+		long now = System.currentTimeMillis();
+		UUID playerId = player.getUniqueId();
+		Long nextLog = debugNextLogMillis.get(playerId);
+		if (nextLog != null && now < nextLog) {
+			return;
+		}
+		debugNextLogMillis.put(playerId, now + DEBUG_LOG_INTERVAL_MS);
+		String matchId = match == null ? "-" : safeStr(match.getId());
+		String indexedMatchId = lobbyManager.getMatchIdForPlayer(playerId);
+		String indexDisplay = indexedMatchId == null ? "-" : indexedMatchId;
+		String state = match == null || match.getState() == null ? "-" : match.getState().name();
+		int countdown = match == null ? 0 : lifecycleService.getCountdownRemainingSeconds(match.getId());
+		boolean isSpeedrunner = match != null && isSpeedrunner(player, match);
+		boolean isHunter = match != null && match.getHunters().contains(playerId);
+		int lobbyPlayers = match == null ? 0 : match.getLobbyPlayers().size();
+		int hunterCount = match == null ? 0 : match.getHunters().size();
+		plugin.getLogger().info("[ScoreboardDebug] player=" + player.getName()
+			+ " match=" + matchId
+			+ " index=" + indexDisplay
+			+ " state=" + state
+			+ " template=" + template
+			+ " countdown=" + countdown
+			+ " speedrunner=" + isSpeedrunner
+			+ " hunter=" + isHunter
+			+ " lobbyPlayers=" + lobbyPlayers
+			+ " hunters=" + hunterCount);
+	}
+
 	private Map<String, String> buildPlaceholders(Player player, Match match) {
 		Map<String, String> placeholders = new HashMap<>();
 		placeholders.put("player_name", safeStr(player.getName()));
@@ -219,6 +292,24 @@ public class ScoreboardService {
 			placeholders.put("match_stats_damage_hunters", "0");
 			placeholders.put("match_time_to_nether", "-");
 			placeholders.put("match_time_to_end", "-");
+			placeholders.put("match_kills", "0");
+			placeholders.put("match_setting_time", "-");
+			placeholders.put("match_setting_time_display", "-");
+			placeholders.put("match_setting_weather", "-");
+			placeholders.put("match_setting_weather_display", "-");
+			placeholders.put("match_setting_difficulty", "-");
+			placeholders.put("match_setting_difficulty_display", "-");
+			placeholders.put("match_setting_keep_inventory", "-");
+			placeholders.put("match_setting_keep_inventory_display", "-");
+			placeholders.put("match_setting_border_limit", "-");
+			placeholders.put("match_setting_starting_border", "-");
+			placeholders.put("match_setting_visibility", "-");
+			placeholders.put("match_setting_visibility_display", "-");
+			placeholders.put("match_setting_world_seed", "-");
+			placeholders.put("match_setting_world_version", "-");
+			placeholders.put("match_setting_kit_id", "-");
+			placeholders.put("match_setting_speedrunner_selection", "-");
+			fillProfilePlaceholders(placeholders, player.getUniqueId());
 			return placeholders;
 		}
 
@@ -268,6 +359,46 @@ public class ScoreboardService {
 		placeholders.put("match_stats_damage_hunters", formatDecimal(stats.getDamageToHunters(), 1));
 		placeholders.put("match_time_to_nether", formatMilestone(stats.getTimeToNetherMillis()));
 		placeholders.put("match_time_to_end", formatMilestone(stats.getTimeToEndMillis()));
+		placeholders.put("match_kills", String.valueOf(stats.getHuntersKilled()));
+
+		var settings = match.getSettings();
+		if (settings != null) {
+			placeholders.put("match_setting_time", settings.getWorldTime() == null ? "-" : settings.getWorldTime().name());
+			placeholders.put("match_setting_time_display", formatWorldTime(settings.getWorldTime()));
+			placeholders.put("match_setting_weather", settings.getWorldWeather() == null ? "-" : settings.getWorldWeather().name());
+			placeholders.put("match_setting_weather_display", formatWorldWeather(settings.getWorldWeather()));
+			placeholders.put("match_setting_difficulty", settings.getWorldDifficulty() == null ? "-" : settings.getWorldDifficulty().name());
+			placeholders.put("match_setting_difficulty_display", formatWorldDifficulty(settings.getWorldDifficulty()));
+			placeholders.put("match_setting_keep_inventory", String.valueOf(settings.isKeepInventory()));
+			placeholders.put("match_setting_keep_inventory_display", settings.isKeepInventory() ? "Bật" : "Tắt");
+			placeholders.put("match_setting_border_limit", String.valueOf(settings.getWorldBorderLimit()));
+			placeholders.put("match_setting_starting_border", String.valueOf(settings.getStartingBorder()));
+			placeholders.put("match_setting_visibility", settings.getVisibility() == null ? "-" : settings.getVisibility().name());
+			placeholders.put("match_setting_visibility_display", formatVisibility(settings.getVisibility()));
+			placeholders.put("match_setting_world_seed", safeStr(settings.getWorldSeed()));
+			placeholders.put("match_setting_world_version", safeStr(settings.getWorldGenerationVersion()));
+			placeholders.put("match_setting_kit_id", safeStr(settings.getSpeedrunnerKitId()));
+			placeholders.put("match_setting_speedrunner_selection",
+				settings.getSpeedrunnerSelection() == null ? "-" : settings.getSpeedrunnerSelection().name());
+		} else {
+			placeholders.put("match_setting_time", "-");
+			placeholders.put("match_setting_time_display", "-");
+			placeholders.put("match_setting_weather", "-");
+			placeholders.put("match_setting_weather_display", "-");
+			placeholders.put("match_setting_difficulty", "-");
+			placeholders.put("match_setting_difficulty_display", "-");
+			placeholders.put("match_setting_keep_inventory", "-");
+			placeholders.put("match_setting_keep_inventory_display", "-");
+			placeholders.put("match_setting_border_limit", "-");
+			placeholders.put("match_setting_starting_border", "-");
+			placeholders.put("match_setting_visibility", "-");
+			placeholders.put("match_setting_visibility_display", "-");
+			placeholders.put("match_setting_world_seed", "-");
+			placeholders.put("match_setting_world_version", "-");
+			placeholders.put("match_setting_kit_id", "-");
+			placeholders.put("match_setting_speedrunner_selection", "-");
+		}
+		fillProfilePlaceholders(placeholders, player.getUniqueId());
 
 		return placeholders;
 	}
@@ -341,6 +472,121 @@ public class ScoreboardService {
 		return out;
 	}
 
+	private void fillProfilePlaceholders(Map<String, String> placeholders, UUID playerId) {
+		if (placeholders == null || playerId == null) {
+			return;
+		}
+		ProfileSnapshot snapshot = getProfileSnapshot(playerId);
+		placeholders.put("profile_playtime", snapshot.playtimeDisplay);
+		placeholders.put("profile_best_time", snapshot.bestTimeDisplay);
+		placeholders.put("profile_kills", String.valueOf(snapshot.kills));
+		placeholders.put("profile_hunter_wins", String.valueOf(snapshot.hunterWins));
+		placeholders.put("profile_hunter_total", String.valueOf(snapshot.hunterTotal));
+		placeholders.put("profile_hunter_winrate", snapshot.hunterWinrate);
+		placeholders.put("profile_speedrunner_wins", String.valueOf(snapshot.speedrunnerWins));
+		placeholders.put("profile_speedrunner_total", String.valueOf(snapshot.speedrunnerTotal));
+		placeholders.put("profile_speedrunner_winrate", snapshot.speedrunnerWinrate);
+	}
+
+	private java.util.List<Component> buildLobbyLines(Player player, Map<String, String> placeholders) {
+		String matchLine = cfgString("scoreboard.templates.lobby.match_line", "");
+		if (matchLine == null || matchLine.isBlank()) {
+			return parseLines(player,
+				cfgStringList("scoreboard.templates.lobby.lines", java.util.List.of()),
+				placeholders);
+		}
+		java.util.List<Component> lines = new java.util.ArrayList<>();
+		java.util.List<String> header = cfgStringList("scoreboard.templates.lobby.header", java.util.List.of());
+		java.util.List<String> footer = cfgStringList("scoreboard.templates.lobby.footer", java.util.List.of());
+		lines.addAll(parseLines(player, header, placeholders));
+
+		ProfileSnapshot snapshot = getProfileSnapshot(player.getUniqueId());
+		if (snapshot.recentMatches.isEmpty()) {
+			String empty = cfgString("scoreboard.templates.lobby.match_empty", "<gray>Chưa có trận gần đây</gray>");
+			lines.add(parse(player, empty, placeholders));
+		} else {
+			int index = 1;
+			for (HistoryLine entry : snapshot.recentMatches) {
+				Map<String, String> linePlaceholders = new HashMap<>(placeholders);
+				linePlaceholders.put("history_index", String.valueOf(index));
+				linePlaceholders.put("history_match_id", entry.matchId);
+				linePlaceholders.put("history_role_display", entry.roleDisplay);
+				linePlaceholders.put("history_outcome", entry.outcomeDisplay);
+				linePlaceholders.put("history_duration", entry.durationDisplay);
+				linePlaceholders.put("history_time_ago", entry.timeAgo);
+				lines.add(parse(player, matchLine, linePlaceholders));
+				index++;
+			}
+		}
+
+		lines.addAll(parseLines(player, footer, placeholders));
+		return lines;
+	}
+
+	private ProfileSnapshot getProfileSnapshot(UUID playerId) {
+		long now = System.currentTimeMillis();
+		ProfileSnapshot cached = profileCache.get(playerId);
+		if (cached != null && now - cached.loadedAtMillis < PROFILE_CACHE_MS) {
+			return cached;
+		}
+		PlayerProfile profile;
+		try {
+			profile = profileStore.load(playerId);
+		} catch (Exception ignored) {
+			profile = new PlayerProfile(playerId);
+		}
+		ProfileSnapshot snapshot = buildProfileSnapshot(profile, now);
+		profileCache.put(playerId, snapshot);
+		return snapshot;
+	}
+
+	private ProfileSnapshot buildProfileSnapshot(PlayerProfile profile, long nowMillis) {
+		long playtime = 0L;
+		int hunterWins = 0;
+		int hunterTotal = 0;
+		int speedrunnerWins = 0;
+		int speedrunnerTotal = 0;
+		int kills = 0;
+		java.util.List<HistoryLine> recent = new java.util.ArrayList<>();
+		if (profile != null) {
+			for (MatchHistoryEntry entry : profile.getMatchHistory()) {
+				playtime += Math.max(0L, entry.getDurationMillis());
+				if ("HUNTER".equalsIgnoreCase(entry.getRole())) {
+					hunterTotal++;
+					if (entry.isWon()) {
+						hunterWins++;
+					}
+				} else if ("SPEEDRUNNER".equalsIgnoreCase(entry.getRole())) {
+					speedrunnerTotal++;
+					if (entry.isWon()) {
+						speedrunnerWins++;
+					}
+					kills += Math.max(0, entry.getHuntersKilled());
+				}
+			}
+			for (int i = profile.getMatchHistory().size() - 1; i >= 0 && recent.size() < HISTORY_LINES_MAX; i--) {
+				MatchHistoryEntry entry = profile.getMatchHistory().get(i);
+				recent.add(toHistoryLine(entry, nowMillis));
+			}
+		}
+		String playtimeDisplay = formatPlaytime(playtime);
+		String bestTimeDisplay = formatDuration(profile == null ? 0L : profile.getBestTimeMillis());
+		String hunterWinrate = formatWinrate(hunterWins, hunterTotal);
+		String speedrunnerWinrate = formatWinrate(speedrunnerWins, speedrunnerTotal);
+		return new ProfileSnapshot(nowMillis, playtimeDisplay, bestTimeDisplay, kills,
+			hunterWins, hunterTotal, hunterWinrate, speedrunnerWins, speedrunnerTotal, speedrunnerWinrate, recent);
+	}
+
+	private HistoryLine toHistoryLine(MatchHistoryEntry entry, long nowMillis) {
+		String matchId = safeStr(entry.getMatchId());
+		String roleDisplay = formatHistoryRole(entry.getRole());
+		String outcomeDisplay = formatHistoryOutcome(entry);
+		String durationDisplay = formatDuration(entry.getDurationMillis());
+		long timeMillis = entry.getEndedAtMillis() > 0 ? entry.getEndedAtMillis() : entry.getStartedAtMillis();
+		String timeAgo = formatRelativeTime(nowMillis, timeMillis);
+		return new HistoryLine(matchId, roleDisplay, outcomeDisplay, durationDisplay, timeAgo);
+	}
+
 	private String resolvePlayerDisplay(Player player, Match match) {
 		if (player == null) {
 			return "-";
@@ -363,7 +609,7 @@ public class ScoreboardService {
 			return "-";
 		}
 		if (isSpeedrunner(player, match)) {
-			return UiColors.speedrunner("Speedrunner");
+			return UiColors.speedrunner("Người chạy");
 		}
 		if (match.getHunters().contains(player.getUniqueId())) {
 			return UiColors.hunter("Thợ săn");
@@ -386,6 +632,169 @@ public class ScoreboardService {
 		long minutes = safeSeconds / 60L;
 		long seconds = safeSeconds % 60L;
 		return String.format(Locale.US, "%02d:%02d", minutes, seconds);
+	}
+
+	private String formatPlaytime(long millis) {
+		long safeMillis = Math.max(0L, millis);
+		long totalSeconds = safeMillis / 1000L;
+		long hours = totalSeconds / 3600L;
+		long minutes = (totalSeconds % 3600L) / 60L;
+		return String.format(Locale.US, "%dh %02dm", hours, minutes);
+	}
+
+	private String formatDuration(long millis) {
+		if (millis <= 0L) {
+			return "Chưa có";
+		}
+		long totalSeconds = millis / 1000L;
+		long hours = totalSeconds / 3600L;
+		long minutes = (totalSeconds % 3600L) / 60L;
+		long seconds = totalSeconds % 60L;
+		if (hours > 0) {
+			return String.format(Locale.US, "%d:%02d:%02d", hours, minutes, seconds);
+		}
+		return String.format(Locale.US, "%d:%02d", minutes, seconds);
+	}
+
+	private String formatWinrate(int wins, int total) {
+		if (total <= 0) {
+			return "0%";
+		}
+		double rate = (wins * 100.0) / total;
+		return String.format(Locale.US, "%.1f%%", rate);
+	}
+
+	private String formatHistoryRole(String role) {
+		if (role == null) {
+			return "-";
+		}
+		if ("SPEEDRUNNER".equalsIgnoreCase(role)) {
+			return UiColors.speedrunner("Người chạy");
+		}
+		if ("HUNTER".equalsIgnoreCase(role)) {
+			return UiColors.hunter("Thợ săn");
+		}
+		return "<white>Người chơi</white>";
+	}
+
+	private String formatHistoryOutcome(MatchHistoryEntry entry) {
+		if (entry == null) {
+			return "-";
+		}
+		return entry.isWon() ? "<green>Thắng</green>" : "<red>Thua</red>";
+	}
+
+	private String formatRelativeTime(long nowMillis, long timeMillis) {
+		long delta = Math.max(0L, nowMillis - Math.max(0L, timeMillis));
+		long minutes = delta / 60000L;
+		if (minutes < 1) {
+			return "vừa xong";
+		}
+		if (minutes < 60) {
+			return minutes + "p trước";
+		}
+		long hours = minutes / 60L;
+		if (hours < 24) {
+			return hours + "h trước";
+		}
+		long days = hours / 24L;
+		return days + "d trước";
+	}
+
+	private static final class ProfileSnapshot {
+		private final long loadedAtMillis;
+		private final String playtimeDisplay;
+		private final String bestTimeDisplay;
+		private final int kills;
+		private final int hunterWins;
+		private final int hunterTotal;
+		private final String hunterWinrate;
+		private final int speedrunnerWins;
+		private final int speedrunnerTotal;
+		private final String speedrunnerWinrate;
+		private final java.util.List<HistoryLine> recentMatches;
+
+		private ProfileSnapshot(long loadedAtMillis, String playtimeDisplay, String bestTimeDisplay, int kills,
+				int hunterWins, int hunterTotal, String hunterWinrate,
+				int speedrunnerWins, int speedrunnerTotal, String speedrunnerWinrate,
+				java.util.List<HistoryLine> recentMatches) {
+			this.loadedAtMillis = loadedAtMillis;
+			this.playtimeDisplay = playtimeDisplay;
+			this.bestTimeDisplay = bestTimeDisplay;
+			this.kills = kills;
+			this.hunterWins = hunterWins;
+			this.hunterTotal = hunterTotal;
+			this.hunterWinrate = hunterWinrate;
+			this.speedrunnerWins = speedrunnerWins;
+			this.speedrunnerTotal = speedrunnerTotal;
+			this.speedrunnerWinrate = speedrunnerWinrate;
+			this.recentMatches = recentMatches == null ? java.util.List.of() : recentMatches;
+		}
+	}
+
+	private static final class HistoryLine {
+		private final String matchId;
+		private final String roleDisplay;
+		private final String outcomeDisplay;
+		private final String durationDisplay;
+		private final String timeAgo;
+
+		private HistoryLine(String matchId, String roleDisplay, String outcomeDisplay,
+				String durationDisplay, String timeAgo) {
+			this.matchId = matchId;
+			this.roleDisplay = roleDisplay;
+			this.outcomeDisplay = outcomeDisplay;
+			this.durationDisplay = durationDisplay;
+			this.timeAgo = timeAgo;
+		}
+	}
+
+	private String formatWorldTime(dev.belikhun.lunamanhunt.model.match.WorldTimeSetting setting) {
+		if (setting == null) {
+			return "-";
+		}
+		return switch (setting) {
+			case CYCLE -> "Tự động";
+			case MORNING -> "Sáng";
+			case NOON -> "Trưa";
+			case NIGHT -> "Tối";
+			case MIDNIGHT -> "Nửa đêm";
+		};
+	}
+
+	private String formatWorldWeather(dev.belikhun.lunamanhunt.model.match.WorldWeatherSetting setting) {
+		if (setting == null) {
+			return "-";
+		}
+		return switch (setting) {
+			case CYCLE -> "Tự động";
+			case CLEAR -> "Nắng";
+			case RAIN -> "Mưa";
+			case THUNDERSTORM -> "Bão";
+		};
+	}
+
+	private String formatWorldDifficulty(dev.belikhun.lunamanhunt.model.match.WorldDifficultySetting setting) {
+		if (setting == null) {
+			return "-";
+		}
+		return switch (setting) {
+			case PEACEFUL -> "Hòa bình";
+			case EASY -> "Dễ";
+			case MEDIUM -> "Thường";
+			case HARD -> "Khó";
+		};
+	}
+
+	private String formatVisibility(dev.belikhun.lunamanhunt.model.match.MatchVisibility visibility) {
+		if (visibility == null) {
+			return "-";
+		}
+		return switch (visibility) {
+			case PUBLIC -> "Công khai";
+			case INVITE_ONLY -> "Chỉ mời";
+			case PRIVATE -> "Riêng tư";
+		};
 	}
 
 	private String resolveMatchStateDisplay(MatchState state) {
@@ -492,7 +901,8 @@ public class ScoreboardService {
 		if (!Double.isFinite(value)) {
 			return "0";
 		}
-		String format = "%0." + Math.max(0, decimals) + "f";
+		int safeDecimals = Math.max(0, decimals);
+		String format = "%." + safeDecimals + "f";
 		return String.format(Locale.US, format, value);
 	}
 
@@ -643,6 +1053,7 @@ public class ScoreboardService {
 				}
 			} catch (Throwable ignored) {
 			}
+			profileCache.remove(id);
 			return true;
 		});
 	}

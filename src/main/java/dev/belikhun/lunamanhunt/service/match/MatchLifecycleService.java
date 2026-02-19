@@ -136,6 +136,7 @@ public class MatchLifecycleService {
 			return;
 		}
 		applyWorldRule(bukkitWorld, match.getSettings());
+		recordWorldSeed(match, bukkitWorld);
 		String label = formatWorldLabel(bukkitWorld.getEnvironment());
 		String seed = formatSeedValue(bukkitWorld.getSeed());
 		broadcast(match, "<green>✔</green> Thế giới <yellow>" + label + "</yellow> đã tạo xong. Seed: " + seed + ".");
@@ -156,6 +157,7 @@ public class MatchLifecycleService {
 			markMatchFailed(match, "<red>❌</red> Thế giới trận đấu chưa sẵn sàng.");
 			return;
 		}
+		recordWorldSeed(match, overworld);
 
 		UUID speedrunnerId = resolveSpeedrunner(match);
 		if (speedrunnerId == null) {
@@ -167,6 +169,20 @@ public class MatchLifecycleService {
 		broadcast(match, "<yellow>ℹ</yellow> " + UiColors.speedrunner("Speedrunner")
 			+ ": <yellow>" + resolvePlayerName(speedrunnerId) + "</yellow>.");
 		startOverworldWarmup(match, overworld);
+	}
+
+	private void recordWorldSeed(Match match, World world) {
+		if (match == null || world == null) {
+			return;
+		}
+		long seed = world.getSeed();
+		switch (world.getEnvironment()) {
+			case NORMAL -> match.setOverworldSeed(seed);
+			case NETHER -> match.setNetherSeed(seed);
+			case THE_END -> match.setEndSeed(seed);
+			default -> {
+			}
+		}
 	}
 
 	private void linkMatchPortals(MatchWorlds worlds) {

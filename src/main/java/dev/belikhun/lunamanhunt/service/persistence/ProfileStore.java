@@ -115,6 +115,22 @@ public class ProfileStore {
 		if (duration instanceof Number value) {
 			entry.setDurationMillis(value.longValue());
 		}
+		Object huntersKilled = map.get("huntersKilled");
+		if (huntersKilled instanceof Number value) {
+			entry.setHuntersKilled(value.intValue());
+		}
+		Object overworldSeed = map.get("overworldSeed");
+		if (overworldSeed instanceof Number value) {
+			entry.setOverworldSeed(value.longValue());
+		}
+		Object netherSeed = map.get("netherSeed");
+		if (netherSeed instanceof Number value) {
+			entry.setNetherSeed(value.longValue());
+		}
+		Object endSeed = map.get("endSeed");
+		if (endSeed instanceof Number value) {
+			entry.setEndSeed(value.longValue());
+		}
 		return entry;
 	}
 
@@ -130,6 +146,19 @@ public class ProfileStore {
 			map.put("startedAtMillis", entry.getStartedAtMillis());
 			map.put("endedAtMillis", entry.getEndedAtMillis());
 			map.put("durationMillis", entry.getDurationMillis());
+			map.put("huntersKilled", entry.getHuntersKilled());
+			Long overworldSeed = entry.getOverworldSeed();
+			Long netherSeed = entry.getNetherSeed();
+			Long endSeed = entry.getEndSeed();
+			if (overworldSeed != null) {
+				map.put("overworldSeed", overworldSeed);
+			}
+			if (netherSeed != null) {
+				map.put("netherSeed", netherSeed);
+			}
+			if (endSeed != null) {
+				map.put("endSeed", endSeed);
+			}
 			list.add(map);
 		}
 		return list;

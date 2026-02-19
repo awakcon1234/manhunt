@@ -10,6 +10,10 @@ public class MatchHistoryEntry {
 	private long startedAtMillis;
 	private long endedAtMillis;
 	private long durationMillis;
+	private int huntersKilled;
+	private Long overworldSeed;
+	private Long netherSeed;
+	private Long endSeed;
 
 	public String getMatchId() {
 		return matchId;
@@ -65,5 +69,37 @@ public class MatchHistoryEntry {
 
 	public void setDurationMillis(long durationMillis) {
 		this.durationMillis = durationMillis;
+	}
+
+	public int getHuntersKilled() {
+		return huntersKilled;
+	}
+
+	public void setHuntersKilled(int huntersKilled) {
+		this.huntersKilled = huntersKilled;
+	}
+
+	public Long getOverworldSeed() {
+		return overworldSeed;
+	}
+
+	public void setOverworldSeed(Long overworldSeed) {
+		this.overworldSeed = overworldSeed;
+	}
+
+	public Long getNetherSeed() {
+		return netherSeed;
+	}
+
+	public void setNetherSeed(Long netherSeed) {
+		this.netherSeed = netherSeed;
+	}
+
+	public Long getEndSeed() {
+		return endSeed;
+	}
+
+	public void setEndSeed(Long endSeed) {
+		this.endSeed = endSeed;
 	}
 }

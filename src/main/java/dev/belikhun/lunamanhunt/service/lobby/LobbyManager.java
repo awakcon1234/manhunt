@@ -230,11 +230,40 @@ public class LobbyManager {
 	}
 
 	public Match getMatchForPlayer(UUID playerId) {
-		String matchId = getMatchIdForPlayer(playerId);
-		if (matchId == null) {
+		if (playerId == null) {
 			return null;
 		}
-		return matchManager.getMatch(matchId);
+		String matchId = getMatchIdForPlayer(playerId);
+		if (matchId != null) {
+			Match match = matchManager.getMatch(matchId);
+			if (match != null) {
+				return match;
+			}
+			playerMatchIndex.remove(playerId, matchId);
+		}
+		Match match = findMatchForMember(playerId);
+		if (match != null) {
+			playerMatchIndex.put(playerId, match.getId());
+		}
+		return match;
+	}
+
+	private Match findMatchForMember(UUID playerId) {
+		for (Match match : matchManager.getMatches()) {
+			if (match == null) {
+				continue;
+			}
+			if (playerId.equals(match.getSpeedrunnerId())) {
+				return match;
+			}
+			if (match.getHunters().contains(playerId)) {
+				return match;
+			}
+			if (match.getLobbyPlayers().contains(playerId)) {
+				return match;
+			}
+		}
+		return null;
 	}
 
 	private Match findInvitedMatch(UUID playerId) {

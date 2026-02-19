@@ -45,5 +45,5 @@
 
 ## Build/Run
 - Build with `./gradlew build` (Paper API + Multiverse are compileOnly).
-- Always run `./gradlew shadowJar` after completing a task to verify build errors.
+- Always run `./gradlew shadowJar` at the end of your work to verify build errors.
 - No automated tests are defined yet.
