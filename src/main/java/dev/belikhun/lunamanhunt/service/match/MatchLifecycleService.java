@@ -474,14 +474,14 @@ public class MatchLifecycleService {
 		}
 	}
 
-	private void setMatchRespawnPoint(Match match, Location spawn) {
-		if (match == null || spawn == null) {
+	private void clearForcedRespawnPoint(Match match) {
+		if (match == null) {
 			return;
 		}
 		for (UUID id : Set.copyOf(match.getLobbyPlayers())) {
 			Player player = Bukkit.getPlayer(id);
 			if (player != null) {
-				player.setRespawnLocation(spawn, true);
+				player.setRespawnLocation(null, true);
 			}
 		}
 	}
@@ -923,7 +923,7 @@ public class MatchLifecycleService {
 		Location spawn = overworld.getSpawnLocation();
 		applyWorldBorder(overworld, spawn, match.getSettings());
 		teleportPlayers(match, spawn);
-		setMatchRespawnPoint(match, spawn);
+		clearForcedRespawnPoint(match);
 		clearLobbyItems(match);
 		setGameMode(match, GameMode.ADVENTURE);
 		giveSpeedrunnerKit(match, match.getSpeedrunnerId());

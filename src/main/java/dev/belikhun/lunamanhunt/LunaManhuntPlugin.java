@@ -19,6 +19,7 @@ import dev.belikhun.lunamanhunt.listener.MatchConnectionListener;
 import dev.belikhun.lunamanhunt.listener.MatchPortalLinkListener;
 import dev.belikhun.lunamanhunt.listener.MatchStatsListener;
 import dev.belikhun.lunamanhunt.listener.MatchWinListener;
+import dev.belikhun.lunamanhunt.listener.PlayerDeathRoutingListener;
 import dev.belikhun.lunamanhunt.listener.RunStartListener;
 import dev.belikhun.lunamanhunt.listener.SpawnConfirmListener;
 import dev.belikhun.lunamanhunt.service.card.CardService;
@@ -110,6 +111,8 @@ public final class LunaManhuntPlugin extends JavaPlugin {
 			pointService, persistenceManager.getProfileStore());
 
 		getServer().getPluginManager().registerEvents(new MatchWinListener(winConditionService), this);
+		getServer().getPluginManager().registerEvents(
+			new PlayerDeathRoutingListener(this, lobbyManager, lobbyTeleportService), this);
 		getServer().getPluginManager().registerEvents(new MatchConnectionListener(matchDisconnectService), this);
 		getServer().getPluginManager().registerEvents(new CompassListener(compassService), this);
 		getServer().getPluginManager().registerEvents(new SpawnConfirmListener(spawnService), this);
