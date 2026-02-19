@@ -18,7 +18,7 @@ public class CurseZombieOutbreakCard extends BaseCard {
 
 	public CurseZombieOutbreakCard() {
 		super("zombie_outbreak", "Bầy zombie", CardType.CURSE, CardRarity.EPIC, 3,
-			"Triệu hồi bầy zombie quanh " + UiColors.hunter("thợ săn") + ".", Material.ZOMBIE_SPAWN_EGG);
+			"Triệu hồi bầy zombie quanh " + UiColors.roleHunterLower() + ".", Material.ZOMBIE_SPAWN_EGG);
 	}
 
 	@Override

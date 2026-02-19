@@ -12,7 +12,7 @@ import org.bukkit.potion.PotionEffectType;
 public class CurseDizzyCard extends BaseCard {
 	public CurseDizzyCard() {
 		super("dizzy", "Hơi chóng mặt", CardType.CURSE, CardRarity.COMMON, 1,
-			"Chóng mặt " + UiColors.hunter("thợ săn") + " trong 30 giây.", Material.FERMENTED_SPIDER_EYE, 30);
+			"Chóng mặt " + UiColors.roleHunterLower() + " trong 30 giây.", Material.FERMENTED_SPIDER_EYE, 30);
 	}
 
 	@Override

@@ -11,9 +11,9 @@ import org.bukkit.potion.PotionEffectType;
 
 public class HunterSlownessCard extends BaseCard {
 	public HunterSlownessCard() {
-		super("hunter_slowness", "Làm chậm " + UiColors.hunter("thợ săn"),
+		super("hunter_slowness", "Làm chậm " + UiColors.roleHunterLower(),
 			CardType.EFFECT, CardRarity.COMMON, 1,
-			"Làm chậm " + UiColors.hunter("thợ săn") + " trong 12 giây.", Material.SNOWBALL, 12);
+			"Làm chậm " + UiColors.roleHunterLower() + " trong 12 giây.", Material.SNOWBALL, 12);
 	}
 
 	@Override

@@ -46,9 +46,9 @@ public class WinConditionService {
 		if (!match.getHunters().contains(killer.getUniqueId())) {
 			return false;
 		}
-		Text.msg(killer, "<green>✔</green> Bạn đã hạ " + UiColors.speedrunner("Speedrunner") + "!");
+		Text.msg(killer, "<green>✔</green> Bạn đã hạ " + UiColors.roleSpeedrunner() + "!");
 		killer.playSound(killer.getLocation(), Sound.ENTITY_PLAYER_LEVELUP, 0.8f, 1.0f);
-		Text.msg(victim, "<red>❌</red> Bạn đã bị " + UiColors.hunter("thợ săn") + " hạ gục.");
+		Text.msg(victim, "<red>❌</red> Bạn đã bị " + UiColors.roleHunterLower() + " hạ gục.");
 		victim.playSound(victim.getLocation(), Sound.UI_TOAST_OUT, 0.7f, 1.0f);
 		endWithHuntersByKill(match, deathLocation);
 		return true;
@@ -83,8 +83,8 @@ public class WinConditionService {
 		if (!isSpeedrunner(match, speedrunner.getUniqueId())) {
 			return false;
 		}
-		endWithHunters(match, "<red>❌</red> " + UiColors.speedrunner("Speedrunner")
-			+ " đã rời trận. " + UiColors.hunter("Thợ săn") + " chiến thắng!");
+		endWithHunters(match, "<red>❌</red> " + UiColors.roleSpeedrunner()
+			+ " đã rời trận. " + UiColors.roleHunter() + " chiến thắng!");
 		return true;
 	}
 
@@ -96,8 +96,8 @@ public class WinConditionService {
 		if (speedrunnerId == null) {
 			return false;
 		}
-		endWithHunters(match, "<red>❌</red> " + UiColors.speedrunner("Speedrunner")
-			+ " đã mất kết nối quá lâu. " + UiColors.hunter("Thợ săn") + " chiến thắng!");
+		endWithHunters(match, "<red>❌</red> " + UiColors.roleSpeedrunner()
+			+ " đã mất kết nối quá lâu. " + UiColors.roleHunter() + " chiến thắng!");
 		return true;
 	}
 
@@ -108,8 +108,8 @@ public class WinConditionService {
 		if (match.getSpeedrunnerId() == null) {
 			return false;
 		}
-		endWithSpeedrunnerNoTime(match, "<green>✔</green> " + UiColors.speedrunner("Speedrunner")
-			+ " đã chiến thắng vì tất cả " + UiColors.hunter("thợ săn") + " đã rời trận!");
+		endWithSpeedrunnerNoTime(match, "<green>✔</green> " + UiColors.roleSpeedrunner()
+			+ " đã chiến thắng vì tất cả " + UiColors.roleHunterLower() + " đã rời trận!");
 		return true;
 	}
 
@@ -142,7 +142,7 @@ public class WinConditionService {
 
 	private void endWithHuntersByKill(Match match, org.bukkit.Location deathLocation) {
 		recordMatchHistory(match, MatchWinner.HUNTERS);
-		matchEndService.endWithHunters(match, "<green>✔</green> " + UiColors.hunter("Thợ săn")
+		matchEndService.endWithHunters(match, "<green>✔</green> " + UiColors.roleHunter()
 			+ " đã chiến thắng!", deathLocation, true);
 	}
 
@@ -154,7 +154,7 @@ public class WinConditionService {
 	private void endWithSpeedrunner(Match match) {
 		recordSpeedrunTime(match);
 		recordMatchHistory(match, MatchWinner.SPEEDRUNNER);
-		matchEndService.endWithSpeedrunner(match, "<green>✔</green> " + UiColors.speedrunner("Speedrunner")
+		matchEndService.endWithSpeedrunner(match, "<green>✔</green> " + UiColors.roleSpeedrunner()
 			+ " đã chiến thắng!");
 	}
 

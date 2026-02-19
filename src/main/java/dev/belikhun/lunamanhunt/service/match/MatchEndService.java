@@ -292,7 +292,7 @@ public class MatchEndService {
 	private List<String> buildWinnerBoard(Match match) {
 		String winnerName = match.getWinner() == MatchWinner.SPEEDRUNNER
 			? "<yellow><b>" + resolvePlayerName(match.getSpeedrunnerId()) + "</b></yellow>"
-			: UiColors.hunter("<b>Thợ săn</b>");
+			: UiColors.roleHunterBold();
 		String resultTitle = match.getWinner() == MatchWinner.SPEEDRUNNER
 			? UiColors.speedrunner("<b>SPEEDRUNNER CHIẾN THẮNG!</b>")
 			: UiColors.hunter("<b>THỢ SĂN CHIẾN THẮNG!</b>");
@@ -308,7 +308,7 @@ public class MatchEndService {
 			"",
 			" <#32faa7>⌚</#32faa7> <white>" + duration + "</white> <gray>●</gray> <white>"
 				+ points + "</white>",
-			" <yellow>●</yellow> <white>" + huntersKilled + "</white> " + UiColors.hunter("thợ săn"),
+			" <yellow>●</yellow> <white>" + huntersKilled + "</white> " + UiColors.roleHunterLower(),
 			"",
 			""
 		);
@@ -327,7 +327,7 @@ public class MatchEndService {
 			" <yellow>ℹ</yellow> " + UiColors.speedrunner("<white><b>THỐNG KÊ SPEEDRUNNER</b></white>"),
 			"",
 			" <white>Nether </white>" + netherTime + " <gray>●</gray> <white>End </white>" + endTime,
-			" <white>đã hạ </white><yellow>⚔</yellow> <white>" + huntersKilled + " </white>" + UiColors.hunter("thợ săn")
+			" <white>đã hạ </white><yellow>⚔</yellow> <white>" + huntersKilled + " </white>" + UiColors.roleHunterLower()
 				+ " <gray>●</gray> <white>tổng </white>" + damage + " <red>❤</red> <white>điểm sát thương</white>",
 			" <yellow>●</yellow> <white>thẻ dùng </white>" + cardsUsed,
 			"",
@@ -366,7 +366,7 @@ public class MatchEndService {
 			"",
 			" <yellow>ℹ</yellow> <white><b>TRẬN ĐẤU KẾT THÚC!</b></white>",
 			"",
-			" <yellow>●</yellow> <white>" + UiColors.speedrunner("Speedrunner")
+			" <yellow>●</yellow> <white>" + UiColors.roleSpeedrunner()
 				+ " hãy nhảy vào cổng End để được đưa về sảnh</white>",
 			"",
 			""

@@ -12,7 +12,7 @@ import org.bukkit.potion.PotionEffectType;
 public class HunterBlindnessCard extends BaseCard {
 	public HunterBlindnessCard() {
 		super("hunter_blindness", "Mù tạm thời", CardType.EFFECT, CardRarity.RARE, 3,
-			"Làm mù " + UiColors.hunter("thợ săn") + " trong 6 giây.", Material.INK_SAC, 6);
+			"Làm mù " + UiColors.roleHunterLower() + " trong 6 giây.", Material.INK_SAC, 6);
 	}
 
 	@Override

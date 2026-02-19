@@ -134,7 +134,7 @@ public class CardsCommand implements TabExecutor {
 			return null;
 		}
 		if (match.getSpeedrunnerId() == null || !match.getSpeedrunnerId().equals(player.getUniqueId())) {
-			Text.msg(player, "<red>❌</red> Chỉ " + UiColors.speedrunner("Speedrunner") + " mới dùng được thẻ.");
+			Text.msg(player, "<red>❌</red> Chỉ " + UiColors.roleSpeedrunner() + " mới dùng được thẻ.");
 			return null;
 		}
 		return match;

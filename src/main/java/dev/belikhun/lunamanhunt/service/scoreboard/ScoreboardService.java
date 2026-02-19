@@ -462,10 +462,10 @@ public class ScoreboardService {
 			return "<gray>● Người chơi</gray>";
 		}
 		if (isSpeedrunner(player, match)) {
-			return "<gold>★</gold> " + UiColors.speedrunner("Speedrunner");
+			return "<gold>★</gold> " + UiColors.roleSpeedrunner();
 		}
 		if (match.getHunters().contains(player.getUniqueId())) {
-			return "<red>⚔</red> " + UiColors.hunter("Thợ săn");
+			return "<red>⚔</red> " + UiColors.roleHunter();
 		}
 		return "<gray>● Người chơi</gray>";
 	}
@@ -677,10 +677,10 @@ public class ScoreboardService {
 			return "-";
 		}
 		if (isSpeedrunner(player, match)) {
-			return UiColors.speedrunner("Người chạy");
+			return UiColors.roleSpeedrunner();
 		}
 		if (match.getHunters().contains(player.getUniqueId())) {
-			return UiColors.hunter("Thợ săn");
+			return UiColors.roleHunter();
 		}
 		return "<white>Người chơi</white>";
 	}
@@ -737,10 +737,10 @@ public class ScoreboardService {
 			return "-";
 		}
 		if ("SPEEDRUNNER".equalsIgnoreCase(role)) {
-			return UiColors.speedrunner("Người chạy");
+			return UiColors.roleSpeedrunner();
 		}
 		if ("HUNTER".equalsIgnoreCase(role)) {
-			return UiColors.hunter("Thợ săn");
+			return UiColors.roleHunter();
 		}
 		return "<white>Người chơi</white>";
 	}
@@ -886,8 +886,8 @@ public class ScoreboardService {
 			return "-";
 		}
 		return switch (winner) {
-			case SPEEDRUNNER -> UiColors.speedrunner("Speedrunner");
-			case HUNTERS -> UiColors.hunter("Thợ săn");
+			case SPEEDRUNNER -> UiColors.roleSpeedrunner();
+			case HUNTERS -> UiColors.roleHunter();
 		};
 	}
 
@@ -896,9 +896,9 @@ public class ScoreboardService {
 			return "-";
 		}
 		if (isSpeedrunner(player, match)) {
-			return "Đánh một " + UiColors.hunter("thợ săn") + " để bắt đầu";
+			return "Đánh một " + UiColors.roleHunterLower() + " để bắt đầu";
 		}
-		return "Chờ " + UiColors.speedrunner("Speedrunner") + " ra đòn";
+		return "Chờ " + UiColors.roleSpeedrunner() + " ra đòn";
 	}
 
 	private String resolveSeed(Match match) {

@@ -27,6 +27,7 @@ import dev.belikhun.lunamanhunt.service.compass.CompassService;
 import dev.belikhun.lunamanhunt.service.gui.GuiService;
 import dev.belikhun.lunamanhunt.service.integration.MultiverseService;
 import dev.belikhun.lunamanhunt.service.integration.NetherPortalsService;
+import dev.belikhun.lunamanhunt.service.integration.LunaPlaceholderExpansion;
 import dev.belikhun.lunamanhunt.service.kit.SpeedrunnerKitService;
 import dev.belikhun.lunamanhunt.service.kit.SpeedrunnerKitStore;
 import dev.belikhun.lunamanhunt.service.lobby.LobbyManager;
@@ -71,6 +72,7 @@ public final class LunaManhuntPlugin extends JavaPlugin {
 	private MatchDisconnectService matchDisconnectService;
 	private NetherPortalsService netherPortalsService;
 	private ScoreboardService scoreboardService;
+	private LunaPlaceholderExpansion placeholderExpansion;
 
 	@Override
 	public void onEnable() {
@@ -109,6 +111,7 @@ public final class LunaManhuntPlugin extends JavaPlugin {
 		this.spawnService = new SpawnService(this, lobbyManager, matchManager, winConditionService, lobbyTeleportService);
 		this.scoreboardService = new ScoreboardService(this, lobbyManager, cardService, matchLifecycleService,
 			pointService, persistenceManager.getProfileStore());
+		registerPlaceholderExpansion();
 
 		getServer().getPluginManager().registerEvents(new MatchWinListener(winConditionService), this);
 		getServer().getPluginManager().registerEvents(
@@ -179,6 +182,10 @@ public final class LunaManhuntPlugin extends JavaPlugin {
 
 	@Override
 	public void onDisable() {
+		if (placeholderExpansion != null) {
+			placeholderExpansion.unregister();
+			placeholderExpansion = null;
+		}
 		if (scoreboardService != null) {
 			scoreboardService.stop();
 		}
@@ -192,6 +199,24 @@ public final class LunaManhuntPlugin extends JavaPlugin {
 
 	public MatchManager getMatchManager() {
 		return matchManager;
+	}
+
+	private void registerPlaceholderExpansion() {
+		if (!getServer().getPluginManager().isPluginEnabled("PlaceholderAPI")) {
+			return;
+		}
+		try {
+			placeholderExpansion = new LunaPlaceholderExpansion(this, lobbyManager);
+			if (placeholderExpansion.register()) {
+				getLogger().info("PlaceholderAPI expansion đã đăng ký: %lunamanhunt_*%.");
+				return;
+			}
+			getLogger().warning("Không thể đăng ký PlaceholderAPI expansion cho LunaManhunt.");
+			placeholderExpansion = null;
+		} catch (Throwable throwable) {
+			getLogger().warning("Lỗi đăng ký PlaceholderAPI expansion: " + throwable.getMessage());
+			placeholderExpansion = null;
+		}
 	}
 
 	public LobbyManager getLobbyManager() {

@@ -48,7 +48,7 @@ public class CompassCommand implements TabExecutor {
 		}
 		UUID speedrunnerId = match.getSpeedrunnerId();
 		if (speedrunnerId != null && speedrunnerId.equals(player.getUniqueId())) {
-			Text.msg(player, "<red>❌</red> Chỉ " + UiColors.hunter("thợ săn") + " mới dùng lệnh này.");
+			Text.msg(player, "<red>❌</red> Chỉ " + UiColors.roleHunterLower() + " mới dùng lệnh này.");
 			return true;
 		}
 		if (compassService.hasTrackingCompass(player)) {

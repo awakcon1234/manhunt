@@ -118,7 +118,7 @@ public class SpeedrunnerKitStore {
 	private SpeedrunnerKitDefinition buildRangerKit() {
 		return new SpeedrunnerKitDefinition(
 			"ranger",
-			UiColors.hunter("Thợ săn"),
+			UiColors.roleHunter(),
 			Material.BOW,
 			List.of(
 				"<gray>Ưu tiên tầm xa và linh hoạt.</gray>",

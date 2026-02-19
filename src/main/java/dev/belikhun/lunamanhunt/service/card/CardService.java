@@ -258,7 +258,7 @@ public class CardService {
 		}
 		UUID speedrunnerId = match.getSpeedrunnerId();
 		if (speedrunnerId == null || !speedrunnerId.equals(player.getUniqueId())) {
-			Text.msg(player, "<red>❌</red> Chỉ " + UiColors.speedrunner("Speedrunner") + " mới được dùng thẻ.");
+			Text.msg(player, "<red>❌</red> Chỉ " + UiColors.roleSpeedrunner() + " mới được dùng thẻ.");
 			return false;
 		}
 		List<CardDefinition> pool = match.getDrawnCards();
@@ -286,7 +286,7 @@ public class CardService {
 		}
 		UUID speedrunnerId = match.getSpeedrunnerId();
 		if (speedrunnerId == null || !speedrunnerId.equals(player.getUniqueId())) {
-			Text.msg(player, "<red>❌</red> Chỉ " + UiColors.speedrunner("Speedrunner") + " mới được giữ thẻ.");
+			Text.msg(player, "<red>❌</red> Chỉ " + UiColors.roleSpeedrunner() + " mới được giữ thẻ.");
 			return false;
 		}
 		List<CardDefinition> pool = match.getDrawnCards();
@@ -324,7 +324,7 @@ public class CardService {
 		}
 		UUID speedrunnerId = match.getSpeedrunnerId();
 		if (speedrunnerId == null || !speedrunnerId.equals(player.getUniqueId())) {
-			Text.msg(player, "<red>❌</red> Chỉ " + UiColors.speedrunner("Speedrunner") + " mới được bỏ thẻ.");
+			Text.msg(player, "<red>❌</red> Chỉ " + UiColors.roleSpeedrunner() + " mới được bỏ thẻ.");
 			return false;
 		}
 		List<CardDefinition> slots = ensureCardSlots(match);
@@ -352,7 +352,7 @@ public class CardService {
 		}
 		UUID speedrunnerId = match.getSpeedrunnerId();
 		if (speedrunnerId == null || !speedrunnerId.equals(player.getUniqueId())) {
-			Text.msg(player, "<red>❌</red> Chỉ " + UiColors.speedrunner("Speedrunner") + " mới được dùng thẻ.");
+			Text.msg(player, "<red>❌</red> Chỉ " + UiColors.roleSpeedrunner() + " mới được dùng thẻ.");
 			return false;
 		}
 		if (!canUseCard(match, card)) {
@@ -621,7 +621,7 @@ public class CardService {
 		if (match == null || speedrunner == null || card == null) {
 			return;
 		}
-		String message = "<red>❌</red> " + UiColors.speedrunner("Speedrunner") + " <yellow>"
+		String message = "<red>❌</red> " + UiColors.roleSpeedrunner() + " <yellow>"
 			+ speedrunner.getName()
 			+ "</yellow> đã dùng lời nguyền <yellow>" + card.getName() + "</yellow>.";
 		Set<UUID> targets = match.getHunters();

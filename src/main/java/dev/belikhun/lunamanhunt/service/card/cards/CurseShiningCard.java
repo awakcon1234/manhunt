@@ -12,7 +12,7 @@ import org.bukkit.potion.PotionEffectType;
 public class CurseShiningCard extends BaseCard {
 	public CurseShiningCard() {
 		super("shining", "Phát sáng", CardType.CURSE, CardRarity.COMMON, 1,
-			"Phát sáng " + UiColors.hunter("thợ săn") + " trong 2 phút.", Material.GLOW_INK_SAC, 120);
+			"Phát sáng " + UiColors.roleHunterLower() + " trong 2 phút.", Material.GLOW_INK_SAC, 120);
 	}
 
 	@Override

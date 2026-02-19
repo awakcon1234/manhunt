@@ -5,8 +5,10 @@ public final class UiColors {
 	public static final String TITLE_SECONDARY = "#3a4756";
 	public static final String TITLE_DANGER = "#3a1f1f";
 	public static final String COMMAND_HIGHLIGHT = "#59c3ff";
-	public static final String ROLE_SPEEDRUNNER = "#8fd3ff";
-	public static final String ROLE_HUNTER = "#ffb84d";
+	public static final String ROLE_SPEEDRUNNER = "#38F8FF";
+	public static final String ROLE_SPEEDRUNNER_ACCENT = "#8B5CFF";
+	public static final String ROLE_HUNTER = "#FFB347";
+	public static final String ROLE_HUNTER_ACCENT = "#FF4D6D";
 
 	private UiColors() {
 	}
@@ -36,11 +38,35 @@ public final class UiColors {
 	}
 
 	public static String speedrunner(String text) {
-		return wrap(ROLE_SPEEDRUNNER, text);
+		return wrapGradient(ROLE_SPEEDRUNNER, ROLE_SPEEDRUNNER_ACCENT, text);
+	}
+
+	public static String roleSpeedrunner() {
+		return speedrunner("Speedrunner");
+	}
+
+	public static String roleSpeedrunnerBold() {
+		return speedrunner("<b>Speedrunner</b>");
 	}
 
 	public static String hunter(String text) {
-		return wrap(ROLE_HUNTER, text);
+		return wrapGradient(ROLE_HUNTER, ROLE_HUNTER_ACCENT, text);
+	}
+
+	public static String roleHunter() {
+		return hunter("Thợ săn");
+	}
+
+	public static String roleHunterLower() {
+		return hunter("thợ săn");
+	}
+
+	public static String roleHunterBold() {
+		return hunter("<b>Thợ săn</b>");
+	}
+
+	public static String roleHuntersBold() {
+		return hunter("<b>Thợ săn</b>");
 	}
 
 	public static String wrap(String hex, String text) {
@@ -48,5 +74,12 @@ public final class UiColors {
 			return text;
 		}
 		return "<color:" + hex + ">" + text + "</color>";
+	}
+
+	public static String wrapGradient(String startHex, String endHex, String text) {
+		if (startHex == null || startHex.isBlank() || endHex == null || endHex.isBlank()) {
+			return text;
+		}
+		return "<gradient:" + startHex + ":" + endHex + ">" + text + "</gradient>";
 	}
 }

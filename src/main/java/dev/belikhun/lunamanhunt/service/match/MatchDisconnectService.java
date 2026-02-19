@@ -40,7 +40,7 @@ public class MatchDisconnectService {
 		}
 		if (isSpeedrunner(match, player.getUniqueId())) {
 			startSpeedrunnerReconnectTimer(match);
-			broadcast(match, "<yellow>⌛</yellow> " + UiColors.speedrunner("Speedrunner")
+			broadcast(match, "<yellow>⌛</yellow> " + UiColors.roleSpeedrunner()
 				+ " đã mất kết nối. Có <white>60</white> giây để quay lại.");
 			return;
 		}
@@ -59,7 +59,7 @@ public class MatchDisconnectService {
 			return;
 		}
 		if (isSpeedrunner(match, player.getUniqueId()) && clearSpeedrunnerReconnect(match.getId())) {
-			broadcast(match, "<green>✔</green> " + UiColors.speedrunner("Speedrunner")
+			broadcast(match, "<green>✔</green> " + UiColors.roleSpeedrunner()
 				+ " đã quay lại. Trận đấu tiếp tục!");
 		}
 	}

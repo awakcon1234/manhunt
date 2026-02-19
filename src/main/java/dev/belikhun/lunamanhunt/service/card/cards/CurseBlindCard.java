@@ -12,7 +12,7 @@ import org.bukkit.potion.PotionEffectType;
 public class CurseBlindCard extends BaseCard {
 	public CurseBlindCard() {
 		super("blind", "Không thấy", CardType.CURSE, CardRarity.UNCOMMON, 2,
-			"Làm mù " + UiColors.hunter("thợ săn") + " trong 10 giây.", Material.INK_SAC, 10);
+			"Làm mù " + UiColors.roleHunterLower() + " trong 10 giây.", Material.INK_SAC, 10);
 	}
 
 	@Override
