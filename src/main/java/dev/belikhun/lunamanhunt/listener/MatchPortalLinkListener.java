@@ -10,7 +10,6 @@ import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.PortalType;
 import org.bukkit.World;
-import org.bukkit.WorldCreator;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -196,17 +195,7 @@ public class MatchPortalLinkListener implements Listener {
 		World fromWorld = currentLocation.getWorld();
 		World targetWorld = Bukkit.getWorld(linkedWorld);
 		if (fromWorld == null || targetWorld == null) {
-			if (fromWorld == null) {
-				return null;
-			}
-			World.Environment targetEnvironment = resolveTargetEnvironment(fromWorld, type);
-			WorldCreator creator = new WorldCreator(linkedWorld).environment(targetEnvironment);
-			targetWorld = Bukkit.createWorld(creator);
-			debug("Loading target world: name=" + linkedWorld + " env=" + targetEnvironment
-				+ " result=" + (targetWorld != null ? "ok" : "null"));
-			if (targetWorld == null) {
-				return null;
-			}
+			return null;
 		}
 		if (fromWorld.getName().equalsIgnoreCase(linkedWorld)) {
 			return null;
@@ -219,23 +208,6 @@ public class MatchPortalLinkListener implements Listener {
 		double targetZ = currentLocation.getZ() * scale;
 		return new Location(targetWorld, targetX, currentLocation.getY(), targetZ,
 			currentLocation.getYaw(), currentLocation.getPitch());
-	}
-
-	private World.Environment resolveTargetEnvironment(World fromWorld, PortalType type) {
-		if (fromWorld == null || type == null) {
-			return World.Environment.NORMAL;
-		}
-		if (type == PortalType.NETHER) {
-			return fromWorld.getEnvironment() == World.Environment.NETHER
-				? World.Environment.NORMAL
-				: World.Environment.NETHER;
-		}
-		if (type == PortalType.ENDER) {
-			return fromWorld.getEnvironment() == World.Environment.THE_END
-				? World.Environment.NORMAL
-				: World.Environment.THE_END;
-		}
-		return World.Environment.NORMAL;
 	}
 
 	private Location getEndPlatformLocation(Entity entity, World targetWorld) {

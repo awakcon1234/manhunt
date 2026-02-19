@@ -1,3 +1,5 @@
+config-version: 2
+
 lobby:
   spawn:
     world: ""
@@ -16,7 +18,7 @@ match:
     worldWeather: CYCLE
     worldDifficulty: MEDIUM
     keepInventory: off
-    worldBorderLimit: 3000
+    worldBorderLimit: 8000
     startingBorder: 10
     visibility: PUBLIC
     speedrunnerKitId: starter
@@ -25,6 +27,7 @@ match:
 generator:
   javaCommand: "java"
   maxMemoryMb: 512
+  maxConcurrentTasks: 2
   startupTimeoutSeconds: 180
   downloadUserAgent: "luna-manhunt/1.0 (https://github.com/Belikhun/LunaManhunt)"
 
@@ -45,19 +48,15 @@ scoreboard:
       header:
       - ''
       - ' <white>👤<reset> %player_display%'
+      - ' %profile_playtime_chip%'
+      - ' %profile_best_time_chip%'
+      - ' %profile_kills_chip%'
+      - ' %profile_hunter_chip%'
+      - ' %profile_speedrunner_chip%'
       - ''
-      - ' <#32faa7>⌚</#32faa7> <white>%profile_playtime%</white>'
-      - ' <#ff9f68>⚔</#ff9f68> <white>%profile_kills%</white> <gray>hạ thợ săn</gray>'
-      - ' <#ffc012>★</#ffc012> <white>PR:</white> <white>%profile_best_time%</white>'
-      - ''
-      - ' <gray>Hunt:</gray> <white>%profile_hunter_wins%</white>/<white>%profile_hunter_total%</white>'
-      - ' <gray>Tỉ lệ:</gray> <white>%profile_hunter_winrate%</white>'
-      - ' <gray>Run:</gray> <white>%profile_speedrunner_wins%</white>/<white>%profile_speedrunner_total%</white>'
-      - ' <gray>Tỉ lệ:</gray> <white>%profile_speedrunner_winrate%</white>'
-      - ''
-      - ' <gray>⌂</gray> <white>3 trận gần nhất</white>'
-      match_line: ' <gray>#%history_index%</gray> <white>%history_match_id%</white> <dark_gray>●</dark_gray> %history_role_display% <dark_gray>●</dark_gray> %history_outcome%'
-      match_empty: ' <gray>Chưa có trận gần đây</gray>'
+      - ' <gray>【</gray> <white>3 trận gần nhất</white> <gray>】</gray>'
+      match_line: ' <gray>#%history_index%</gray> <white>%history_match_id%</white> <dark_gray>●</dark_gray> %history_outcome%'
+      match_empty: ' <gray>ℹ Chưa có trận gần đây</gray>'
       footer:
       - ''
       - ' <gray>ℹ</gray> <white>Dùng <aqua>/m create</aqua> để tạo phòng</white>'
@@ -71,58 +70,50 @@ scoreboard:
       title: '<b><gradient:#ffd86b:#ff9f68>PHÒNG</gradient> <gradient:#ff9f68:#ff7bd9>CHỜ</gradient></b>'
       lines:
       - ''
-      - ' <white>👤<reset> %player_display% <dark_gray>●</dark_gray> %role_display%'
+      - ' <white>👤<reset> %player_display%'
+      - ' %role_chip%'
+      - ' %match_id_chip%'
+      - ' %match_owner_chip%'
+      - ' %match_players_chip%'
       - ''
-      - ' <gray>⌂ phòng </gray> <white>#%match_id%</white>'
-      - ' <gray>→</gray> <white>%match_owner%</white>'
-      - ' 👻 <aqua>%match_players%</aqua> người chơi'
+      - ' %match_visibility_chip%'
+      - ' %match_difficulty_chip%'
+      - ' %match_border_chip%'
+      - ' %match_start_border_chip%'
       - ''
-      - ' <gray>⚙</gray> <white>Thời gian:</white> <gray>%match_setting_time_display%</gray>'
-      - ' <gray>⚙</gray> <white>Thời tiết:</white> <gray>%match_setting_weather_display%</gray>'
-      - ' <gray>⚙</gray> <white>Độ khó:</white> <gray>%match_setting_difficulty_display%</gray>'
-      - ' <gray>⚙</gray> <white>Giữ đồ:</white> <gray>%match_setting_keep_inventory_display%</gray>'
-      - ' <gray>⚙</gray> <white>Border:</white> <gray>%match_setting_border_limit%</gray> <dark_gray>•</dark_gray> <gray>Start %match_setting_starting_border%</gray>'
-      - ' <gray>⚙</gray> <white>Hiển thị:</white> <gray>%match_setting_visibility_display%</gray>'
-      - ''
-      - ' <gray>ℹ</gray> <white>đang chờ chủ phòng...</white>'
-      - ''
+      - ' <yellow>ℹ</yellow> <gray>chờ chủ phòng bắt đầu</gray>'
       - ' <gray>maylocnuoc/manhunt'
     # Placeholders: %match_world_stage% %match_world_progress% %match_world_eta% %match_id%
     match_preparing:
       title: '<b><gradient:#ffe9a8:#b8ffeb>CHUẨN BỊ</gradient></b>'
       lines:
       - ''
-      - ' <yellow>⌛</yellow> %match_world_stage% <gray>(%match_world_progress%%)</gray>'
-      - ' <#32faa7>⌚</#32faa7> <white>%match_world_eta%</white>'
+      - ' <yellow>⌛</yellow> <white>%match_world_stage%</white>'
+      - ' %match_world_progress_chip%'
+      - ' %match_world_eta_chip%'
       - ''
-      - ' <gray>⌂ phòng </gray> <white>#%match_id%</white>'
-      - ''
+      - ' %match_id_chip%'
       - ' <gray>maylocnuoc/manhunt'
     # Placeholders: %player_display% %role_display% %match_countdown% %match_id%
     match_countdown:
       title: '<b><gradient:#ffe39a:#ff8b9d>ĐẾM NGƯỢC</gradient></b>'
       lines:
       - ''
-      - ' <white>👤<reset> %player_display% <dark_gray>●</dark_gray> %role_display%'
-      - ''
-      - ' <#e7ffa3>⏳ <b>%match_countdown%</b>'
-      - ' <gray>Sẵn sàng bắt đầu!</gray>'
-      - ''
-      - ' <gray>⌂ phòng </gray> <white>#%match_id%</white>'
-      - ''
+      - ' <white>👤<reset> %player_display%'
+      - ' %role_chip%'
+      - ' %match_countdown_chip%'
+      - ' %match_id_chip%'
       - ' <gray>maylocnuoc/manhunt'
     # Placeholders: %player_display% %role_display% %match_pending_hint% %match_hunters% %match_id%
     match_waiting_start:
       title: '<b><gradient:#b8ffeb:#8fd3ff>SẴN SÀNG</gradient></b>'
       lines:
       - ''
-      - ' <white>👤<reset> %player_display% <dark_gray>●</dark_gray> %role_display%'
-      - ''
+      - ' <white>👤<reset> %player_display%'
+      - ' %role_chip%'
       - ' <yellow>⚔</yellow> %match_pending_hint%'
-      - ''
-      - ' <gray>Thợ săn:</gray> <white>%match_hunters%</white>'
-      - ' <gray>⌂ phòng </gray> <white>#%match_id%</white>'
-      - ''
+      - ' %match_hunters_chip%'
+      - ' %match_id_chip%'
       - ' <gray>maylocnuoc/manhunt'
     # Placeholders: %player_display% %role_display% %match_timer% %match_points% %match_kills% %match_hunters%
     #   powerup_line/effect_line: %card_name% %card_time%
@@ -130,19 +121,19 @@ scoreboard:
       title: '<b><gradient:#b8ffeb:#ffcc7a>ĐANG CHẠY</gradient></b>'
       header:
       - ''
-      - ' <white>👤<reset> %player_display% <dark_gray>●</dark_gray> %role_display%'
+      - ' <white>👤<reset> %player_display%'
+      - ' %role_chip%'
+      - ' %match_timer_chip%'
+      - ' %match_points_chip%'
+      - ' %match_kills_chip%'
+      - ' %match_hunters_chip%'
       - ''
-      - ' <#32faa7>⌚</#32faa7> <white>%match_timer%</white>'
-      - ' <#ffc012>🔥</#ffc012> <white>%match_points%</white> <dark_gray>●</dark_gray> <#ff9f68>⚔</#ff9f68> <white>%match_kills%</white>'
-      - ' <gray>Thợ săn:</gray> <white>%match_hunters%</white>'
-      - ''
-      - ' <#7fd36b>★</#7fd36b> <white>Hỗ trợ</white> <gray>&</gray> <#36a8ff>✦</#36a8ff> <white>Hiệu ứng</white>'
       powerup_line: ' <#7fd36b>★</#7fd36b> <white>%card_name%</white> <gray>⌚ %card_time%</gray>'
-      powerup_empty: ' <gray>Không có hỗ trợ</gray>'
+      powerup_empty: ' <gray>★ không có hỗ trợ</gray>'
       middle:
       - ''
       effect_line: ' <#36a8ff>✦</#36a8ff> <white>%card_name%</white> <gray>⌚ %card_time%</gray>'
-      effect_empty: ' <gray>Không có hiệu ứng</gray>'
+      effect_empty: ' <gray>✦ không có hiệu ứng</gray>'
       footer:
       - ''
       - ' <gray>maylocnuoc/manhunt'
@@ -152,14 +143,13 @@ scoreboard:
       title: '<b><gradient:#b8ffeb:#ffcc7a>ĐANG CHẠY</gradient></b>'
       header:
       - ''
-      - ' <white>👤<reset> %player_display% <dark_gray>●</dark_gray> %role_display%'
+      - ' <white>👤<reset> %player_display%'
+      - ' %role_chip%'
+      - ' %match_timer_chip%'
+      - ' %match_hunters_chip%'
       - ''
-      - ' <#32faa7>⌚</#32faa7> <white>%match_timer%</white>'
-      - ' <gray>Thợ săn:</gray> <white>%match_hunters%</white>'
-      - ''
-      - ' <#ff6b6b>✦</#ff6b6b> <white>Lời nguyền đang chịu</white>'
       curse_line: ' <#ff6b6b>✦</#ff6b6b> <white>%card_name%</white> <gray>⌚ %card_time%</gray>'
-      curse_empty: ' <gray>Không có lời nguyền</gray>'
+      curse_empty: ' <gray>✦ không có lời nguyền</gray>'
       footer:
       - ''
       - ' <gray>maylocnuoc/manhunt'
@@ -168,11 +158,10 @@ scoreboard:
       title: '<b><gradient:#ffd86b:#ff9f68>KẾT THÚC</gradient></b>'
       lines:
       - ''
-      - ' <white>👤<reset> %player_display% <dark_gray>●</dark_gray> %role_display%'
-      - ''
-      - ' <gold>★</gold> %match_winner_display%'
+      - ' <white>👤<reset> %player_display%'
+      - ' %role_chip%'
+      - ' %match_winner_chip%'
       - ' <#32faa7>⌚</#32faa7> <white>%match_duration%</white>'
-      - ''
-      - ' <gray>Phòng:</gray> <white>%match_id%</white>'
+      - ' %match_id_chip%'
       - ''
       - ' <gray>maylocnuoc/manhunt'

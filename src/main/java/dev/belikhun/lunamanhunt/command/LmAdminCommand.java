@@ -3,6 +3,7 @@ package dev.belikhun.lunamanhunt.command;
 import dev.belikhun.lunamanhunt.model.match.Match;
 import dev.belikhun.lunamanhunt.service.lobby.LobbyManager;
 import dev.belikhun.lunamanhunt.service.match.MatchManager;
+import dev.belikhun.lunamanhunt.service.match.MatchEndService;
 import dev.belikhun.lunamanhunt.util.Text;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
@@ -23,11 +24,14 @@ public class LmAdminCommand implements TabExecutor {
 	private final JavaPlugin plugin;
 	private final LobbyManager lobbyManager;
 	private final MatchManager matchManager;
+	private final MatchEndService matchEndService;
 
-	public LmAdminCommand(JavaPlugin plugin, LobbyManager lobbyManager, MatchManager matchManager) {
+	public LmAdminCommand(JavaPlugin plugin, LobbyManager lobbyManager, MatchManager matchManager,
+			MatchEndService matchEndService) {
 		this.plugin = Objects.requireNonNull(plugin, "plugin");
 		this.lobbyManager = Objects.requireNonNull(lobbyManager, "lobbyManager");
 		this.matchManager = Objects.requireNonNull(matchManager, "matchManager");
+		this.matchEndService = Objects.requireNonNull(matchEndService, "matchEndService");
 	}
 
 	@Override
@@ -78,8 +82,8 @@ public class LmAdminCommand implements TabExecutor {
 			return;
 		}
 
-		matchManager.endMatch(match);
-		reply(sender, "<green>✔</green> Đã dừng trận đấu <yellow>" + match.getId() + "</yellow>.");
+		matchEndService.forceCleanup(match);
+		reply(sender, "<green>✔</green> Đã dừng trận và dọn dẹp <yellow>" + match.getId() + "</yellow>.");
 	}
 
 	private void handleReload(CommandSender sender) {

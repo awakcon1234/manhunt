@@ -227,43 +227,12 @@ public class ScoreboardService {
 		return TEMPLATE_LOBBY;
 	}
 
-	private void logDebugState(Player player, Match match, String template) {
-		if (!debugEnabled || player == null) {
-			return;
-		}
-		long now = System.currentTimeMillis();
-		UUID playerId = player.getUniqueId();
-		Long nextLog = debugNextLogMillis.get(playerId);
-		if (nextLog != null && now < nextLog) {
-			return;
-		}
-		debugNextLogMillis.put(playerId, now + DEBUG_LOG_INTERVAL_MS);
-		String matchId = match == null ? "-" : safeStr(match.getId());
-		String indexedMatchId = lobbyManager.getMatchIdForPlayer(playerId);
-		String indexDisplay = indexedMatchId == null ? "-" : indexedMatchId;
-		String state = match == null || match.getState() == null ? "-" : match.getState().name();
-		int countdown = match == null ? 0 : lifecycleService.getCountdownRemainingSeconds(match.getId());
-		boolean isSpeedrunner = match != null && isSpeedrunner(player, match);
-		boolean isHunter = match != null && match.getHunters().contains(playerId);
-		int lobbyPlayers = match == null ? 0 : match.getLobbyPlayers().size();
-		int hunterCount = match == null ? 0 : match.getHunters().size();
-		plugin.getLogger().info("[ScoreboardDebug] player=" + player.getName()
-			+ " match=" + matchId
-			+ " index=" + indexDisplay
-			+ " state=" + state
-			+ " template=" + template
-			+ " countdown=" + countdown
-			+ " speedrunner=" + isSpeedrunner
-			+ " hunter=" + isHunter
-			+ " lobbyPlayers=" + lobbyPlayers
-			+ " hunters=" + hunterCount);
-	}
-
 	private Map<String, String> buildPlaceholders(Player player, Match match) {
 		Map<String, String> placeholders = new HashMap<>();
 		placeholders.put("player_name", safeStr(player.getName()));
 		placeholders.put("player_display", resolvePlayerDisplay(player, match));
 		placeholders.put("role_display", resolveRoleDisplay(player, match));
+		placeholders.put("role_chip", formatRoleChip(player, match));
 
 		if (match == null) {
 			placeholders.put("match_id", "-");
@@ -309,7 +278,28 @@ public class ScoreboardService {
 			placeholders.put("match_setting_world_version", "-");
 			placeholders.put("match_setting_kit_id", "-");
 			placeholders.put("match_setting_speedrunner_selection", "-");
+			placeholders.put("match_id_chip", "<gray>#-</gray>");
+			placeholders.put("match_owner_chip", "<gray>👑 -</gray>");
+			placeholders.put("match_players_chip", "<gray>👻 0</gray>");
+			placeholders.put("match_hunters_chip", "<gray>👻 0</gray>");
+			placeholders.put("match_timer_chip", "<gray>⌚ --:--</gray>");
+			placeholders.put("match_points_chip", "<gray>🔥 -</gray>");
+			placeholders.put("match_kills_chip", "<gray>⚔ 0</gray>");
+			placeholders.put("match_countdown_chip", "<gray>⏳ -</gray>");
+			placeholders.put("match_world_progress_chip", "<gray>█ 0%</gray>");
+			placeholders.put("match_world_eta_chip", "<gray>⌚ --:--s</gray>");
+			placeholders.put("match_visibility_chip", "<gray>🔒 -</gray>");
+			placeholders.put("match_difficulty_chip", "<gray>⚔ -</gray>");
+			placeholders.put("match_border_chip", "<gray>⌂ -</gray>");
+			placeholders.put("match_start_border_chip", "<gray>◎ -</gray>");
+			placeholders.put("match_winner_chip", "<gray>★ -</gray>");
+			placeholders.put("profile_playtime_chip", "<gray>⌚ -</gray>");
+			placeholders.put("profile_best_time_chip", "<gray>★ -</gray>");
+			placeholders.put("profile_kills_chip", "<gray>⚔ 0</gray>");
+			placeholders.put("profile_hunter_chip", "<gray>👻 0/0</gray>");
+			placeholders.put("profile_speedrunner_chip", "<gray>🏹 0/0</gray>");
 			fillProfilePlaceholders(placeholders, player.getUniqueId());
+			fillProfileChipPlaceholders(placeholders);
 			return placeholders;
 		}
 
@@ -399,8 +389,77 @@ public class ScoreboardService {
 			placeholders.put("match_setting_speedrunner_selection", "-");
 		}
 		fillProfilePlaceholders(placeholders, player.getUniqueId());
+		fillProfileChipPlaceholders(placeholders);
+		fillMatchChipPlaceholders(placeholders, player, match);
 
 		return placeholders;
+	}
+
+	private void fillProfileChipPlaceholders(Map<String, String> placeholders) {
+		if (placeholders == null) {
+			return;
+		}
+		placeholders.put("profile_playtime_chip", "<#32faa7>⌚</#32faa7> <white>"
+			+ safeStr(placeholders.get("profile_playtime")) + "</white>");
+		placeholders.put("profile_best_time_chip", "<#ffc012>★</#ffc012> <white>"
+			+ safeStr(placeholders.get("profile_best_time")) + "</white>");
+		placeholders.put("profile_kills_chip", "<#ff9f68>⚔</#ff9f68> <white>"
+			+ safeStr(placeholders.get("profile_kills")) + "</white>");
+		placeholders.put("profile_hunter_chip", "<aqua>👻</aqua> <white>"
+			+ safeStr(placeholders.get("profile_hunter_wins")) + "</white>/<white>"
+			+ safeStr(placeholders.get("profile_hunter_total")) + "</white>");
+		placeholders.put("profile_speedrunner_chip", "<aqua>🏹</aqua> <white>"
+			+ safeStr(placeholders.get("profile_speedrunner_wins")) + "</white>/<white>"
+			+ safeStr(placeholders.get("profile_speedrunner_total")) + "</white>");
+	}
+
+	private void fillMatchChipPlaceholders(Map<String, String> placeholders, Player player, Match match) {
+		if (placeholders == null) {
+			return;
+		}
+		placeholders.put("match_id_chip", "<gray>#" + safeStr(placeholders.get("match_id")) + "</gray>");
+		placeholders.put("match_owner_chip", "<yellow>👑</yellow> <white>"
+			+ safeStr(placeholders.get("match_owner")) + "</white>");
+		placeholders.put("match_players_chip", "<aqua>👻</aqua> <white>"
+			+ safeStr(placeholders.get("match_players")) + "</white>");
+		placeholders.put("match_hunters_chip", "<aqua>👻</aqua> <white>"
+			+ safeStr(placeholders.get("match_hunters")) + "</white>");
+		placeholders.put("match_timer_chip", "<#32faa7>⌚</#32faa7> <white>"
+			+ safeStr(placeholders.get("match_timer")) + "</white>");
+		placeholders.put("match_points_chip", "<#ffc012>🔥</#ffc012> <white>"
+			+ safeStr(placeholders.get("match_points")) + "</white>");
+		placeholders.put("match_kills_chip", "<#ff9f68>⚔</#ff9f68> <white>"
+			+ safeStr(placeholders.get("match_kills")) + "</white>");
+		placeholders.put("match_countdown_chip", "<#e7ffa3>⏳</#e7ffa3> <white>"
+			+ safeStr(placeholders.get("match_countdown")) + "</white>");
+		placeholders.put("match_world_progress_chip", "<white>█</white> <white>"
+			+ safeStr(placeholders.get("match_world_progress")) + "%</white>");
+		placeholders.put("match_world_eta_chip", "<#32faa7>⌚</#32faa7> <white>"
+			+ safeStr(placeholders.get("match_world_eta")) + "</white>");
+		placeholders.put("match_visibility_chip", "<gray>🔒</gray> <white>"
+			+ safeStr(placeholders.get("match_setting_visibility_display")) + "</white>");
+		placeholders.put("match_difficulty_chip", "<gray>⚔</gray> <white>"
+			+ safeStr(placeholders.get("match_setting_difficulty_display")) + "</white>");
+		placeholders.put("match_border_chip", "<gray>⌂</gray> <white>"
+			+ safeStr(placeholders.get("match_setting_border_limit")) + "</white>");
+		placeholders.put("match_start_border_chip", "<gray>◎</gray> <white>"
+			+ safeStr(placeholders.get("match_setting_starting_border")) + "</white>");
+		placeholders.put("match_winner_chip", "<gold>★</gold> "
+			+ safeStr(placeholders.get("match_winner_display")));
+		placeholders.put("role_chip", formatRoleChip(player, match));
+	}
+
+	private String formatRoleChip(Player player, Match match) {
+		if (match == null || player == null) {
+			return "<gray>● Người chơi</gray>";
+		}
+		if (isSpeedrunner(player, match)) {
+			return "<gold>★</gold> " + UiColors.speedrunner("Speedrunner");
+		}
+		if (match.getHunters().contains(player.getUniqueId())) {
+			return "<red>⚔</red> " + UiColors.hunter("Thợ săn");
+		}
+		return "<gray>● Người chơi</gray>";
 	}
 
 	private java.util.List<Component> buildRunningLines(Player player, Match match, String template,

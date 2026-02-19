@@ -44,6 +44,7 @@ public class WorldGenerationService {
 	private final File worldContainer;
 	private final String javaCommand;
 	private final int maxMemoryMb;
+	private final int maxConcurrentTasks;
 	private final int startupTimeoutSeconds;
 	private final String downloadUserAgent;
 	private final GenerationHistory history;
@@ -53,7 +54,8 @@ public class WorldGenerationService {
 	public WorldGenerationService(JavaPlugin plugin) {
 		this.plugin = Objects.requireNonNull(plugin, "plugin");
 		this.logger = plugin.getLogger();
-		this.executor = Executors.newSingleThreadExecutor(runnable -> {
+		this.maxConcurrentTasks = Math.max(1, plugin.getConfig().getInt("generator.maxConcurrentTasks", 2));
+		this.executor = Executors.newFixedThreadPool(maxConcurrentTasks, runnable -> {
 			Thread thread = new Thread(runnable, "lm-worldgen");
 			thread.setDaemon(true);
 			return thread;
@@ -172,9 +174,7 @@ public class WorldGenerationService {
 			tracker.updateStage(GenerationStage.REGISTERING, 0.0);
 			moveGeneratedWorlds(workDir, overworldName, netherName, endName);
 			logger.info("[WorldGen] Finished generator for " + overworldName + ".");
-			GenerationHandle handle = tracker.createHandle();
-			handle.completeRegistering();
-			return handle;
+			return tracker.createHandle();
 		} finally {
 			if (process != null && process.isAlive()) {
 				process.destroyForcibly();

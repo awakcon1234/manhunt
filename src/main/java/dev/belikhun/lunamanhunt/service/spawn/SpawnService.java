@@ -124,8 +124,10 @@ public class SpawnService {
 
 		boolean inGame = requiresConfirm(match);
 		if (inGame && isSpeedrunner(match, player.getUniqueId())) {
-			winConditionService.handleSpeedrunnerForfeit(player);
-			lobbyManager.disbandMatch(match);
+			boolean handled = winConditionService.handleSpeedrunnerForfeit(player);
+			if (!handled) {
+				lobbyManager.leave(player.getUniqueId(), false);
+			}
 		} else {
 			lobbyManager.leave(player.getUniqueId(), !inGame);
 		}

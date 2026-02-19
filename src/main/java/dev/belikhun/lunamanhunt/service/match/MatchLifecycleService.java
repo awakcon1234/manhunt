@@ -329,6 +329,7 @@ public class MatchLifecycleService {
 		warmupStatuses.remove(match.getId());
 		preparationStartMillis.remove(match.getId());
 		broadcast(match, message);
+		lobbyManager.disbandMatch(match);
 	}
 
 	private UUID resolveSpeedrunner(Match match) {

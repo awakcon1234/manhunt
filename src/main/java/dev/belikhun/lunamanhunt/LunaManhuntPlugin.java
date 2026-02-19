@@ -34,6 +34,7 @@ import dev.belikhun.lunamanhunt.service.match.MatchEndService;
 import dev.belikhun.lunamanhunt.service.match.MatchDisconnectService;
 import dev.belikhun.lunamanhunt.service.match.MatchLifecycleService;
 import dev.belikhun.lunamanhunt.service.match.MatchSettingsService;
+import dev.belikhun.lunamanhunt.service.persistence.ConfigMigrationService;
 import dev.belikhun.lunamanhunt.service.match.WinConditionService;
 import dev.belikhun.lunamanhunt.service.persistence.PersistenceManager;
 import dev.belikhun.lunamanhunt.service.point.PointService;
@@ -73,6 +74,7 @@ public final class LunaManhuntPlugin extends JavaPlugin {
 	@Override
 	public void onEnable() {
 		saveDefaultConfig();
+		new ConfigMigrationService(this).migrateIfNeeded();
 		registerCardPermissions();
 		Debug.setEnabled(getConfig().getBoolean("debug.enabled", false));
 		if (Debug.isEnabled()) {
@@ -126,7 +128,7 @@ public final class LunaManhuntPlugin extends JavaPlugin {
 		compassService.startAutoUpdate();
 		scoreboardService.start();
 		MatchCommand matchCommand = new MatchCommand(lobbyManager, matchManager, guiService, lobbyItemService);
-		LmAdminCommand adminCommand = new LmAdminCommand(this, lobbyManager, matchManager);
+		LmAdminCommand adminCommand = new LmAdminCommand(this, lobbyManager, matchManager, matchEndService);
 		SpawnCommand spawnCommand = new SpawnCommand(spawnService);
 		CardsCommand cardsCommand = new CardsCommand(lobbyManager, cardService, guiService);
 		CompassCommand compassCommand = new CompassCommand(lobbyManager, compassService);

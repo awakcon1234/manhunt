@@ -5,9 +5,9 @@ import java.util.List;
 import java.util.UUID;
 
 public class MatchSettings {
-	public static final int WORLD_BORDER_LIMIT_DEFAULT = 3000;
-	public static final int WORLD_BORDER_LIMIT_MIN = 2000;
-	public static final int WORLD_BORDER_LIMIT_MAX = 6000;
+	public static final int WORLD_BORDER_LIMIT_DEFAULT = 8000;
+	public static final int WORLD_BORDER_LIMIT_MIN = 6000;
+	public static final int WORLD_BORDER_LIMIT_MAX = 10000;
 
 	private SpeedrunnerSelection speedrunnerSelection = SpeedrunnerSelection.RANDOM;
 	private UUID speedrunnerId;
