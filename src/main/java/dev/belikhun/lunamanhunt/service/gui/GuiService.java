@@ -335,7 +335,7 @@ public class GuiService {
 		PlayerProfile profile = profileStore.load(resolvedId);
 		String targetName = resolvePlayerNameDisplay(resolvedId);
 		Inventory inventory = Bukkit.createInventory(new GuiHolder(GuiType.PROFILE, null), 27,
-			Text.mm(UiColors.titlePrimary("Hồ sơ") + " " + UiColors.titleSecondary(targetName)));
+			Text.mm(UiColors.titlePrimary("Hồ sơ") + " " + targetName));
 		fillProfileMenu(viewer, profile, inventory, resolvedId);
 		viewer.openInventory(inventory);
 	}
@@ -1129,7 +1129,7 @@ public class GuiService {
 			"<yellow>ℹ</yellow> Thông tin phòng",
 			List.of(
 				"<gray>Mã phòng: " + UiColors.matchIdText(match.getId()) + "</gray>",
-				"<gray>Chủ phòng: <#7fd36b>" + ownerName + "</#7fd36b></gray>",
+				"<gray>Chủ phòng: " + ownerName + "</gray>",
 				" ",
 				"<gray>Hiển thị: " + formatVisibilityColored(match.getSettings().getVisibility()) + "</gray>",
 				"<gray>Trạng thái: " + formatStateColored(match.getState()) + "</gray>",
@@ -1376,7 +1376,10 @@ public class GuiService {
 			return;
 		}
 		OfflinePlayer target = targetId == null ? viewer : Bukkit.getOfflinePlayer(targetId);
-		inventory.setItem(13, buildProfileSummaryItem(target, profile));
+		inventory.setItem(10, buildProfileSummaryItem(target, profile));
+		inventory.setItem(12, buildProfilePlaytimeItem(profile));
+		inventory.setItem(13, buildProfileRecordItem(profile));
+		inventory.setItem(14, buildProfileRoleStatsItem(profile));
 		inventory.setItem(15, buildHistorySummaryItem(profile));
 		inventory.setItem(22, buildActionItem(Material.BARRIER,
 			"<red>❌</red> Đóng",
@@ -1394,8 +1397,8 @@ public class GuiService {
 		}
 		if (ordered.isEmpty()) {
 			inventory.setItem(22, buildInfoItem(Material.PAPER,
-				"<yellow>ℹ</yellow> Chưa có trận đấu",
-				List.of("<gray>Hãy chơi để ghi lại lịch sử.</gray>")));
+				"<yellow>ℹ</yellow> Chưa có lịch sử",
+				List.of("<gray>⚔ Chơi thêm trận để có dữ liệu.</gray>")));
 		}
 
 		int start = page * HISTORY_PAGE_SIZE;
@@ -2601,7 +2604,7 @@ public class GuiService {
 		if (meta != null) {
 			meta.displayName(mmNoItalic("<yellow>Mã phòng: " + UiColors.matchIdText(match.getId()) + "</yellow>"));
 			meta.lore(mmNoItalic(List.of(
-				"<gray>● Chủ phòng: <#7fd36b>" + ownerName + "</#7fd36b></gray>",
+				"<gray>● Chủ phòng: " + ownerName + "</gray>",
 				"<gray>● Hiển thị: " + formatVisibilityColored(match.getSettings().getVisibility()) + "</gray>",
 				"<gray>● Người chơi: <white>" + formatNumber(match.getLobbyPlayers().size()) + "</white></gray>",
 				" ",
@@ -2736,30 +2739,56 @@ public class GuiService {
 	private ItemStack buildProfileSummaryItem(OfflinePlayer player, PlayerProfile profile) {
 		ItemStack item = new ItemStack(Material.PLAYER_HEAD);
 		ItemMeta meta = item.getItemMeta();
-		String bestTime = formatDuration(profile.getBestTimeMillis());
 		ProfileStats stats = computeProfileStats(profile);
+		String display = Text.playerNameDisplay(player == null ? null : player.getUniqueId());
 		List<String> lore = List.of(
-			"<gray>Tổng thời gian chơi: <white>" + stats.playtime + "</white></gray>",
-			"<gray>Kỷ lục cá nhân: <white>" + bestTime + "</white></gray>",
-			"<gray>Hạ thợ săn: <white>" + formatNumber(stats.kills) + "</white></gray>",
-			" ",
-			"<gray>Thợ săn thắng: <white>" + formatNumber(stats.hunterWins) + "</white></gray>",
-			"<gray>Tỉ lệ thợ săn: <white>" + stats.hunterWinrate + "</white></gray>",
-			" ",
-			"<gray>Speedrunner thắng: <white>" + formatNumber(stats.speedrunnerWins) + "</white></gray>",
-			"<gray>Tỉ lệ speedrunner: <white>" + stats.speedrunnerWinrate + "</white></gray>"
+			"<gray>👤 Người chơi:</gray>",
+			" " + display,
+			"",
+			"<gray>⚔ " + formatNumber(stats.hunterWins) + " thắng hunter</gray>",
+			"<gray>🏹 " + formatNumber(stats.speedrunnerWins) + " thắng speedrunner</gray>"
 		);
 		if (meta instanceof SkullMeta skullMeta) {
 			skullMeta.setOwningPlayer(player);
-			skullMeta.displayName(mmNoItalic("<yellow>Hồ sơ cá nhân</yellow>"));
+			skullMeta.displayName(mmNoItalic("<yellow>👤 Hồ sơ người chơi</yellow>"));
 			skullMeta.lore(mmNoItalic(lore));
 			item.setItemMeta(skullMeta);
 		} else if (meta != null) {
-			meta.displayName(mmNoItalic("<yellow>Hồ sơ cá nhân</yellow>"));
+			meta.displayName(mmNoItalic("<yellow>👤 Hồ sơ người chơi</yellow>"));
 			meta.lore(mmNoItalic(lore));
 			item.setItemMeta(meta);
 		}
 		return item;
+	}
+
+	private ItemStack buildProfilePlaytimeItem(PlayerProfile profile) {
+		ProfileStats stats = computeProfileStats(profile);
+		return buildInfoItem(Material.CLOCK,
+			"<yellow>⌚ Thời gian chơi</yellow>",
+			List.of(
+				"<gray>⌚ " + stats.playtime + " tổng thời gian</gray>"
+			));
+	}
+
+	private ItemStack buildProfileRecordItem(PlayerProfile profile) {
+		ProfileStats stats = computeProfileStats(profile);
+		String bestTime = formatDuration(profile.getBestTimeMillis());
+		return buildInfoItem(Material.GOLD_INGOT,
+			"<yellow>★ Thành tích</yellow>",
+			List.of(
+				"<gray>★ " + bestTime + " kỷ lục tốt nhất</gray>",
+				"<gray>☠ " + formatNumber(stats.kills) + " thợ săn đã hạ</gray>"
+			));
+	}
+
+	private ItemStack buildProfileRoleStatsItem(PlayerProfile profile) {
+		ProfileStats stats = computeProfileStats(profile);
+		return buildInfoItem(Material.IRON_SWORD,
+			"<yellow>⚔ Vai trò</yellow>",
+			List.of(
+				"<gray>⚔ " + formatNumber(stats.hunterWins) + " thắng • " + stats.hunterWinrate + " hunter</gray>",
+				"<gray>🏹 " + formatNumber(stats.speedrunnerWins) + " thắng • " + stats.speedrunnerWinrate + " speedrunner</gray>"
+			));
 	}
 
 	private ItemStack buildHistorySummaryItem(PlayerProfile profile) {
@@ -2770,17 +2799,17 @@ public class GuiService {
 			MatchHistoryEntry entry = history.get(i);
 			long timeMillis = entry.getEndedAtMillis() > 0 ? entry.getEndedAtMillis()
 				: entry.getStartedAtMillis();
-			lore.add("<gray>● " + UiColors.matchIdText(entry.getMatchId()) + " - "
+			lore.add("<gray>⌂ " + UiColors.matchIdText(entry.getMatchId()) + " • "
 				+ formatHistoryOutcome(entry) + "</gray>");
-			lore.add("<gray>  " + formatRelativeTime(timeMillis) + "</gray>");
+			lore.add("<gray>⌚ " + formatRelativeTime(timeMillis) + "</gray>");
 			shown++;
 		}
 		if (lore.isEmpty()) {
-			lore.add("<gray>Chưa có trận đấu.</gray>");
+			lore.add("<gray>ℹ Chưa có trận đấu nào.</gray>");
 		}
-		lore.add("<gray>Bấm để xem đầy đủ.</gray>");
+		lore.add("<gray>🔍 Bấm để xem đầy đủ.</gray>");
 		return buildActionItem(Material.BOOK,
-			"<yellow>Lịch sử trận đấu</yellow>",
+			"<yellow>📜 Lịch sử trận đấu</yellow>",
 			lore, ACTION_PROFILE_HISTORY_OPEN, null);
 	}
 
@@ -2793,13 +2822,13 @@ public class GuiService {
 		String timestamp = formatTimestamp(entry.getEndedAtMillis() > 0 ? entry.getEndedAtMillis()
 			: entry.getStartedAtMillis());
 		return buildInfoItem(Material.PAPER,
-			"<yellow>Trận " + UiColors.matchIdText(matchId) + "</yellow>",
+			"<yellow>⌂ Trận " + UiColors.matchIdText(matchId) + "</yellow>",
 			List.of(
-				"<gray>Vai trò: <white>" + role + "</white></gray>",
-				"<gray>Kết quả: " + outcome + "</gray>",
-				"<gray>Bên thắng: <white>" + winner + "</white></gray>",
-				"<gray>Thời gian: <white>" + duration + "</white></gray>",
-				"<gray>Thời điểm: <white>" + timestamp + "</white></gray>"
+				"<gray>⚔ Vai trò: <white>" + role + "</white></gray>",
+				"<gray>★ Kết quả: " + outcome + "</gray>",
+				"<gray>👑 Bên thắng: <white>" + winner + "</white></gray>",
+				"<gray>⌚ Thời lượng: <white>" + duration + "</white></gray>",
+				"<gray>📅 Kết thúc: <white>" + timestamp + "</white></gray>"
 			));
 	}
 
@@ -2989,7 +3018,7 @@ public class GuiService {
 	}
 
 	private String formatHistoryOutcome(MatchHistoryEntry entry) {
-		return entry != null && entry.isWon() ? "<green>Thắng</green>" : "<red>Thua</red>";
+		return entry != null && entry.isWon() ? "<green>✔ Thắng</green>" : "<red>❌ Thua</red>";
 	}
 
 	private String formatHistoryRole(String role) {

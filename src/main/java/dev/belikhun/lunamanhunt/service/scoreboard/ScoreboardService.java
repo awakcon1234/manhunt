@@ -658,17 +658,7 @@ public class ScoreboardService {
 		if (player == null) {
 			return "-";
 		}
-		String name = safeStr(player.getName());
-		if (match == null) {
-			return "<white>" + name + "</white>";
-		}
-		if (isSpeedrunner(player, match)) {
-			return UiColors.speedrunner(name);
-		}
-		if (match.getHunters().contains(player.getUniqueId())) {
-			return UiColors.hunter(name);
-		}
-		return "<white>" + name + "</white>";
+		return Text.playerNameDisplay(player.getUniqueId(), player);
 	}
 
 	private String resolveRoleDisplay(Player player, Match match) {
