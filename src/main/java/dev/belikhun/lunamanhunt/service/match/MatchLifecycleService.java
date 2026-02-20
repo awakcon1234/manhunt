@@ -917,9 +917,12 @@ public class MatchLifecycleService {
 
 		long getRemainingSeconds() {
 			int remaining = Math.max(0, totalChunks - completedChunks);
+			if (remaining <= 0) {
+				return 0L;
+			}
 			if (chunksPerSecond > 0.0) {
 				double seconds = remaining / chunksPerSecond;
-				return Math.max(0L, Math.round(seconds));
+				return Math.max(1L, Math.round(seconds));
 			}
 			double fallbackRate = 1.0 / Math.max(0.1, DEFAULT_WARMUP_SECONDS_PER_CHUNK);
 			double seconds = remaining / fallbackRate;
@@ -1239,22 +1242,12 @@ public class MatchLifecycleService {
 		match.setSuddenDeathActive(true);
 
 		UUID speedrunnerId = match.getSpeedrunnerId();
-		Location speedrunnerTarget = pickSafeEndIslandLocation(endWorld);
-		Location huntersTarget = pickSafeEndIslandLocation(endWorld);
-		if (speedrunnerTarget != null && huntersTarget != null
-			&& speedrunnerTarget.getWorld() != null
-			&& huntersTarget.getWorld() != null
-			&& speedrunnerTarget.getWorld().equals(huntersTarget.getWorld())
-			&& speedrunnerTarget.distanceSquared(huntersTarget) < 144.0D) {
-			huntersTarget = pickSafeEndIslandLocation(endWorld);
-		}
+		Location huntersTarget = resolveSuddenDeathHunterLocation(endWorld);
+		Location speedrunnerTarget = resolveSuddenDeathSpeedrunnerLocation(endWorld, huntersTarget);
 
 		for (UUID id : Set.copyOf(match.getLobbyPlayers())) {
 			Player player = Bukkit.getPlayer(id);
 			if (player == null) {
-				continue;
-			}
-			if (player.getWorld() != null && player.getWorld().equals(endWorld)) {
 				continue;
 			}
 			boolean isSpeedrunner = speedrunnerId != null && speedrunnerId.equals(id);
@@ -1287,6 +1280,50 @@ public class MatchLifecycleService {
 
 		sendSuddenDeathBoard(match);
 		playMatchSound(match, Sound.ENTITY_WITHER_SPAWN, 0.8f, 1.0f);
+	}
+
+	private Location resolveSuddenDeathHunterLocation(World endWorld) {
+		if (endWorld == null) {
+			return null;
+		}
+		Location spawn = endWorld.getSpawnLocation();
+		if (spawn == null) {
+			return null;
+		}
+		return new Location(endWorld,
+			spawn.getBlockX() + 0.5D,
+			Math.max(65, endWorld.getHighestBlockYAt(spawn.getBlockX(), spawn.getBlockZ()) + 1),
+			spawn.getBlockZ() + 0.5D,
+			spawn.getYaw(),
+			spawn.getPitch());
+	}
+
+	private Location resolveSuddenDeathSpeedrunnerLocation(World endWorld, Location huntersTarget) {
+		if (endWorld == null) {
+			return null;
+		}
+		int centerX = 0;
+		int centerZ = 0;
+		int centerY = Math.max(65, endWorld.getHighestBlockYAt(centerX, centerZ) + 1);
+		for (int i = 0; i < 24; i++) {
+			double angle = random.nextDouble() * Math.PI * 2.0D;
+			double radius = 4.0D + (random.nextDouble() * 5.0D);
+			int x = centerX + (int) Math.round(Math.cos(angle) * radius);
+			int z = centerZ + (int) Math.round(Math.sin(angle) * radius);
+			int y = Math.max(centerY, endWorld.getHighestBlockYAt(x, z) + 1);
+			Location target = new Location(endWorld, x + 0.5D, y, z + 0.5D);
+			if (!target.getBlock().isPassable() || !target.clone().add(0.0D, 1.0D, 0.0D).getBlock().isPassable()) {
+				continue;
+			}
+			if (huntersTarget != null
+				&& huntersTarget.getWorld() != null
+				&& huntersTarget.getWorld().equals(endWorld)
+				&& target.distanceSquared(huntersTarget) < 100.0D) {
+				continue;
+			}
+			return target;
+		}
+		return pickSafeEndIslandLocation(endWorld);
 	}
 
 	private void sendSuddenDeathBoard(Match match) {

@@ -50,7 +50,7 @@ public class WinConditionService {
 		killer.playSound(killer.getLocation(), Sound.ENTITY_PLAYER_LEVELUP, 0.8f, 1.0f);
 		Text.msg(victim, "<red>❌</red> Bạn đã bị " + UiColors.roleHunterLower() + " hạ gục.");
 		victim.playSound(victim.getLocation(), Sound.UI_TOAST_OUT, 0.7f, 1.0f);
-		endWithHuntersByKill(match, deathLocation);
+		endWithHuntersByKill(match, resolveSuddenDeathDeathLocation(match, victim, deathLocation));
 		return true;
 	}
 
@@ -83,13 +83,45 @@ public class WinConditionService {
 		if (!match.isSuddenDeathActive() || !isSpeedrunner(match, speedrunner.getUniqueId())) {
 			return false;
 		}
+		org.bukkit.Location resolvedDeathLocation = resolveSuddenDeathDeathLocation(match, speedrunner, deathLocation);
 		recordMatchHistory(match, MatchWinner.HUNTERS);
 		matchEndService.endWithHunters(match,
 			"<green>✔</green> " + UiColors.roleHuntersBold() + " thắng vì " + UiColors.roleSpeedrunner()
 				+ " đã chết bởi môi trường trong <#ff6b6b><b>Sudden Death</b></#ff6b6b>!",
-			deathLocation,
+			resolvedDeathLocation,
 			true);
 		return true;
+	}
+
+	private org.bukkit.Location resolveSuddenDeathDeathLocation(Match match, Player speedrunner,
+			org.bukkit.Location deathLocation) {
+		if (match == null || !match.isSuddenDeathActive()) {
+			return deathLocation;
+		}
+		org.bukkit.World endWorld = resolveMatchEndWorld(match);
+		if (endWorld == null) {
+			return deathLocation;
+		}
+
+		if (deathLocation != null && deathLocation.getWorld() != null
+			&& deathLocation.getWorld().equals(endWorld)) {
+			return deathLocation.clone();
+		}
+		if (speedrunner != null && speedrunner.getWorld() != null && speedrunner.getWorld().equals(endWorld)) {
+			return speedrunner.getLocation().clone();
+		}
+		return endWorld.getSpawnLocation();
+	}
+
+	private org.bukkit.World resolveMatchEndWorld(Match match) {
+		if (match == null || match.getWorlds() == null) {
+			return null;
+		}
+		String endName = match.getWorlds().getEndName();
+		if (endName == null || endName.isBlank()) {
+			return null;
+		}
+		return org.bukkit.Bukkit.getWorld(endName);
 	}
 
 	public boolean handleSpeedrunnerForfeit(Player speedrunner) {
