@@ -171,13 +171,14 @@ public class PlayerDeathRoutingListener implements Listener {
 			if (!player.isOnline()) {
 				return;
 			}
+
+			Text.tell(player, "");
 			Text.tell(player, "<gray>Bạn đã chết tại tọa độ </gray>"
 				+ "<click:copy_to_clipboard:'" + coordPlain + "'><hover:show_text:'<yellow>Bấm để copy tọa độ</yellow>'>"
 				+ coordColored + "</hover></click>");
-			Text.tell(player, "<white>Dịch chuyển về chỗ bạn vừa chết không? </white>"
-				+ "<click:run_command:'/back'><hover:show_text:'<yellow>Bấm để dịch chuyển về điểm tử vong</yellow>'>"
-				+ "<#66ccff><bold>[⏪ DỊCH CHUYỂN]</bold></#66ccff></hover></click> <gray>(/back)</gray>");
-			Text.msg(player, "<yellow>ℹ</yellow> <gray>Dịch chuyển sẽ tốn <white>" + cost + " điểm</white>.</gray>");
+			Text.tell(player, "<white>Dịch chuyển về chỗ bạn vừa chết không?</white>");
+			Text.tell(player, "<click:run_command:'/back'><hover:show_text:'<yellow>Bấm để dịch chuyển về điểm chết</yellow>'><#66ccff><bold>[⏪ DỊCH CHUYỂN]</bold></#66ccff></hover></click> <gray>(/back)</gray>");
+			Text.tell(player, "<yellow>ℹ</yellow> <gray>Dịch chuyển sẽ tốn <white>" + cost + " điểm</white>.</gray>");
 		}, 2L);
 	}
 }

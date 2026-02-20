@@ -51,6 +51,6 @@ public class CardListener implements Listener {
 		int currentPoints = pointService.addHunterPoints(match, player.getUniqueId(), gainedPoints);
 		Text.msg(player, "<green>✔</green> Bạn nhận được " + pointService.formatPoints(gainedPoints)
 			+ " từ thành tựu. Hiện có: " + pointService.formatPoints(currentPoints)
-			+ ". <gray>(Dùng " + UiColors.command("/back") + " để quay lại điểm tử vong)</gray>");
+			+ ". <gray>(Dùng " + UiColors.command("/back") + " để quay lại điểm chết)</gray>");
 	}
 }

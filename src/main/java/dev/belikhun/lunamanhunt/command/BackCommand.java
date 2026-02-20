@@ -52,7 +52,7 @@ public class BackCommand implements TabExecutor {
 
 		Location deathLocation = pointService.getHunterLastDeath(match, playerId);
 		if (deathLocation == null || deathLocation.getWorld() == null) {
-			Text.msg(player, "<red>❌</red> Bạn chưa có vị trí tử vong trước đó.");
+			Text.msg(player, "<red>❌</red> Bạn chưa có vị trí chết trước đó.");
 			return true;
 		}
 
@@ -66,7 +66,7 @@ public class BackCommand implements TabExecutor {
 		}
 
 		player.teleport(deathLocation);
-		Text.msg(player, "<green>✔</green> Đã dịch chuyển về điểm tử vong trước đó. Trừ <white>"
+		Text.msg(player, "<green>✔</green> Đã dịch chuyển về điểm chết trước đó. Trừ <white>"
 			+ pointService.formatPoints(spendResult.cost()) + "</white>, còn <white>"
 			+ pointService.formatPoints(spendResult.remainingPoints()) + "</white>.");
 		Text.msg(player, "<yellow>ℹ</yellow> Lần dùng tiếp theo sẽ tốn <white>"

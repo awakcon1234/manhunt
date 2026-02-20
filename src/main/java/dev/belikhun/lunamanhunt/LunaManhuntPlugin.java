@@ -189,7 +189,7 @@ public final class LunaManhuntPlugin extends JavaPlugin {
 		registerPermission("lunamanhunt.cards.use", "Dùng thẻ bài", PermissionDefault.TRUE);
 		registerPermission("lunamanhunt.spawn", "Dịch chuyển về sảnh", PermissionDefault.TRUE);
 		registerPermission("lunamanhunt.compass", "Lấy lại la bàn truy tìm", PermissionDefault.TRUE);
-		registerPermission("lunamanhunt.back", "Dùng /back về điểm tử vong", PermissionDefault.TRUE);
+		registerPermission("lunamanhunt.back", "Dùng /back về điểm chết", PermissionDefault.TRUE);
 		registerPermission("lunamanhunt.admin.holo", "Quản lý hologram kỷ lục", PermissionDefault.OP);
 	}
 

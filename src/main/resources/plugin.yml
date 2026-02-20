@@ -30,7 +30,7 @@ commands:
     usage: "/compass"
     aliases: ["tracker"]
   back:
-    description: "Quay về điểm tử vong trước đó của thợ săn"
+    description: "Quay về điểm chết trước đó của thợ săn"
     usage: "/back"
   holo:
     description: "Quản lý hologram xếp hạng"
@@ -86,5 +86,5 @@ permissions:
     description: "Lấy lại la bàn truy tìm"
     default: true
   lunamanhunt.back:
-    description: "Dùng /back về điểm tử vong"
+    description: "Dùng /back về điểm chết"
     default: true
