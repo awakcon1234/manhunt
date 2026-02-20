@@ -249,6 +249,8 @@ public class ScoreboardService {
 			placeholders.put("match_speedrunner", "-");
 			placeholders.put("match_points", "-");
 			placeholders.put("match_timer", "00:00.000");
+			placeholders.put("match_sudden_death", "false");
+			placeholders.put("match_sudden_death_display", "-");
 			placeholders.put("match_countdown", "-");
 			placeholders.put("match_winner_display", "-");
 			placeholders.put("match_duration", "-");
@@ -288,6 +290,7 @@ public class ScoreboardService {
 			placeholders.put("match_players_chip", "<gray>👻 0</gray>");
 			placeholders.put("match_hunters_chip", "<gray>👻 0</gray>");
 			placeholders.put("match_timer_chip", "<gray>⌚ --:--</gray>");
+			placeholders.put("match_sudden_death_chip", "");
 			placeholders.put("match_points_chip", "<gray>-</gray>");
 			placeholders.put("match_kills_chip", "<gray>⚔ 0</gray>");
 			placeholders.put("match_countdown_chip", "<gray>⏳ -</gray>");
@@ -331,6 +334,9 @@ public class ScoreboardService {
 		placeholders.put("match_points", points);
 
 		placeholders.put("match_timer", formatRunTimer(match));
+		placeholders.put("match_sudden_death", String.valueOf(match.isSuddenDeathActive()));
+		placeholders.put("match_sudden_death_display",
+			match.isSuddenDeathActive() ? "<red><b>SUDDEN DEATH</b></red>" : "<gray>Bình thường</gray>");
 		placeholders.put("match_duration", formatMatchDuration(match));
 		placeholders.put("match_winner_display", resolveWinnerDisplay(match.getWinner()));
 
@@ -446,6 +452,12 @@ public class ScoreboardService {
 			+ safeStr(placeholders.get("match_hunters")) + "</white>");
 		placeholders.put("match_timer_chip", "<#32faa7>⌚</#32faa7> <white>"
 			+ safeStr(placeholders.get("match_timer")) + "</white>");
+		placeholders.put("match_sudden_death_chip",
+			"true".equalsIgnoreCase(safeStr(placeholders.get("match_sudden_death")))
+				? " <gray>•</gray> <#ff6b6b><b>☠ SD</b></#ff6b6b>"
+				: "");
+		placeholders.put("match_timer_chip", safeStr(placeholders.get("match_timer_chip"))
+			+ safeStr(placeholders.get("match_sudden_death_chip")));
 		placeholders.put("match_points_chip", "<white>"
 			+ safeStr(placeholders.get("match_points")) + "</white>");
 		placeholders.put("match_kills_chip", "<#ff9f68>⚔</#ff9f68> <white>"

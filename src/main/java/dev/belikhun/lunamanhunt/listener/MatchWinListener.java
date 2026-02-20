@@ -32,6 +32,16 @@ public class MatchWinListener implements Listener {
 			return;
 		}
 		Player victim = event.getEntity();
+		Match match = lobbyManager.getMatchForPlayer(victim.getUniqueId());
+		if (match != null
+			&& match.getState() == MatchState.RUNNING
+			&& match.isSuddenDeathActive()
+			&& match.getSpeedrunnerId() != null
+			&& match.getSpeedrunnerId().equals(victim.getUniqueId())
+			&& victim.getKiller() == null) {
+			winConditionService.handleSuddenDeathNaturalSpeedrunnerDeath(victim, victim.getLocation());
+			return;
+		}
 		Player killer = victim.getKiller();
 		if (killer == null) {
 			return;

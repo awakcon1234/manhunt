@@ -42,7 +42,10 @@ public class PlayerDeathRoutingListener implements Listener {
 		}
 		Player player = event.getEntity();
 		Match match = lobbyManager.getMatchForPlayer(player.getUniqueId());
-		if (match != null && match.getState() == MatchState.RUNNING && match.getHunters().contains(player.getUniqueId())) {
+		if (match != null
+			&& match.getState() == MatchState.RUNNING
+			&& match.getHunters().contains(player.getUniqueId())
+			&& !match.isSuddenDeathActive()) {
 			Location deathLocation = player.getLocation().clone();
 			pointService.recordHunterDeath(match, player.getUniqueId(), deathLocation);
 			sendHunterBackPrompt(player, match, deathLocation);
@@ -84,6 +87,21 @@ public class PlayerDeathRoutingListener implements Listener {
 		}
 
 		if (match == null || match.getState() != MatchState.RUNNING) {
+			return;
+		}
+
+		if (match.isSuddenDeathActive() && match.getHunters().contains(player.getUniqueId())) {
+			Location endSpawn = resolveEndSpawn(match);
+			if (endSpawn != null) {
+				event.setRespawnLocation(endSpawn);
+			}
+			Bukkit.getScheduler().runTask(plugin, () -> {
+				if (!player.isOnline()) {
+					return;
+				}
+				player.setGameMode(org.bukkit.GameMode.SPECTATOR);
+				Text.msg(player, "<red>❌</red> Bạn đã hết mạng trong <#ff6b6b><b>Sudden Death</b></#ff6b6b>.");
+			});
 			return;
 		}
 

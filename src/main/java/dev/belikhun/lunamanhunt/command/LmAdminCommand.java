@@ -3,6 +3,7 @@ package dev.belikhun.lunamanhunt.command;
 import dev.belikhun.lunamanhunt.model.match.Match;
 import dev.belikhun.lunamanhunt.model.match.MatchState;
 import dev.belikhun.lunamanhunt.service.lobby.LobbyManager;
+import dev.belikhun.lunamanhunt.service.match.MatchLifecycleService;
 import dev.belikhun.lunamanhunt.service.match.MatchManager;
 import dev.belikhun.lunamanhunt.service.match.MatchEndService;
 import dev.belikhun.lunamanhunt.util.Text;
@@ -23,19 +24,22 @@ public class LmAdminCommand implements TabExecutor {
 	private static final String PERM_CLOSE_MATCH = "lunamanhunt.admin.close-match";
 	private static final String PERM_FORCE_STOP = "lunamanhunt.admin.force-stop";
 	private static final String PERM_FORCE_JOIN_ALL = "lunamanhunt.admin.force-join-all";
+	private static final String PERM_SUDDEN_DEATH = "lunamanhunt.admin.sudden-death";
 	private static final String PERM_RELOAD = "lunamanhunt.admin.reload";
 	private static final String PERM_SET_SPAWN = "lunamanhunt.admin.setspawn";
 
 	private final JavaPlugin plugin;
 	private final LobbyManager lobbyManager;
 	private final MatchManager matchManager;
+	private final MatchLifecycleService matchLifecycleService;
 	private final MatchEndService matchEndService;
 
 	public LmAdminCommand(JavaPlugin plugin, LobbyManager lobbyManager, MatchManager matchManager,
-			MatchEndService matchEndService) {
+			MatchLifecycleService matchLifecycleService, MatchEndService matchEndService) {
 		this.plugin = Objects.requireNonNull(plugin, "plugin");
 		this.lobbyManager = Objects.requireNonNull(lobbyManager, "lobbyManager");
 		this.matchManager = Objects.requireNonNull(matchManager, "matchManager");
+		this.matchLifecycleService = Objects.requireNonNull(matchLifecycleService, "matchLifecycleService");
 		this.matchEndService = Objects.requireNonNull(matchEndService, "matchEndService");
 	}
 
@@ -50,6 +54,7 @@ public class LmAdminCommand implements TabExecutor {
 			case "close-match" -> handleCloseMatch(sender, args);
 			case "force-stop" -> handleForceStop(sender, args);
 			case "force-join-all" -> handleForceJoinAll(sender, args);
+			case "sudden-death" -> handleSuddenDeath(sender, args);
 			case "reload" -> handleReload(sender);
 			case "setspawn" -> handleSetSpawn(sender);
 			case "help" -> sendHelp(sender);
@@ -62,11 +67,12 @@ public class LmAdminCommand implements TabExecutor {
 	@Override
 	public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
 		if (args.length == 1) {
-			return filter(List.of("close-match", "force-stop", "force-join-all", "reload", "setspawn", "help"), args[0]);
+			return filter(List.of("close-match", "force-stop", "force-join-all", "sudden-death", "reload", "setspawn", "help"), args[0]);
 		}
 		if (args.length == 2 && ("force-stop".equalsIgnoreCase(args[0])
 			|| "close-match".equalsIgnoreCase(args[0])
-			|| "force-join-all".equalsIgnoreCase(args[0]))) {
+			|| "force-join-all".equalsIgnoreCase(args[0])
+			|| "sudden-death".equalsIgnoreCase(args[0]))) {
 			List<String> ids = matchManager.getMatches().stream()
 				.map(Match::getId)
 				.toList();
@@ -166,6 +172,43 @@ public class LmAdminCommand implements TabExecutor {
 		}
 	}
 
+	private void handleSuddenDeath(CommandSender sender, String[] args) {
+		if (!hasPerm(sender, PERM_SUDDEN_DEATH)) {
+			return;
+		}
+
+		Match match = null;
+		if (args.length >= 2 && args[1] != null && !args[1].isBlank()) {
+			match = matchManager.getMatch(args[1]);
+		} else if (sender instanceof Player player) {
+			match = lobbyManager.getMatchForPlayer(player.getUniqueId());
+		} else {
+			reply(sender, "<red>❌</red> Dùng: <white>/lm sudden-death <mã_phòng></white>");
+			return;
+		}
+
+		if (match == null) {
+			reply(sender, "<red>❌</red> Không tìm thấy phòng cần kích hoạt sudden death.");
+			return;
+		}
+		if (match.getState() != MatchState.RUNNING) {
+			reply(sender, "<red>❌</red> Chỉ kích hoạt được khi trận đang chạy.");
+			return;
+		}
+		if (match.isSuddenDeathActive()) {
+			reply(sender, "<yellow>ℹ</yellow> Phòng này đã ở trạng thái sudden death.");
+			return;
+		}
+
+		if (!matchLifecycleService.forceSuddenDeath(match)) {
+			reply(sender, "<red>❌</red> Không thể kích hoạt sudden death cho phòng này.");
+			return;
+		}
+
+		reply(sender, "<green>✔</green> Đã kích hoạt <#ff6b6b><b>Sudden Death</b></#ff6b6b> cho phòng "
+			+ UiColors.matchIdText(match.getId()) + ".");
+	}
+
 	private void handleReload(CommandSender sender) {
 		if (!hasPerm(sender, PERM_RELOAD)) {
 			return;
@@ -197,6 +240,7 @@ public class LmAdminCommand implements TabExecutor {
 		reply(sender, "<yellow>●</yellow> <white>/lm close-match <mã_phòng></white>");
 		reply(sender, "<yellow>●</yellow> <white>/lm force-stop [mã_phòng]</white>");
 		reply(sender, "<yellow>●</yellow> <white>/lm force-join-all <mã_phòng></white>");
+		reply(sender, "<yellow>●</yellow> <white>/lm sudden-death [mã_phòng]</white>");
 		reply(sender, "<yellow>●</yellow> <white>/lm reload</white>");
 		reply(sender, "<yellow>●</yellow> <white>/lm setspawn</white>");
 	}

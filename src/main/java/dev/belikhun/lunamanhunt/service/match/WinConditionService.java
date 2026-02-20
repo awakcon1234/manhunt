@@ -72,6 +72,26 @@ public class WinConditionService {
 		return true;
 	}
 
+	public boolean handleSuddenDeathNaturalSpeedrunnerDeath(Player speedrunner, org.bukkit.Location deathLocation) {
+		if (speedrunner == null) {
+			return false;
+		}
+		Match match = lobbyManager.getMatchForPlayer(speedrunner.getUniqueId());
+		if (!isMatchRunning(match)) {
+			return false;
+		}
+		if (!match.isSuddenDeathActive() || !isSpeedrunner(match, speedrunner.getUniqueId())) {
+			return false;
+		}
+		recordMatchHistory(match, MatchWinner.HUNTERS);
+		matchEndService.endWithHunters(match,
+			"<green>✔</green> " + UiColors.roleHuntersBold() + " thắng vì " + UiColors.roleSpeedrunner()
+				+ " đã chết bởi môi trường trong <#ff6b6b><b>Sudden Death</b></#ff6b6b>!",
+			deathLocation,
+			true);
+		return true;
+	}
+
 	public boolean handleSpeedrunnerForfeit(Player speedrunner) {
 		if (speedrunner == null) {
 			return false;

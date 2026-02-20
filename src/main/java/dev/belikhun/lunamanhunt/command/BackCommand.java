@@ -49,6 +49,11 @@ public class BackCommand implements TabExecutor {
 			Text.msg(player, "<red>❌</red> Chỉ thợ săn mới dùng được lệnh này.");
 			return true;
 		}
+		if (match.isSuddenDeathActive()) {
+			Text.msg(player, "<red>❌</red> Giai đoạn <#ff6b6b><b>Sudden Death</b></#ff6b6b> đã bắt đầu, không thể dùng "
+				+ UiColors.command("/back") + ".");
+			return true;
+		}
 
 		Location deathLocation = pointService.getHunterLastDeath(match, playerId);
 		if (deathLocation == null || deathLocation.getWorld() == null) {

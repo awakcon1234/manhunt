@@ -29,6 +29,7 @@ public class Match {
 	private long createdAtMillis;
 	private Long startedAtMillis;
 	private Long endedAtMillis;
+	private boolean suddenDeathActive;
 
 	public Match(String id, UUID ownerId, MatchSettings settings) {
 		this.id = id;
@@ -164,5 +165,13 @@ public class Match {
 
 	public void setEndedAtMillis(Long endedAtMillis) {
 		this.endedAtMillis = endedAtMillis;
+	}
+
+	public boolean isSuddenDeathActive() {
+		return suddenDeathActive;
+	}
+
+	public void setSuddenDeathActive(boolean suddenDeathActive) {
+		this.suddenDeathActive = suddenDeathActive;
 	}
 }

@@ -147,7 +147,8 @@ public final class LunaManhuntPlugin extends JavaPlugin {
 		compassService.startAutoUpdate();
 		scoreboardService.start();
 		MatchCommand matchCommand = new MatchCommand(lobbyManager, matchManager, guiService, lobbyItemService);
-		LmAdminCommand adminCommand = new LmAdminCommand(this, lobbyManager, matchManager, matchEndService);
+		LmAdminCommand adminCommand = new LmAdminCommand(this, lobbyManager, matchManager,
+			matchLifecycleService, matchEndService);
 		SpawnCommand spawnCommand = new SpawnCommand(spawnService);
 		CardsCommand cardsCommand = new CardsCommand(lobbyManager, cardService, guiService);
 		CompassCommand compassCommand = new CompassCommand(lobbyManager, compassService);

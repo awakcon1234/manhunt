@@ -133,7 +133,7 @@ scoreboard:
       - ' <yellow>⚔</yellow> %match_pending_hint% '
       - ' %match_hunters_chip% <dark_gray>●</dark_gray> %match_id_chip% '
       - ' <gray>maylocnuoc/manhunt '
-    # Placeholders: %player_display% %role_display% %match_timer% %match_points% %match_kills% %match_hunters%
+    # Placeholders: %player_display% %role_display% %match_timer% %match_sudden_death_chip% %match_points% %match_kills% %match_hunters%
     #   powerup_line/effect_line: %card_name% %card_time%
     match_playing_speedrunner:
       title: '<b><gradient:#b8ffeb:#ffcc7a>ĐANG CHẠY</gradient></b>'
@@ -155,7 +155,7 @@ scoreboard:
       footer:
       - ''
       - ' <gray>maylocnuoc/manhunt '
-    # Placeholders: %player_display% %role_display% %match_timer% %match_hunters%
+    # Placeholders: %player_display% %role_display% %match_timer% %match_sudden_death_chip% %match_hunters%
     #   curse_line: %card_name% %card_time%
     match_playing_hunter:
       title: '<b><gradient:#b8ffeb:#ffcc7a>ĐANG CHẠY</gradient></b>'

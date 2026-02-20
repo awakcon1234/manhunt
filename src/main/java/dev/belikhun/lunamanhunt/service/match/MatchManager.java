@@ -147,6 +147,7 @@ public class MatchManager {
 			return false;
 		}
 		match.setState(MatchState.RUNNING);
+		match.setSuddenDeathActive(false);
 		match.setStartedAtMillis(System.currentTimeMillis());
 		return true;
 	}

@@ -67,6 +67,8 @@ permissions:
     default: op
   lunamanhunt.admin.force-join-all:
     default: op
+  lunamanhunt.admin.sudden-death:
+    default: op
   lunamanhunt.admin.reload:
     default: op
   lunamanhunt.admin.setspawn:

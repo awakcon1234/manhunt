@@ -53,6 +53,8 @@ public class MatchLifecycleService {
 	private static final int WARMUP_BATCH_SIZE = 2;
 	private static final double DEFAULT_WARMUP_SECONDS_PER_CHUNK = 0.9;
 	private static final long ETA_DEBUG_LOG_INTERVAL_MS = 2000L;
+	private static final long SUDDEN_DEATH_TRIGGER_MILLIS = 60L * 60L * 1000L;
+	private static final int SUDDEN_DEATH_BONUS_POINTS = 5;
 
 	private final JavaPlugin plugin;
 	private final LobbyManager lobbyManager;
@@ -1185,14 +1187,21 @@ public class MatchLifecycleService {
 			if (startedAt == null) {
 				return;
 			}
+			long elapsed = Math.max(0L, System.currentTimeMillis() - startedAt);
+			if (!match.isSuddenDeathActive() && elapsed >= SUDDEN_DEATH_TRIGGER_MILLIS) {
+				enterSuddenDeath(match);
+			}
 			UUID speedrunnerId = match.getSpeedrunnerId();
-			String timeText = formatRunTime(System.currentTimeMillis() - startedAt);
+			String timeText = formatRunTime(elapsed);
 			for (UUID id : Set.copyOf(match.getLobbyPlayers())) {
 				Player player = Bukkit.getPlayer(id);
 				if (player == null) {
 					continue;
 				}
 				String message = "<#32faa7>⌚</#32faa7> <white>" + timeText + "</white>";
+				if (match.isSuddenDeathActive()) {
+					message = message + " <gray>•</gray> <#ff6b6b><b>☠ SUDDEN DEATH</b></#ff6b6b>";
+				}
 				if (speedrunnerId != null && speedrunnerId.equals(id)) {
 					message = message + " <gray>•</gray> <white>" + pointService.formatPoints(match.getSpeedrunnerPoints())
 						+ "</white>";
@@ -1208,6 +1217,146 @@ public class MatchLifecycleService {
 
 	private void stopRunningActionTask(String matchId) {
 		stopTask(runningActionTasks, matchId);
+	}
+
+	public boolean forceSuddenDeath(Match match) {
+		if (match == null || match.getState() != MatchState.RUNNING || match.isSuddenDeathActive()) {
+			return false;
+		}
+		enterSuddenDeath(match);
+		return match.isSuddenDeathActive();
+	}
+
+	private void enterSuddenDeath(Match match) {
+		if (match == null || match.getState() != MatchState.RUNNING || match.isSuddenDeathActive()) {
+			return;
+		}
+		World endWorld = resolveEndWorld(match);
+		if (endWorld == null) {
+			broadcast(match, "<yellow>⚠</yellow> Không thể vào <#ff6b6b><b>Sudden Death</b></#ff6b6b> vì thiếu thế giới End.");
+			return;
+		}
+		match.setSuddenDeathActive(true);
+
+		UUID speedrunnerId = match.getSpeedrunnerId();
+		Location speedrunnerTarget = pickSafeEndIslandLocation(endWorld);
+		Location huntersTarget = pickSafeEndIslandLocation(endWorld);
+		if (speedrunnerTarget != null && huntersTarget != null
+			&& speedrunnerTarget.getWorld() != null
+			&& huntersTarget.getWorld() != null
+			&& speedrunnerTarget.getWorld().equals(huntersTarget.getWorld())
+			&& speedrunnerTarget.distanceSquared(huntersTarget) < 144.0D) {
+			huntersTarget = pickSafeEndIslandLocation(endWorld);
+		}
+
+		for (UUID id : Set.copyOf(match.getLobbyPlayers())) {
+			Player player = Bukkit.getPlayer(id);
+			if (player == null) {
+				continue;
+			}
+			if (player.getWorld() != null && player.getWorld().equals(endWorld)) {
+				continue;
+			}
+			boolean isSpeedrunner = speedrunnerId != null && speedrunnerId.equals(id);
+			Location target = isSpeedrunner ? speedrunnerTarget : huntersTarget;
+			if (target != null) {
+				player.teleport(target);
+			}
+		}
+
+		if (speedrunnerId != null) {
+			cardService.addPoint(match, SUDDEN_DEATH_BONUS_POINTS);
+			cardService.drawNewCards(match);
+			Player speedrunner = Bukkit.getPlayer(speedrunnerId);
+			if (speedrunner != null) {
+				Text.msg(speedrunner, "<green>✔</green> Bạn nhận <white>" + SUDDEN_DEATH_BONUS_POINTS
+					+ "</white> điểm và một bộ thẻ mới vì đã vào <#ff6b6b><b>Sudden Death</b></#ff6b6b>.");
+				speedrunner.playSound(speedrunner.getLocation(), Sound.UI_TOAST_CHALLENGE_COMPLETE, 0.8f, 1.0f);
+			}
+		}
+
+		for (UUID hunterId : Set.copyOf(match.getHunters())) {
+			Player hunter = Bukkit.getPlayer(hunterId);
+			if (hunter == null) {
+				continue;
+			}
+			hunter.setGameMode(GameMode.SURVIVAL);
+			Text.msg(hunter, "<yellow>⚠</yellow> <#ff6b6b><b>Sudden Death</b></#ff6b6b>: bạn chỉ còn <white>1 mạng</white>.");
+			Text.msg(hunter, "<yellow>ℹ</yellow> Lệnh " + UiColors.command("/back") + " đã bị vô hiệu hóa trong giai đoạn này.");
+		}
+
+		sendSuddenDeathBoard(match);
+		playMatchSound(match, Sound.ENTITY_WITHER_SPAWN, 0.8f, 1.0f);
+	}
+
+	private void sendSuddenDeathBoard(Match match) {
+		if (match == null) {
+			return;
+		}
+		for (UUID id : Set.copyOf(match.getLobbyPlayers())) {
+			Player player = Bukkit.getPlayer(id);
+			if (player == null) {
+				continue;
+			}
+			for (String line : buildSuddenDeathBoard(match)) {
+				Text.tell(player, line);
+			}
+		}
+	}
+
+	private List<String> buildSuddenDeathBoard(Match match) {
+		if (match == null) {
+			return List.of();
+		}
+		return List.of(
+			"",
+			"",
+			" <red>⚠</red> <#ff6b6b><b>SUDDEN DEATH</b></#ff6b6b> <gray>●</gray> <yellow>ℹ</yellow> <white><b>GIAI ĐOẠN CUỐI:</b></white>",
+			"",
+			" <yellow>●</yellow> <white>Tất cả người chơi được dồn về <#ff6b6b><b>End</b></#ff6b6b></white>",
+			" <yellow>●</yellow> " + UiColors.roleHuntersBold() + " <white>chỉ còn <#ff6b6b><b>1 mạng</b></#ff6b6b> và "
+				+ UiColors.command("/back") + " <white>bị khóa</white>",
+			" <yellow>●</yellow> Nếu " + UiColors.roleSpeedrunner() + " <white>chết do môi trường, "
+				+ UiColors.roleHuntersBold() + " <white>thắng ngay lập tức</white>",
+			"",
+			""
+		);
+	}
+
+	private World resolveEndWorld(Match match) {
+		if (match == null || match.getWorlds() == null) {
+			return null;
+		}
+		String endName = match.getWorlds().getEndName();
+		if (endName == null || endName.isBlank()) {
+			return null;
+		}
+		return Bukkit.getWorld(endName);
+	}
+
+	private Location pickSafeEndIslandLocation(World endWorld) {
+		if (endWorld == null) {
+			return null;
+		}
+		Location center = endWorld.getSpawnLocation();
+		if (center == null) {
+			return null;
+		}
+		int baseX = center.getBlockX();
+		int baseZ = center.getBlockZ();
+		for (int i = 0; i < 20; i++) {
+			double angle = random.nextDouble() * Math.PI * 2.0D;
+			double radius = 8.0D + (random.nextDouble() * 22.0D);
+			int x = baseX + (int) Math.round(Math.cos(angle) * radius);
+			int z = baseZ + (int) Math.round(Math.sin(angle) * radius);
+			int highestY = endWorld.getHighestBlockYAt(x, z);
+			int y = Math.max(65, highestY + 1);
+			Location target = new Location(endWorld, x + 0.5D, y, z + 0.5D);
+			if (target.getBlock().isPassable() && target.clone().add(0.0D, 1.0D, 0.0D).getBlock().isPassable()) {
+				return target;
+			}
+		}
+		return center.clone().add(0.5D, 1.0D, 0.5D);
 	}
 
 	private void showCountdownSubtitle(Match match, int seconds) {
