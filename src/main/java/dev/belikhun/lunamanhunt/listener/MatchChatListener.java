@@ -153,7 +153,7 @@ public class MatchChatListener implements Listener {
 			? "<gray>[#<white>%match_id%</white>]</gray> %role_icon% %player_colored%<gray>:</gray> <white>%message%</white>"
 			: format;
 		String roleIcon = resolveRoleIcon(match, senderId);
-		String playerColored = resolveRoleColoredPlayer(match, senderId, playerDisplay);
+		String playerColored = resolveRoleColoredPlayer(match, senderId);
 		value = replaceToken(value, "match_id", safe(matchId));
 		value = replaceToken(value, "player", playerDisplay == null ? "" : playerDisplay);
 		value = replaceToken(value, "player_colored", playerColored);
@@ -177,8 +177,8 @@ public class MatchChatListener implements Listener {
 		return "<gray>⌛</gray>";
 	}
 
-	private String resolveRoleColoredPlayer(Match match, UUID playerId, String playerDisplay) {
-		String value = playerDisplay == null ? "" : playerDisplay;
+	private String resolveRoleColoredPlayer(Match match, UUID playerId) {
+		String value = escapeMiniMessage(Text.plainPlayerName(playerId));
 		if (match == null || playerId == null) {
 			return value;
 		}

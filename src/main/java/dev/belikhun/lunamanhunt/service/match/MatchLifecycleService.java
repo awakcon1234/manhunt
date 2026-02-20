@@ -150,7 +150,6 @@ public class MatchLifecycleService {
 		String label = formatWorldLabel(bukkitWorld.getEnvironment());
 		String seed = formatSeedValue(bukkitWorld.getSeed());
 		broadcast(match, "<green>✔</green> Thế giới <yellow>" + label + "</yellow> đã tạo xong. Seed: " + seed + ".");
-		playMatchSound(match, Sound.BLOCK_NOTE_BLOCK_PLING, 0.7f, 1.2f);
 	}
 
 	public void handleWorldsReady(Match match) {

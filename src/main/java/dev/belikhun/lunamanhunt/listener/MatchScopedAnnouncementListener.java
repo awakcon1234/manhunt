@@ -62,7 +62,7 @@ public class MatchScopedAnnouncementListener implements Listener {
 				continue;
 			}
 			String playerName = Text.playerNameDisplay(player.getUniqueId(), target);
-			String playerColored = resolveRoleColoredPlayer(match, player.getUniqueId(), playerName);
+			String playerColored = resolveRoleColoredPlayer(match, player.getUniqueId());
 			String roleIcon = resolveRoleIcon(match, player.getUniqueId());
 			String localizedDeathMessage = localizeComponentMiniMessage(deathMessage, target);
 			if (localizedDeathMessage.isBlank()) {
@@ -107,7 +107,7 @@ public class MatchScopedAnnouncementListener implements Listener {
 				continue;
 			}
 			String playerName = Text.playerNameDisplay(player.getUniqueId(), target);
-			String playerColored = resolveRoleColoredPlayer(match, player.getUniqueId(), playerName);
+			String playerColored = resolveRoleColoredPlayer(match, player.getUniqueId());
 			String roleIcon = resolveRoleIcon(match, player.getUniqueId());
 			String localizedTitle = localizeComponentMiniMessage(displayName, target);
 			if (localizedTitle.isBlank()) {
@@ -223,8 +223,8 @@ public class MatchScopedAnnouncementListener implements Listener {
 		return "<gray>⌛</gray>";
 	}
 
-	private String resolveRoleColoredPlayer(Match match, UUID playerId, String playerDisplay) {
-		String value = playerDisplay == null ? "" : playerDisplay;
+	private String resolveRoleColoredPlayer(Match match, UUID playerId) {
+		String value = escapeMiniMessage(Text.plainPlayerName(playerId));
 		if (match == null || playerId == null) {
 			return value;
 		}
