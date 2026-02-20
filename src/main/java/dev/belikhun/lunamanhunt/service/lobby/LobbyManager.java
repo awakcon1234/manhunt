@@ -7,6 +7,7 @@ import dev.belikhun.lunamanhunt.model.match.MatchVisibility;
 import dev.belikhun.lunamanhunt.service.match.MatchSettingsService;
 import dev.belikhun.lunamanhunt.service.match.MatchManager;
 import dev.belikhun.lunamanhunt.util.Text;
+import dev.belikhun.lunamanhunt.util.UiColors;
 
 import org.bukkit.Bukkit;
 import org.bukkit.Sound;
@@ -75,7 +76,7 @@ public class LobbyManager {
 		}
 		match.getInvitedPlayers().remove(playerId);
 		notifyInviteDeclined(match, playerId);
-		return LobbyActionResult.ok("<green>✔</green> Đã từ chối lời mời vào phòng <yellow>" + match.getId() + "</yellow>.", match);
+		return LobbyActionResult.ok("<green>✔</green> Đã từ chối lời mời vào phòng " + UiColors.matchIdText(match.getId()) + ".", match);
 	}
 
 	private void notifyInviteAccepted(Match match, UUID playerId) {
@@ -126,7 +127,7 @@ public class LobbyManager {
 		match.getLobbyPlayers().add(playerId);
 		playerMatchIndex.put(playerId, match.getId());
 		announceMemberJoined(match, playerId);
-		return LobbyActionResult.ok("<green>✔</green> Đã tham gia phòng <yellow>" + match.getId() + "</yellow>.", match);
+		return LobbyActionResult.ok("<green>✔</green> Đã tham gia phòng " + UiColors.matchIdText(match.getId()) + ".", match);
 	}
 
 	public LobbyActionResult leave(UUID playerId) {

@@ -505,6 +505,12 @@ public class MatchLifecycleService {
 		for (UUID id : Set.copyOf(match.getLobbyPlayers())) {
 			Player player = Bukkit.getPlayer(id);
 			if (player != null) {
+				if (gameMode != GameMode.CREATIVE && gameMode != GameMode.SPECTATOR) {
+					if (player.isFlying()) {
+						player.setFlying(false);
+					}
+					player.setAllowFlight(false);
+				}
 				player.setGameMode(gameMode);
 			}
 		}
@@ -1098,7 +1104,7 @@ public class MatchLifecycleService {
 	private void broadcastMatchInfo(Match match, World overworld) {
 		String seed = formatSeedValue(overworld.getSeed());
 		broadcast(match, "<yellow>ℹ</yellow> Thông tin trận đấu:");
-		broadcast(match, "<gray>● Mã phòng: <white>" + match.getId() + "</white></gray>");
+		broadcast(match, "<gray>● Mã phòng: " + UiColors.matchIdText(match.getId()) + "</gray>");
 		broadcast(match, "<gray>● Seed: " + seed + "</gray>");
 	}
 

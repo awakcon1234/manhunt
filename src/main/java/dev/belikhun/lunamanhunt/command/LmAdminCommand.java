@@ -5,6 +5,7 @@ import dev.belikhun.lunamanhunt.service.lobby.LobbyManager;
 import dev.belikhun.lunamanhunt.service.match.MatchManager;
 import dev.belikhun.lunamanhunt.service.match.MatchEndService;
 import dev.belikhun.lunamanhunt.util.Text;
+import dev.belikhun.lunamanhunt.util.UiColors;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
 import org.bukkit.command.TabExecutor;
@@ -83,7 +84,7 @@ public class LmAdminCommand implements TabExecutor {
 		}
 
 		matchEndService.forceCleanup(match);
-		reply(sender, "<green>✔</green> Đã dừng trận và dọn dẹp <yellow>" + match.getId() + "</yellow>.");
+		reply(sender, "<green>✔</green> Đã dừng trận và dọn dẹp " + UiColors.matchIdText(match.getId()) + ".");
 	}
 
 	private void handleReload(CommandSender sender) {

@@ -10,6 +10,7 @@ import dev.belikhun.lunamanhunt.service.persistence.ProfileStore;
 import dev.belikhun.lunamanhunt.util.UiColors;
 import me.clip.placeholderapi.expansion.PlaceholderExpansion;
 import org.bukkit.Bukkit;
+import org.bukkit.OfflinePlayer;
 import org.bukkit.entity.Player;
 
 import java.time.Duration;
@@ -84,20 +85,34 @@ public class LunaPlaceholderExpansion extends PlaceholderExpansion {
 
 	@Override
 	public String onPlaceholderRequest(Player player, String params) {
-		if (player == null || params == null || params.isBlank()) {
+		return resolvePlaceholder(player == null ? null : player.getUniqueId(), params, player);
+	}
+
+	@Override
+	public String onRequest(OfflinePlayer player, String params) {
+		return resolvePlaceholder(player == null ? null : player.getUniqueId(), params, player);
+	}
+
+	private String resolvePlaceholder(UUID playerId, String params, OfflinePlayer playerContext) {
+		if (params == null || params.isBlank()) {
 			return "";
 		}
 
 		String key = params.toLowerCase(Locale.ROOT);
-		Match match = lobbyManager.getMatchForPlayer(player.getUniqueId());
-		String role = resolveRole(player.getUniqueId(), match);
-		ProfileSnapshot profile = getProfileSnapshot(player.getUniqueId());
+		Match match = playerId == null ? null : lobbyManager.getMatchForPlayer(playerId);
+		String role = resolveRole(playerId, match);
+		ProfileSnapshot profile = playerId == null ? emptyProfileSnapshot() : getProfileSnapshot(playerId);
 
-		return switch (key) {
+		String value = switch (key) {
 			case "match_exists" -> match == null ? "false" : "true";
 			case "match_id" -> match == null || match.getId() == null || match.getId().isBlank()
 				? "-"
 				: match.getId();
+			case "match_id_colored" -> match == null ? UiColors.matchIdText("-") : UiColors.matchIdText(match.getId());
+			case "match_id_chip" -> match == null ? UiColors.matchIdChip("-") : UiColors.matchIdChip(match.getId());
+			case "match_id_hash" -> match == null || match.getId() == null || match.getId().isBlank()
+				? "#-"
+				: "#" + match.getId();
 			case "match_players" -> String.valueOf(match == null ? 0 : match.getLobbyPlayers().size());
 			case "match_hunters" -> String.valueOf(match == null ? 0 : match.getHunters().size());
 			case "match_owner" -> resolvePlayerName(match == null ? null : match.getOwnerId());
@@ -118,8 +133,45 @@ public class LunaPlaceholderExpansion extends PlaceholderExpansion {
 			case "profile_win_rate" -> profile.winRate;
 			case "profile_best_time" -> profile.bestTime;
 			case "profile_kills" -> String.valueOf(profile.huntersKilled);
+			case "profile_hunter_kills" -> String.valueOf(profile.huntersKilled);
 			default -> null;
 		};
+
+		if (value == null) {
+			debugLog("unknown:" + key,
+				"[PAPI] Placeholder chưa hỗ trợ: %lunamanhunt_" + key + "%"
+					+ " | player=" + debugPlayerName(playerContext, playerId));
+			return null;
+		}
+
+		if (playerId == null) {
+			debugLog("contextless:" + key,
+				"[PAPI] Placeholder gọi không có player context: %lunamanhunt_" + key + "%");
+		}
+
+		return value;
+	}
+
+	private ProfileSnapshot emptyProfileSnapshot() {
+		return new ProfileSnapshot(0, 0, 0, "0.0", "--:--.---", 0);
+	}
+
+	private void debugLog(String bucket, String message) {
+		if (!plugin.getConfig().getBoolean("debug.placeholderapi", false)) {
+			return;
+		}
+		plugin.getLogger().info(message);
+	}
+
+	private String debugPlayerName(OfflinePlayer player, UUID playerId) {
+		if (player != null && player.getName() != null && !player.getName().isBlank()) {
+			return player.getName();
+		}
+		if (playerId == null) {
+			return "null";
+		}
+		String id = playerId.toString();
+		return id.length() <= 8 ? id : id.substring(0, 8);
 	}
 
 	private String resolveRoleDisplay(String role) {

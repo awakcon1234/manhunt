@@ -115,7 +115,7 @@ public class MatchCommand implements TabExecutor {
 			return;
 		}
 		Match match = lobbyManager.createMatch(player.getUniqueId());
-		Text.msg(player, "<green>✔</green> Đã tạo phòng <yellow>" + match.getId() + "</yellow>.");
+		Text.msg(player, "<green>✔</green> Đã tạo phòng " + UiColors.matchIdText(match.getId()) + ".");
 		lobbyItemService.applyLobbyStateIfEligible(player);
 		playSuccessSound(player);
 	}
@@ -290,7 +290,7 @@ public class MatchCommand implements TabExecutor {
 			return;
 		}
 		Text.send(target, Text.mm(Text.prefixMiniMessage()
-			+ "<green>✔</green> Bạn vừa nhận lời mời vào phòng <yellow>" + match.getId() + "</yellow>."));
+			+ "<green>✔</green> Bạn vừa nhận lời mời vào phòng " + UiColors.matchIdText(match.getId()) + "."));
 		Text.send(target, Text.mm(Text.prefixMiniMessage()
 			+ "<gray>Chọn: </gray>"
 			+ "<green><click:run_command:'/m accept'><hover:show_text:'<gray>Bấm để chấp nhận</gray>'><b>[CHẤP NHẬN]</b></hover></click></green> "

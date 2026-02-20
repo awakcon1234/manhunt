@@ -10,6 +10,7 @@ import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.TextDecoration;
 import org.bukkit.Bukkit;
 import org.bukkit.GameMode;
+import org.bukkit.GameRules;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
 import org.bukkit.World;
@@ -46,7 +47,15 @@ public class LobbyItemService {
 		if (player == null) {
 			return;
 		}
+		World world = player.getWorld();
+		if (isLobbyWorld(world) && world != null) {
+			world.setGameRule(GameRules.PVP, false);
+		}
 		player.setGameMode(GameMode.ADVENTURE);
+		player.setAllowFlight(true);
+		if (!player.isFlying()) {
+			player.setFlying(true);
+		}
 		PlayerInventory inventory = player.getInventory();
 		inventory.setItem(0, buildMatchListItem());
 		inventory.setItem(1, buildMatchInfoItem(player));

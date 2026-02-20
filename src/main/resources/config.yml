@@ -33,6 +33,7 @@ generator:
 
 debug:
   enabled: false
+  placeholderapi: false
 
 ui:
   player-name-format: '<gradient:#7fd36b:#8fd3ff>%player_name%</gradient>'
