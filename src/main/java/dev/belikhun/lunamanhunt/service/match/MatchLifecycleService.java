@@ -920,7 +920,9 @@ public class MatchLifecycleService {
 			if (remaining <= 0) {
 				return 0L;
 			}
-			if (chunksPerSecond > 0.0) {
+			int minSamples = Math.max(6, totalChunks / 5);
+			boolean canUseAdaptiveRate = completedChunks >= minSamples;
+			if (canUseAdaptiveRate && chunksPerSecond > 0.0) {
 				double seconds = remaining / chunksPerSecond;
 				return Math.max(1L, Math.round(seconds));
 			}
@@ -1242,8 +1244,7 @@ public class MatchLifecycleService {
 		match.setSuddenDeathActive(true);
 
 		UUID speedrunnerId = match.getSpeedrunnerId();
-		Location huntersTarget = resolveSuddenDeathHunterLocation(endWorld);
-		Location speedrunnerTarget = resolveSuddenDeathSpeedrunnerLocation(endWorld, huntersTarget);
+		Location speedrunnerTarget = resolveSuddenDeathSpeedrunnerLocation(endWorld);
 
 		for (UUID id : Set.copyOf(match.getLobbyPlayers())) {
 			Player player = Bukkit.getPlayer(id);
@@ -1251,7 +1252,9 @@ public class MatchLifecycleService {
 				continue;
 			}
 			boolean isSpeedrunner = speedrunnerId != null && speedrunnerId.equals(id);
-			Location target = isSpeedrunner ? speedrunnerTarget : huntersTarget;
+			Location target = isSpeedrunner
+				? speedrunnerTarget
+				: resolveSuddenDeathHunterLocation(endWorld, speedrunnerTarget);
 			if (target != null) {
 				player.teleport(target);
 			}
@@ -1282,23 +1285,39 @@ public class MatchLifecycleService {
 		playMatchSound(match, Sound.ENTITY_WITHER_SPAWN, 0.8f, 1.0f);
 	}
 
-	private Location resolveSuddenDeathHunterLocation(World endWorld) {
+	private Location resolveSuddenDeathHunterLocation(World endWorld, Location speedrunnerTarget) {
 		if (endWorld == null) {
 			return null;
+		}
+		int centerX = 0;
+		int centerZ = 0;
+		for (int i = 0; i < 40; i++) {
+			double angle = random.nextDouble() * Math.PI * 2.0D;
+			double radius = 38.0D + (random.nextDouble() * 18.0D);
+			int x = centerX + (int) Math.round(Math.cos(angle) * radius);
+			int z = centerZ + (int) Math.round(Math.sin(angle) * radius);
+			int y = Math.max(49, endWorld.getHighestBlockYAt(x, z) + 1);
+			Location candidate = new Location(endWorld, x + 0.5D, y, z + 0.5D, (float) (180.0D - Math.toDegrees(angle)), 0.0f);
+			if (!candidate.getBlock().isPassable()
+				|| !candidate.clone().add(0.0D, 1.0D, 0.0D).getBlock().isPassable()) {
+				continue;
+			}
+			if (speedrunnerTarget != null
+				&& speedrunnerTarget.getWorld() != null
+				&& speedrunnerTarget.getWorld().equals(endWorld)
+				&& candidate.distanceSquared(speedrunnerTarget) < 225.0D) {
+				continue;
+			}
+			return candidate;
 		}
 		Location spawn = endWorld.getSpawnLocation();
 		if (spawn == null) {
 			return null;
 		}
-		return new Location(endWorld,
-			spawn.getBlockX() + 0.5D,
-			Math.max(65, endWorld.getHighestBlockYAt(spawn.getBlockX(), spawn.getBlockZ()) + 1),
-			spawn.getBlockZ() + 0.5D,
-			spawn.getYaw(),
-			spawn.getPitch());
+		return new Location(endWorld, spawn.getX(), spawn.getY(), spawn.getZ(), 90.0f, 0.0f);
 	}
 
-	private Location resolveSuddenDeathSpeedrunnerLocation(World endWorld, Location huntersTarget) {
+	private Location resolveSuddenDeathSpeedrunnerLocation(World endWorld) {
 		if (endWorld == null) {
 			return null;
 		}
@@ -1313,12 +1332,6 @@ public class MatchLifecycleService {
 			int y = Math.max(centerY, endWorld.getHighestBlockYAt(x, z) + 1);
 			Location target = new Location(endWorld, x + 0.5D, y, z + 0.5D);
 			if (!target.getBlock().isPassable() || !target.clone().add(0.0D, 1.0D, 0.0D).getBlock().isPassable()) {
-				continue;
-			}
-			if (huntersTarget != null
-				&& huntersTarget.getWorld() != null
-				&& huntersTarget.getWorld().equals(endWorld)
-				&& target.distanceSquared(huntersTarget) < 100.0D) {
 				continue;
 			}
 			return target;

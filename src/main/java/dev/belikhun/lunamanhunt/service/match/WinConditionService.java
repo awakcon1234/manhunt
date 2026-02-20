@@ -50,7 +50,7 @@ public class WinConditionService {
 		killer.playSound(killer.getLocation(), Sound.ENTITY_PLAYER_LEVELUP, 0.8f, 1.0f);
 		Text.msg(victim, "<red>❌</red> Bạn đã bị " + UiColors.roleHunterLower() + " hạ gục.");
 		victim.playSound(victim.getLocation(), Sound.UI_TOAST_OUT, 0.7f, 1.0f);
-		endWithHuntersByKill(match, resolveSuddenDeathDeathLocation(match, victim, deathLocation));
+		endWithHuntersByKill(match, resolveSuddenDeathEndSequenceLocation(match, victim, deathLocation));
 		return true;
 	}
 
@@ -83,7 +83,7 @@ public class WinConditionService {
 		if (!match.isSuddenDeathActive() || !isSpeedrunner(match, speedrunner.getUniqueId())) {
 			return false;
 		}
-		org.bukkit.Location resolvedDeathLocation = resolveSuddenDeathDeathLocation(match, speedrunner, deathLocation);
+		org.bukkit.Location resolvedDeathLocation = resolveSuddenDeathEndSequenceLocation(match, speedrunner, deathLocation);
 		recordMatchHistory(match, MatchWinner.HUNTERS);
 		matchEndService.endWithHunters(match,
 			"<green>✔</green> " + UiColors.roleHuntersBold() + " thắng vì " + UiColors.roleSpeedrunner()
@@ -93,7 +93,7 @@ public class WinConditionService {
 		return true;
 	}
 
-	private org.bukkit.Location resolveSuddenDeathDeathLocation(Match match, Player speedrunner,
+	private org.bukkit.Location resolveSuddenDeathEndSequenceLocation(Match match, Player speedrunner,
 			org.bukkit.Location deathLocation) {
 		if (match == null || !match.isSuddenDeathActive()) {
 			return deathLocation;
@@ -102,15 +102,14 @@ public class WinConditionService {
 		if (endWorld == null) {
 			return deathLocation;
 		}
-
+		if (speedrunner != null && speedrunner.getWorld() != null && speedrunner.getWorld().equals(endWorld)) {
+			return speedrunner.getLocation().clone();
+		}
 		if (deathLocation != null && deathLocation.getWorld() != null
 			&& deathLocation.getWorld().equals(endWorld)) {
 			return deathLocation.clone();
 		}
-		if (speedrunner != null && speedrunner.getWorld() != null && speedrunner.getWorld().equals(endWorld)) {
-			return speedrunner.getLocation().clone();
-		}
-		return endWorld.getSpawnLocation();
+		return endWorld.getSpawnLocation() == null ? deathLocation : endWorld.getSpawnLocation().clone();
 	}
 
 	private org.bukkit.World resolveMatchEndWorld(Match match) {
