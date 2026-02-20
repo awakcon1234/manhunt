@@ -2,6 +2,7 @@ package dev.belikhun.lunamanhunt.listener;
 
 import dev.belikhun.lunamanhunt.model.match.Match;
 import dev.belikhun.lunamanhunt.model.match.MatchState;
+import dev.belikhun.lunamanhunt.model.match.MatchWinner;
 import dev.belikhun.lunamanhunt.model.match.MatchWorlds;
 import dev.belikhun.lunamanhunt.service.lobby.LobbyManager;
 import dev.belikhun.lunamanhunt.service.spawn.LobbyTeleportService;
@@ -65,6 +66,14 @@ public class PlayerDeathRoutingListener implements Listener {
 			return;
 		}
 
+		if (isSpeedrunnerEndingContext(match, player)) {
+			Location endSpawn = resolveEndSpawn(match);
+			if (endSpawn != null) {
+				event.setRespawnLocation(endSpawn);
+			}
+			return;
+		}
+
 		if (match == null || match.getState() != MatchState.RUNNING) {
 			return;
 		}
@@ -114,5 +123,23 @@ public class PlayerDeathRoutingListener implements Listener {
 		}
 		World overworld = Bukkit.getWorld(match.getWorlds().getOverworldName());
 		return overworld == null ? null : overworld.getSpawnLocation();
+	}
+
+	private Location resolveEndSpawn(Match match) {
+		if (match == null || match.getWorlds() == null) {
+			return null;
+		}
+		World endWorld = Bukkit.getWorld(match.getWorlds().getEndName());
+		return endWorld == null ? null : endWorld.getSpawnLocation();
+	}
+
+	private boolean isSpeedrunnerEndingContext(Match match, Player player) {
+		if (match == null || player == null) {
+			return false;
+		}
+		if (match.getState() != MatchState.ENDING || match.getWinner() != MatchWinner.SPEEDRUNNER) {
+			return false;
+		}
+		return match.getSpeedrunnerId() != null && match.getSpeedrunnerId().equals(player.getUniqueId());
 	}
 }

@@ -4,6 +4,7 @@ import dev.belikhun.lunamanhunt.model.match.Match;
 import dev.belikhun.lunamanhunt.service.gui.GuiService;
 import dev.belikhun.lunamanhunt.service.lobby.LobbyManager;
 import dev.belikhun.lunamanhunt.util.Text;
+import dev.belikhun.lunamanhunt.util.UiColors;
 import io.papermc.paper.event.player.AsyncChatEvent;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
@@ -88,11 +89,12 @@ public class MatchChatListener implements Listener {
 		String senderName = sender.getName();
 		String matchId = safe(match.getId());
 		String format = plugin.getConfig().getString("match.chat.chatFormat",
-			"<gray>[#<white>%match_id%</white>]</gray> %player%<gray>:</gray> <white>%message%</white>");
+			"<gray>[#<white>%match_id%</white>]</gray> %role_icon% %player_colored%<gray>:</gray> <white>%message%</white>");
 
 		Bukkit.getScheduler().runTask(plugin, () -> broadcastToMatch(match, target -> {
 			String playerDisplay = Text.playerNameDisplay(senderId, target);
-			String rendered = resolveTemplate(format, matchId, playerDisplay, escapeMiniMessage(plainMessage), null, null);
+			String rendered = resolveTemplate(format, match, senderId, matchId, playerDisplay,
+				escapeMiniMessage(plainMessage), null, null);
 			return applyPlaceholderApi(target, rendered);
 		}));
 		plugin.getLogger().info("[MatchChat#" + matchId + "] " + senderName + ": " + plainMessage);
@@ -144,16 +146,48 @@ public class MatchChatListener implements Listener {
 		return value == null ? "-" : value;
 	}
 
-	private String resolveTemplate(String format, String matchId, String playerDisplay, String message,
+	private String resolveTemplate(String format, Match match, UUID senderId, String matchId,
+			String playerDisplay, String message,
 			String deathMessage, String advancement) {
 		String value = format == null || format.isBlank()
-			? "<gray>[#<white>%match_id%</white>]</gray> %player%<gray>:</gray> <white>%message%</white>"
+			? "<gray>[#<white>%match_id%</white>]</gray> %role_icon% %player_colored%<gray>:</gray> <white>%message%</white>"
 			: format;
+		String roleIcon = resolveRoleIcon(match, senderId);
+		String playerColored = resolveRoleColoredPlayer(match, senderId, playerDisplay);
 		value = replaceToken(value, "match_id", safe(matchId));
 		value = replaceToken(value, "player", playerDisplay == null ? "" : playerDisplay);
+		value = replaceToken(value, "player_colored", playerColored);
+		value = replaceToken(value, "role_icon", roleIcon);
 		value = replaceToken(value, "message", message == null ? "" : message);
 		value = replaceToken(value, "death_message", deathMessage == null ? "" : deathMessage);
 		value = replaceToken(value, "advancement", advancement == null ? "" : advancement);
+		return value;
+	}
+
+	private String resolveRoleIcon(Match match, UUID playerId) {
+		if (match == null || playerId == null) {
+			return "<gray>⌛</gray>";
+		}
+		if (match.getSpeedrunnerId() != null && match.getSpeedrunnerId().equals(playerId)) {
+			return "<gold>★</gold>";
+		}
+		if (match.getHunters().contains(playerId)) {
+			return "<red>⚔</red>";
+		}
+		return "<gray>⌛</gray>";
+	}
+
+	private String resolveRoleColoredPlayer(Match match, UUID playerId, String playerDisplay) {
+		String value = playerDisplay == null ? "" : playerDisplay;
+		if (match == null || playerId == null) {
+			return value;
+		}
+		if (match.getSpeedrunnerId() != null && match.getSpeedrunnerId().equals(playerId)) {
+			return UiColors.speedrunner(value);
+		}
+		if (match.getHunters().contains(playerId)) {
+			return UiColors.hunter(value);
+		}
 		return value;
 	}
 

@@ -4,6 +4,7 @@ import dev.belikhun.lunamanhunt.model.match.Match;
 import dev.belikhun.lunamanhunt.model.match.MatchState;
 import dev.belikhun.lunamanhunt.service.lobby.LobbyManager;
 import dev.belikhun.lunamanhunt.util.Text;
+import dev.belikhun.lunamanhunt.util.UiColors;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.minimessage.MiniMessage;
 import net.kyori.adventure.translation.GlobalTranslator;
@@ -61,12 +62,14 @@ public class MatchScopedAnnouncementListener implements Listener {
 				continue;
 			}
 			String playerName = Text.playerNameDisplay(player.getUniqueId(), target);
+			String playerColored = resolveRoleColoredPlayer(match, player.getUniqueId(), playerName);
+			String roleIcon = resolveRoleIcon(match, player.getUniqueId());
 			String localizedDeathMessage = localizeComponentMiniMessage(deathMessage, target);
 			if (localizedDeathMessage.isBlank()) {
 				continue;
 			}
-			String rendered = resolveTemplate(format, safe(match.getId()), playerName, localizedDeathMessage,
-				localizedDeathMessage, null);
+			String rendered = resolveTemplate(format, safe(match.getId()), playerName, playerColored,
+				roleIcon, localizedDeathMessage, localizedDeathMessage, null);
 			rendered = applyPlaceholderApi(target, rendered);
 			Text.tell(target, rendered);
 		}
@@ -104,11 +107,14 @@ public class MatchScopedAnnouncementListener implements Listener {
 				continue;
 			}
 			String playerName = Text.playerNameDisplay(player.getUniqueId(), target);
+			String playerColored = resolveRoleColoredPlayer(match, player.getUniqueId(), playerName);
+			String roleIcon = resolveRoleIcon(match, player.getUniqueId());
 			String localizedTitle = localizeComponentMiniMessage(displayName, target);
 			if (localizedTitle.isBlank()) {
 				continue;
 			}
-			String rendered = resolveTemplate(format, safe(match.getId()), playerName, null, null, localizedTitle);
+			String rendered = resolveTemplate(format, safe(match.getId()), playerName, playerColored,
+				roleIcon, null, null, localizedTitle);
 			rendered = applyPlaceholderApi(target, rendered);
 			Text.tell(target, rendered);
 		}
@@ -191,14 +197,43 @@ public class MatchScopedAnnouncementListener implements Listener {
 		return value == null ? "-" : value;
 	}
 
-	private String resolveTemplate(String format, String matchId, String playerDisplay, String message,
-			String deathMessage, String advancement) {
+	private String resolveTemplate(String format, String matchId, String playerDisplay, String playerColored,
+			String roleIcon, String message, String deathMessage, String advancement) {
 		String value = format == null ? "" : format;
 		value = replaceToken(value, "match_id", safe(matchId));
 		value = replaceToken(value, "player", playerDisplay == null ? "" : playerDisplay);
+		value = replaceToken(value, "player_colored", playerColored == null ? "" : playerColored);
+		value = replaceToken(value, "role_icon", roleIcon == null ? "" : roleIcon);
 		value = replaceToken(value, "message", message == null ? "" : message);
 		value = replaceToken(value, "death_message", deathMessage == null ? "" : deathMessage);
 		value = replaceToken(value, "advancement", advancement == null ? "" : advancement);
+		return value;
+	}
+
+	private String resolveRoleIcon(Match match, UUID playerId) {
+		if (match == null || playerId == null) {
+			return "<gray>⌛</gray>";
+		}
+		if (match.getSpeedrunnerId() != null && match.getSpeedrunnerId().equals(playerId)) {
+			return "<gold>★</gold>";
+		}
+		if (match.getHunters().contains(playerId)) {
+			return "<red>⚔</red>";
+		}
+		return "<gray>⌛</gray>";
+	}
+
+	private String resolveRoleColoredPlayer(Match match, UUID playerId, String playerDisplay) {
+		String value = playerDisplay == null ? "" : playerDisplay;
+		if (match == null || playerId == null) {
+			return value;
+		}
+		if (match.getSpeedrunnerId() != null && match.getSpeedrunnerId().equals(playerId)) {
+			return UiColors.speedrunner(value);
+		}
+		if (match.getHunters().contains(playerId)) {
+			return UiColors.hunter(value);
+		}
 		return value;
 	}
 

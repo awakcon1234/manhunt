@@ -24,9 +24,9 @@ match:
     speedrunnerKitId: starter
     speedrunnerKit: []
   chat:
-    chatFormat: '<gray>[#<white>%match_id%</white>]</gray> %player%<gray>:</gray> <white>%message%</white>'
-    deathMessageFormat: '<red>☠</red> %player% <gray>%death_message%</gray>'
-    advancementMessageFormat: '<green>✔</green> %player% <gray>đạt thành tựu</gray> %advancement%'
+    chatFormat: '<gray>[#<white>%match_id%</white>]</gray> %role_icon% %player_colored%<gray>:</gray> <white>%message%</white>'
+    deathMessageFormat: '<red>☠</red> %role_icon% %player_colored% <gray>%death_message%</gray>'
+    advancementMessageFormat: '<green>✔</green> %role_icon% %player_colored% <gray>đạt thành tựu</gray> %advancement%'
 
 generator:
   javaCommand: "java"
