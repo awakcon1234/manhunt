@@ -456,8 +456,12 @@ public class ScoreboardService {
 			"true".equalsIgnoreCase(safeStr(placeholders.get("match_sudden_death")))
 				? " <gray>•</gray> <#ff6b6b><b>☠ SD</b></#ff6b6b>"
 				: "");
-		placeholders.put("match_timer_chip", safeStr(placeholders.get("match_timer_chip"))
-			+ safeStr(placeholders.get("match_sudden_death_chip")));
+		String timerChip = safeStr(placeholders.get("match_timer_chip"));
+		String suddenDeathChip = placeholders.get("match_sudden_death_chip");
+		if (suddenDeathChip != null && !suddenDeathChip.trim().isEmpty()) {
+			timerChip = timerChip + suddenDeathChip;
+		}
+		placeholders.put("match_timer_chip", timerChip);
 		placeholders.put("match_points_chip", "<white>"
 			+ safeStr(placeholders.get("match_points")) + "</white>");
 		placeholders.put("match_kills_chip", "<#ff9f68>⚔</#ff9f68> <white>"

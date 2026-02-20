@@ -1367,6 +1367,16 @@ public class GuiService {
 				String.valueOf(page + 1)));
 		}
 
+		inventory.setItem(48, buildInfoItem(Material.SUNFLOWER,
+			"<yellow>ℹ</yellow> Chi phí thẻ",
+			List.of(
+				"<gray>● Giá hiển thị là chi phí hiện tại</gray>",
+				"<gray>  sau cân bằng của máy chủ.</gray>",
+				" ",
+				"<gray>● Chỉ </gray>" + UiColors.roleSpeedrunner() + "<gray> dùng",
+				"<gray>  điểm để kích hoạt thẻ.</gray>"
+			)));
+
 		inventory.setItem(49, buildActionItem(Material.BARRIER,
 			"<red>❌</red> Đóng",
 			List.of("<gray>Đóng danh sách thẻ.</gray>"), ACTION_CARDS_INFO_CLOSE, null));

@@ -8,7 +8,8 @@ public abstract class BaseCard implements CardDefinition {
 	private final String name;
 	private final CardType type;
 	private final CardRarity rarity;
-	private final int cost;
+	private final int baseCost;
+	private int cost;
 	private final String description;
 	private final Material icon;
 	private final boolean timed;
@@ -24,7 +25,8 @@ public abstract class BaseCard implements CardDefinition {
 		this.name = name;
 		this.type = type;
 		this.rarity = rarity;
-		this.cost = cost;
+		this.baseCost = Math.max(1, cost);
+		this.cost = this.baseCost;
 		this.description = description;
 		this.icon = icon;
 		this.durationSeconds = Math.max(0, durationSeconds);
@@ -54,6 +56,14 @@ public abstract class BaseCard implements CardDefinition {
 	@Override
 	public int getCost() {
 		return cost;
+	}
+
+	public int getBaseCost() {
+		return baseCost;
+	}
+
+	public void setCost(int cost) {
+		this.cost = Math.max(1, cost);
 	}
 
 	@Override

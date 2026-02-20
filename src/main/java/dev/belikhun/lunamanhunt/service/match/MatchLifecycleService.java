@@ -248,11 +248,11 @@ public class MatchLifecycleService {
 				compassService.giveTrackingCompass(hunter, match);
 			}
 		}
-		cardService.addPoint(match, 1);
+		cardService.addPoint(match, 5);
 		cardService.drawNewCards(match);
 		Player speedrunner = Bukkit.getPlayer(match.getSpeedrunnerId());
 		if (speedrunner != null) {
-			Text.msg(speedrunner, "<green>✔</green> Bạn nhận được <white>1</white> điểm khởi đầu và <white>7</white> thẻ mới.");
+			Text.msg(speedrunner, "<green>✔</green> Bạn nhận được <white>5</white> điểm khởi đầu và <white>7</white> thẻ mới.");
 			Text.msg(speedrunner, "<yellow>ℹ</yellow> Dùng " + UiColors.command("/c") + " để sử dụng điểm.");
 			speedrunner.playSound(speedrunner.getLocation(), Sound.BLOCK_NOTE_BLOCK_PLING, 0.7f, 1.2f);
 		}
@@ -1293,7 +1293,7 @@ public class MatchLifecycleService {
 		int centerZ = 0;
 		for (int i = 0; i < 40; i++) {
 			double angle = random.nextDouble() * Math.PI * 2.0D;
-			double radius = 38.0D + (random.nextDouble() * 18.0D);
+			double radius = 48.0D + (random.nextDouble() * 24.0D);
 			int x = centerX + (int) Math.round(Math.cos(angle) * radius);
 			int z = centerZ + (int) Math.round(Math.sin(angle) * radius);
 			int y = Math.max(49, endWorld.getHighestBlockYAt(x, z) + 1);

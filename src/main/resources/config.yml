@@ -42,6 +42,16 @@ debug:
 balance:
   maxHunters: 24
   cards:
+    pricing:
+      globalMultiplier: 1.0
+      minCost: 1
+      maxCost: 24
+      byRarity:
+        common: 3
+        uncommon: 5
+        rare: 7
+        epic: 9
+        legendary: 12
     advancement:
       basePoints: 1
       extraPointsPerStep: 1

@@ -1,11 +1,13 @@
 package dev.belikhun.lunamanhunt.service.card;
 
+import dev.belikhun.lunamanhunt.model.card.BaseCard;
 import dev.belikhun.lunamanhunt.model.card.CardDefinition;
 import dev.belikhun.lunamanhunt.model.card.CardRarity;
 import dev.belikhun.lunamanhunt.model.card.CardType;
 import dev.belikhun.lunamanhunt.service.card.cards.BlazeRodCard;
 import dev.belikhun.lunamanhunt.service.card.cards.CompassScrambleCard;
 import dev.belikhun.lunamanhunt.service.card.cards.CurseInterdimensionalSicknessCard;
+import dev.belikhun.lunamanhunt.service.card.cards.CurseAdventureModeCard;
 import dev.belikhun.lunamanhunt.service.card.cards.CurseBlindCard;
 import dev.belikhun.lunamanhunt.service.card.cards.CurseBrokenHandCard;
 import dev.belikhun.lunamanhunt.service.card.cards.CurseDizzyCard;
@@ -512,7 +514,7 @@ public class CardService {
 			lore.add("");
 			lore.add("<gray>● <white>Loại thẻ: " + formatCardTypeDisplay(card.getType()) + "</white>");
 			lore.add("<gray>● <white>Độ hiếm: " + formatCardRarityDisplay(card.getRarity()) + "</white>");
-			lore.add("<gray>● <white>Chi phí: " + pointService.formatPoints(card.getCost()) + "</white>");
+			lore.add("<gray>● <white>Chi phí: " + formatExpectedCostRange(card.getRarity()) + "</white>");
 			if (card.isTimed()) {
 				lore.add("<gray>● <white>Thời lượng: " + formatCardDuration(card.getDurationSeconds()) + "</white>");
 			}
@@ -565,6 +567,19 @@ public class CardService {
 		};
 	}
 
+	public String formatCardRarityPlain(CardRarity rarity) {
+		if (rarity == null) {
+			return "không rõ";
+		}
+		return switch (rarity) {
+			case COMMON -> "thường";
+			case UNCOMMON -> "hiếm";
+			case RARE -> "rất hiếm";
+			case EPIC -> "sử thi";
+			case LEGENDARY -> "huyền thoại";
+		};
+	}
+
 	public String formatCardRarityColor(CardRarity rarity) {
 		if (rarity == null) {
 			return "<white>";
@@ -596,17 +611,76 @@ public class CardService {
 		if (text.isEmpty()) {
 			return List.of(" ");
 		}
-		int max = 36;
-		if (text.length() <= max) {
+		int maxVisible = 36;
+		if (visibleLength(text) <= maxVisible) {
 			return List.of(text);
 		}
-		int split = text.lastIndexOf(' ', max);
+
+		int split = findSafeWrapIndex(text, maxVisible);
 		if (split <= 0 || split >= text.length() - 1) {
-			return List.of(text.substring(0, Math.min(max, text.length())), text.substring(Math.min(max, text.length())));
+			return List.of(text);
 		}
+
 		String first = text.substring(0, split).trim();
 		String second = text.substring(split + 1).trim();
+		if (first.isEmpty() || second.isEmpty()) {
+			return List.of(text);
+		}
 		return List.of(first, second);
+	}
+
+	private int visibleLength(String text) {
+		if (text == null || text.isEmpty()) {
+			return 0;
+		}
+		int visible = 0;
+		boolean inTag = false;
+		for (int i = 0; i < text.length(); i++) {
+			char ch = text.charAt(i);
+			if (ch == '<') {
+				inTag = true;
+				continue;
+			}
+			if (ch == '>') {
+				inTag = false;
+				continue;
+			}
+			if (!inTag) {
+				visible++;
+			}
+		}
+		return visible;
+	}
+
+	private int findSafeWrapIndex(String text, int targetVisible) {
+		if (text == null || text.isEmpty() || targetVisible <= 0) {
+			return -1;
+		}
+		int visible = 0;
+		int lastWhitespace = -1;
+		boolean inTag = false;
+		for (int i = 0; i < text.length(); i++) {
+			char ch = text.charAt(i);
+			if (ch == '<') {
+				inTag = true;
+				continue;
+			}
+			if (ch == '>') {
+				inTag = false;
+				continue;
+			}
+			if (inTag) {
+				continue;
+			}
+			if (Character.isWhitespace(ch)) {
+				lastWhitespace = i;
+			}
+			visible++;
+			if (visible >= targetVisible) {
+				break;
+			}
+		}
+		return lastWhitespace;
 	}
 
 	private void trackActiveCard(Match match, CardDefinition card) {
@@ -740,6 +814,13 @@ public class CardService {
 			return fallback;
 		}
 		return plugin.getConfig().getInt(path, fallback);
+	}
+
+	private double cfgDouble(String path, double fallback) {
+		if (plugin == null || plugin.getConfig() == null || path == null || path.isBlank()) {
+			return fallback;
+		}
+		return plugin.getConfig().getDouble(path, fallback);
 	}
 
 	private Player resolveSpeedrunner(Match match) {
@@ -889,6 +970,7 @@ public class CardService {
 		cards.add(new LavaSwimmerCard());
 		cards.add(new CurseTooSlowCard());
 		cards.add(new CurseDizzyCard());
+		cards.add(new CurseAdventureModeCard());
 		cards.add(new CurseBlindCard());
 		cards.add(new CurseHungryCard());
 		cards.add(new CurseZombieOutbreakCard());
@@ -897,6 +979,101 @@ public class CardService {
 		cards.add(new CurseShiningCard());
 		cards.add(new CurseInterdimensionalSicknessCard());
 		cards.add(new CurseVeganCard());
+		return rebalanceCardCosts(cards);
+	}
+
+	private List<CardDefinition> rebalanceCardCosts(List<CardDefinition> cards) {
+		if (cards == null || cards.isEmpty()) {
+			return List.of();
+		}
+		for (CardDefinition card : cards) {
+			if (card == null) {
+				continue;
+			}
+			if (card instanceof BaseCard baseCard) {
+				baseCard.setCost(resolveCardCost(card));
+			}
+		}
 		return cards;
 	}
+
+	private int resolveCardCost(CardDefinition card) {
+		if (card == null) {
+			return 1;
+		}
+		CardRarity rarity = card.getRarity();
+		int configured = resolveConfiguredRarityCost(rarity);
+		int scaled = scaleConfiguredCost(configured);
+		return applyPricingBounds(scaled);
+	}
+
+	private String formatExpectedCostRange(CardRarity rarity) {
+		int base = resolveConfiguredRarityCost(rarity);
+		int spread = resolveExpectedSpread(rarity);
+		int lower = applyPricingBounds(scaleConfiguredCost(Math.max(1, base - spread)));
+		int upper = applyPricingBounds(scaleConfiguredCost(base + spread));
+		if (upper < lower) {
+			int temp = lower;
+			lower = upper;
+			upper = temp;
+		}
+		if (lower == upper) {
+			return pointService.formatPoints(lower);
+		}
+		return pointService.formatPoints(lower) + " - " + pointService.formatPoints(upper);
+	}
+
+	private int resolveExpectedSpread(CardRarity rarity) {
+		if (rarity == null) {
+			return 1;
+		}
+		return switch (rarity) {
+			case COMMON, UNCOMMON, RARE, EPIC -> 1;
+			case LEGENDARY -> 2;
+		};
+	}
+
+	private int resolveConfiguredRarityCost(CardRarity rarity) {
+		String rarityPath = rarityPath(rarity);
+		int rarityFallback = rarityFallback(rarity);
+		return Math.max(1, cfgInt("balance.cards.pricing.byRarity." + rarityPath, rarityFallback));
+	}
+
+	private String rarityPath(CardRarity rarity) {
+		if (rarity == null) {
+			return "common";
+		}
+		return switch (rarity) {
+			case COMMON -> "common";
+			case UNCOMMON -> "uncommon";
+			case RARE -> "rare";
+			case EPIC -> "epic";
+			case LEGENDARY -> "legendary";
+		};
+	}
+
+	private int rarityFallback(CardRarity rarity) {
+		if (rarity == null) {
+			return 3;
+		}
+		return switch (rarity) {
+			case COMMON -> 3;
+			case UNCOMMON -> 5;
+			case RARE -> 7;
+			case EPIC -> 9;
+			case LEGENDARY -> 12;
+		};
+	}
+
+	private int scaleConfiguredCost(int configured) {
+		double multiplier = Math.max(0.10D, cfgDouble("balance.cards.pricing.globalMultiplier", 1.0D));
+		return (int) Math.round(Math.max(1, configured) * multiplier);
+	}
+
+	private int applyPricingBounds(int amount) {
+		int minCost = Math.max(1, cfgInt("balance.cards.pricing.minCost", 1));
+		int maxCost = Math.max(minCost, cfgInt("balance.cards.pricing.maxCost", 24));
+		return Math.max(minCost, Math.min(maxCost, Math.max(1, amount)));
+	}
+
 }
