@@ -14,6 +14,7 @@ import dev.belikhun.lunamanhunt.service.point.PointService;
 import dev.belikhun.lunamanhunt.util.Debug;
 import dev.belikhun.lunamanhunt.service.worldgen.WorldGenerationService;
 import dev.belikhun.lunamanhunt.util.Text;
+import dev.belikhun.lunamanhunt.util.TimeFormat;
 import dev.belikhun.lunamanhunt.util.UiColors;
 import org.bukkit.Bukkit;
 import org.bukkit.Difficulty;
@@ -725,13 +726,7 @@ public class MatchLifecycleService {
 	}
 
 	private String formatEta(long seconds) {
-		if (seconds <= 0) {
-			return "??:??s";
-		}
-		Duration duration = Duration.ofSeconds(seconds);
-		long minutes = duration.toMinutes();
-		long remaining = duration.minusMinutes(minutes).toSeconds();
-		return String.format(java.util.Locale.US, "%02d:%02ds", minutes, remaining);
+		return TimeFormat.formatEtaSeconds(seconds, "??:??s");
 	}
 
 	private long estimateWarmupEtaSeconds(int totalChunks, int completedChunks, int batchSize) {

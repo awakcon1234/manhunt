@@ -22,7 +22,12 @@ import dev.belikhun.lunamanhunt.service.match.MatchSettingsService;
 import dev.belikhun.lunamanhunt.service.persistence.ProfileStore;
 import dev.belikhun.lunamanhunt.service.point.PointService;
 import dev.belikhun.lunamanhunt.service.spawn.LobbyItemService;
+import dev.belikhun.lunamanhunt.util.InviteNotifier;
+import dev.belikhun.lunamanhunt.util.MatchDisplayFormatter;
+import dev.belikhun.lunamanhunt.util.MatchHistoryFormatter;
+import dev.belikhun.lunamanhunt.util.MatchSettingsFormatter;
 import dev.belikhun.lunamanhunt.util.Text;
+import dev.belikhun.lunamanhunt.util.TimeFormat;
 import dev.belikhun.lunamanhunt.util.UiColors;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.TextDecoration;
@@ -43,9 +48,6 @@ import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.text.NumberFormat;
-import java.time.Instant;
-import java.time.ZoneId;
-import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -1555,25 +1557,9 @@ public class GuiService {
 		LobbyActionResult result = lobbyManager.invite(player.getUniqueId(), target.getUniqueId(), match);
 		Text.msg(player, result.getMessage());
 		if (result.isSuccess()) {
-			sendInviteMessage(target, match);
+			InviteNotifier.notifyMatchInvite(target, match);
 		}
 		openInviteMenu(player, match);
-	}
-
-	private void sendInviteMessage(Player target, Match match) {
-		if (target == null || match == null) {
-			return;
-		}
-		Text.send(target, Text.mm(Text.prefixMiniMessage()
-			+ "<green>✔</green> Bạn vừa nhận lời mời vào phòng " + UiColors.matchIdText(match.getId()) + "."));
-		Text.send(target, Text.mm(Text.prefixMiniMessage()
-			+ "<gray>Chọn: </gray>"
-			+ "<green><click:run_command:'/m accept'><hover:show_text:'<gray>Bấm để chấp nhận</gray>'><b>[CHẤP NHẬN]</b></hover></click></green> "
-			+ "<red><click:run_command:'/m decline'><hover:show_text:'<gray>Bấm để từ chối</gray>'><b>[TỪ CHỐI]</b></hover></click></red> "
-			+ "<gray>(</gray>" + UiColors.command("/m accept") + "<gray> | </gray>"
-			+ UiColors.command("/m decline") + "<gray>)</gray>"));
-		target.playSound(target.getLocation(), Sound.UI_TOAST_IN, 1.2f, 0.8f);
-		target.playSound(target.getLocation(), Sound.BLOCK_BELL_USE, 1.4f, 1.0f);
 	}
 
 	private void handleOpenSettings(Player player, String matchId) {
@@ -2304,41 +2290,15 @@ public class GuiService {
 	}
 
 	private String formatStateColored(MatchState state) {
-		if (state == null) {
-			return "<gray>Không rõ</gray>";
-		}
-		return switch (state) {
-			case LOBBY -> "<#7fd36b>Chờ</#7fd36b>";
-			case WORLD_CREATING -> "<#ffd166>Tạo thế giới</#ffd166>";
-			case WORLD_READY -> "<#7fd36b>Sẵn sàng</#7fd36b>";
-			case RUN_PENDING -> "<#ffd166>Chờ bắt đầu</#ffd166>";
-			case RUNNING -> "<#36a8ff>Đang chạy</#36a8ff>";
-			case ENDING -> "<#ff6b6b>Kết thúc</#ff6b6b>";
-			case CLEANUP -> "<#ffd166>Dọn dẹp</#ffd166>";
-			case FINISHED -> "<#9aa0a6>Đã xong</#9aa0a6>";
-		};
+		return MatchDisplayFormatter.formatMatchStateColoredGui(state);
 	}
 
 	private String formatVisibility(MatchVisibility visibility) {
-		if (visibility == null) {
-			return "Không rõ";
-		}
-		return switch (visibility) {
-			case PUBLIC -> "Công khai";
-			case INVITE_ONLY -> "Chỉ mời";
-			case PRIVATE -> "Riêng tư";
-		};
+		return MatchSettingsFormatter.formatVisibility(visibility);
 	}
 
 	private String formatVisibilityColored(MatchVisibility visibility) {
-		if (visibility == null) {
-			return "<gray>Không rõ</gray>";
-		}
-		return switch (visibility) {
-			case PUBLIC -> "<#7fd36b>Công khai</#7fd36b>";
-			case INVITE_ONLY -> "<#ffd166>Chỉ mời</#ffd166>";
-			case PRIVATE -> "<#ff6b6b>Riêng tư</#ff6b6b>";
-		};
+		return MatchSettingsFormatter.formatVisibilityColored(visibility);
 	}
 
 	private String formatSpeedrunnerColored(MatchSettings settings) {
@@ -2356,93 +2316,43 @@ public class GuiService {
 	}
 
 	private String formatSeedValue(String seed, String defaultSeed) {
-		String trimmed = seed == null ? "" : seed.trim();
-		if (trimmed.isEmpty()) {
-			return "<#ff6b6b>Chưa đặt</#ff6b6b>";
-		}
-		String defaultTrimmed = defaultSeed == null ? "" : defaultSeed.trim();
-		String color = trimmed.equals(defaultTrimmed) ? "#7fd36b" : "#ffd166";
-		return "<" + color + ">" + trimmed + "</" + color + ">";
+		return MatchSettingsFormatter.formatSeedValue(seed, defaultSeed);
 	}
 
 	private String formatGenVersionValue(String version, String defaultVersion) {
-		String trimmed = version == null ? "" : version.trim();
-		if (trimmed.isEmpty()) {
-			return "<#ff6b6b>Chưa đặt</#ff6b6b>";
-		}
-		String defaultTrimmed = defaultVersion == null ? "" : defaultVersion.trim();
-		String color = trimmed.equalsIgnoreCase(defaultTrimmed) ? "#7fd36b" : "#ffd166";
-		return "<" + color + ">" + trimmed + "</" + color + ">";
+		return MatchSettingsFormatter.formatGenVersionValue(version, defaultVersion);
 	}
 
 	private String formatWorldTime(WorldTimeSetting setting) {
-		if (setting == null) {
-			return "Không rõ";
-		}
-		return switch (setting) {
-			case CYCLE -> "Chu kỳ";
-			case MORNING -> "Buổi sáng";
-			case NOON -> "Buổi trưa";
-			case NIGHT -> "Ban đêm";
-			case MIDNIGHT -> "Nửa đêm";
-		};
+		return MatchSettingsFormatter.formatWorldTime(setting);
 	}
 
 	private String formatWorldTimeColored(WorldTimeSetting setting, WorldTimeSetting defaultSetting) {
-		if (setting == null) {
-			return "<gray>Không rõ</gray>";
-		}
-		String color = setting == defaultSetting ? "#7fd36b" : "#ffd166";
-		return "<" + color + ">" + formatWorldTime(setting) + "</" + color + ">";
+		return MatchSettingsFormatter.formatWorldTimeColored(setting, defaultSetting);
 	}
 
 	private String formatWorldWeather(WorldWeatherSetting setting) {
-		if (setting == null) {
-			return "Không rõ";
-		}
-		return switch (setting) {
-			case CYCLE -> "Chu kỳ";
-			case CLEAR -> "Trời quang";
-			case RAIN -> "Mưa";
-			case THUNDERSTORM -> "Giông";
-		};
+		return MatchSettingsFormatter.formatWorldWeather(setting);
 	}
 
 	private String formatWorldWeatherColored(WorldWeatherSetting setting, WorldWeatherSetting defaultSetting) {
-		if (setting == null) {
-			return "<gray>Không rõ</gray>";
-		}
-		String color = setting == defaultSetting ? "#7fd36b" : "#ffd166";
-		return "<" + color + ">" + formatWorldWeather(setting) + "</" + color + ">";
+		return MatchSettingsFormatter.formatWorldWeatherColored(setting, defaultSetting);
 	}
 
 	private String formatWorldDifficulty(WorldDifficultySetting setting) {
-		if (setting == null) {
-			return "Không rõ";
-		}
-		return switch (setting) {
-			case PEACEFUL -> "Hòa bình";
-			case EASY -> "Dễ";
-			case MEDIUM -> "Trung bình";
-			case HARD -> "Khó";
-		};
+		return MatchSettingsFormatter.formatWorldDifficulty(setting);
 	}
 
 	private String formatWorldDifficultyColored(WorldDifficultySetting setting, WorldDifficultySetting defaultSetting) {
-		if (setting == null) {
-			return "<gray>Không rõ</gray>";
-		}
-		String color = setting == defaultSetting ? "#7fd36b" : "#ffd166";
-		return "<" + color + ">" + formatWorldDifficulty(setting) + "</" + color + ">";
+		return MatchSettingsFormatter.formatWorldDifficultyColored(setting, defaultSetting);
 	}
 
 	private String formatKeepInventory(boolean keepInventory) {
-		return keepInventory ? "Bật" : "Tắt";
+		return MatchSettingsFormatter.formatKeepInventory(keepInventory);
 	}
 
 	private String formatKeepInventoryColored(boolean keepInventory, boolean defaultKeepInventory) {
-		String color = keepInventory == defaultKeepInventory ? "#7fd36b" : "#ffd166";
-		return "<" + color + ">" + formatKeepInventory(keepInventory) + "</" + color + ">";
+		return MatchSettingsFormatter.formatKeepInventoryColored(keepInventory, defaultKeepInventory);
 	}
 
 	private boolean isGenVersionSelected(MatchSettings settings, String candidate) {
@@ -2464,8 +2374,7 @@ public class GuiService {
 	}
 
 	private String formatNumericValue(int value, int defaultValue) {
-		String color = value == defaultValue ? "#7fd36b" : "#ffd166";
-		return "<" + color + ">" + formatNumber(value) + "</" + color + ">";
+		return MatchSettingsFormatter.formatNumericValue(value, defaultValue);
 	}
 
 	private String formatCountValue(int value, int defaultValue) {
@@ -2704,11 +2613,7 @@ public class GuiService {
 	}
 
 	private String formatPlaytime(long millis) {
-		long safeMillis = Math.max(0L, millis);
-		long totalSeconds = safeMillis / 1000L;
-		long hours = totalSeconds / 3600L;
-		long minutes = (totalSeconds % 3600L) / 60L;
-		return String.format(java.util.Locale.US, "%dh %02dm", hours, minutes);
+		return TimeFormat.formatHoursMinutes(millis);
 	}
 
 	private String formatWinrate(int wins, int total) {
@@ -3020,30 +2925,18 @@ public class GuiService {
 	}
 
 	private String formatHistoryOutcome(MatchHistoryEntry entry) {
-		return entry != null && entry.isWon() ? "<green>✔ Thắng</green>" : "<red>❌ Thua</red>";
+		return MatchHistoryFormatter.formatOutcomeWithIcon(entry != null && entry.isWon());
 	}
 
 	private String formatHistoryRole(String role) {
 		if (role == null) {
 			return "Không rõ";
 		}
-		if (role.equalsIgnoreCase("SPEEDRUNNER")) {
-			return UiColors.roleSpeedrunner();
-		}
-		if (role.equalsIgnoreCase("HUNTER")) {
-			return UiColors.roleHunter();
-		}
-		return role;
+		return MatchDisplayFormatter.formatRoleColored(role);
 	}
 
 	private String formatHistoryWinner(MatchWinner winner) {
-		if (winner == null) {
-			return "Không rõ";
-		}
-		return switch (winner) {
-			case SPEEDRUNNER -> UiColors.roleSpeedrunner();
-			case HUNTERS -> UiColors.roleHunter();
-		};
+		return MatchHistoryFormatter.formatWinner(winner, "Không rõ");
 	}
 
 	private String safeText(String value, String fallback) {
@@ -3051,59 +2944,15 @@ public class GuiService {
 	}
 
 	private String formatDuration(long millis) {
-		if (millis <= 0L) {
-			return "Chưa có";
-		}
-		long totalSeconds = millis / 1000L;
-		long hours = totalSeconds / 3600L;
-		long minutes = (totalSeconds % 3600L) / 60L;
-		long seconds = totalSeconds % 60L;
-		if (hours > 0) {
-			return String.format("%d:%02d:%02d", hours, minutes, seconds);
-		}
-		return String.format("%d:%02d", minutes, seconds);
+		return MatchHistoryFormatter.formatDuration(millis);
 	}
 
 	private String formatTimestamp(long millis) {
-		if (millis <= 0L) {
-			return "Chưa rõ";
-		}
-		DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm")
-			.withZone(ZoneId.systemDefault());
-		return formatter.format(Instant.ofEpochMilli(millis));
+		return TimeFormat.formatTimestamp(millis, "Chưa rõ");
 	}
 
 	private String formatRelativeTime(long millis) {
-		if (millis <= 0L) {
-			return "Không rõ";
-		}
-		long now = System.currentTimeMillis();
-		long deltaSeconds = Math.max(0L, (now - millis) / 1000L);
-		if (deltaSeconds < 60) {
-			return "Vừa xong";
-		}
-		long minutes = deltaSeconds / 60L;
-		if (minutes < 60) {
-			return minutes + " phút trước";
-		}
-		long hours = minutes / 60L;
-		if (hours < 24) {
-			return hours + " giờ trước";
-		}
-		long days = hours / 24L;
-		if (days < 7) {
-			return days + " ngày trước";
-		}
-		long weeks = days / 7L;
-		if (weeks < 4) {
-			return weeks + " tuần trước";
-		}
-		long months = days / 30L;
-		if (months < 12) {
-			return months + " tháng trước";
-		}
-		long years = days / 365L;
-		return years + " năm trước";
+		return TimeFormat.formatRelativeDetailed(System.currentTimeMillis(), millis, "Không rõ");
 	}
 
 	private OptionItem buildOption(Material icon, String title, List<String> details, String action, String target) {

@@ -11,6 +11,7 @@ import dev.belikhun.lunamanhunt.service.lobby.LobbyManager;
 import dev.belikhun.lunamanhunt.service.point.PointService;
 import dev.belikhun.lunamanhunt.service.spawn.LobbyTeleportService;
 import dev.belikhun.lunamanhunt.util.Text;
+import dev.belikhun.lunamanhunt.util.TimeFormat;
 import dev.belikhun.lunamanhunt.util.UiColors;
 import dev.belikhun.lunamanhunt.util.Debug;
 import org.bukkit.configuration.file.YamlConfiguration;
@@ -399,10 +400,7 @@ public class MatchEndService {
 		if (millis == null || millis < 0L) {
 			return "Chưa";
 		}
-		long totalSeconds = millis / 1000L;
-		long minutes = totalSeconds / 60L;
-		long seconds = totalSeconds % 60L;
-		return String.format(java.util.Locale.US, "%02d:%02d", minutes, seconds);
+		return TimeFormat.formatMinutesSeconds(millis, "Chưa");
 	}
 
 	private String formatDurationColored(Long millis) {
@@ -426,15 +424,8 @@ public class MatchEndService {
 	}
 
 	private String formatDurationWithMillis(Long millis) {
-		if (millis == null || millis < 0L) {
-			return "00:00:00.000";
-		}
-		long totalSeconds = millis / 1000L;
-		long hours = totalSeconds / 3600L;
-		long minutes = (totalSeconds % 3600L) / 60L;
-		long seconds = totalSeconds % 60L;
-		long ms = Math.max(0L, millis % 1000L);
-		return String.format(java.util.Locale.US, "%02d:%02d:%02d.%03d", hours, minutes, seconds, ms);
+		long safeMillis = millis == null ? -1L : millis;
+		return TimeFormat.formatHoursMinutesSecondsMillis(safeMillis, "00:00:00.000");
 	}
 
 	private String resolvePlayerName(UUID playerId) {

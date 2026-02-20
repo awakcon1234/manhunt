@@ -7,13 +7,14 @@ import dev.belikhun.lunamanhunt.model.profile.MatchHistoryEntry;
 import dev.belikhun.lunamanhunt.model.profile.PlayerProfile;
 import dev.belikhun.lunamanhunt.service.lobby.LobbyManager;
 import dev.belikhun.lunamanhunt.service.persistence.ProfileStore;
+import dev.belikhun.lunamanhunt.util.MatchDisplayFormatter;
+import dev.belikhun.lunamanhunt.util.TimeFormat;
 import dev.belikhun.lunamanhunt.util.UiColors;
 import me.clip.placeholderapi.expansion.PlaceholderExpansion;
 import org.bukkit.Bukkit;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.entity.Player;
 
-import java.time.Duration;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
@@ -182,15 +183,7 @@ public class LunaPlaceholderExpansion extends PlaceholderExpansion {
 	}
 
 	private String resolveRoleDisplay(String role) {
-		if (role == null || role.isBlank()) {
-			return "Không có";
-		}
-		return switch (role) {
-			case "speedrunner" -> "Speedrunner";
-			case "hunter" -> "Thợ săn";
-			case "lobby" -> "Sảnh";
-			default -> "Không có";
-		};
+		return MatchDisplayFormatter.formatRoleDisplay(role);
 	}
 
 	private String resolveMatchState(Match match) {
@@ -201,20 +194,7 @@ public class LunaPlaceholderExpansion extends PlaceholderExpansion {
 	}
 
 	private String resolveMatchStateDisplay(Match match) {
-		if (match == null || match.getState() == null) {
-			return "Chưa tham gia";
-		}
-		MatchState state = match.getState();
-		return switch (state) {
-			case LOBBY -> "Phòng chờ";
-			case WORLD_CREATING -> "Đang tạo thế giới";
-			case WORLD_READY -> "Thế giới sẵn sàng";
-			case RUN_PENDING -> "Chờ bắt đầu";
-			case RUNNING -> "Đang chạy";
-			case ENDING -> "Kết thúc";
-			case CLEANUP -> "Đang dọn dẹp";
-			case FINISHED -> "Đã xong";
-		};
+		return MatchDisplayFormatter.formatMatchStateDisplay(match == null ? null : match.getState());
 	}
 
 	private String resolveMatchTimer(Match match) {
@@ -233,12 +213,7 @@ public class LunaPlaceholderExpansion extends PlaceholderExpansion {
 	}
 
 	private String formatTimer(long millis) {
-		Duration duration = Duration.ofMillis(Math.max(0L, millis));
-		long totalMillis = duration.toMillis();
-		long minutes = totalMillis / 60000L;
-		long seconds = (totalMillis / 1000L) % 60L;
-		long ms = totalMillis % 1000L;
-		return String.format(Locale.US, "%02d:%02d.%03d", minutes, seconds, ms);
+		return TimeFormat.formatRunTimer(millis);
 	}
 
 	private String resolvePlayerName(UUID playerId) {

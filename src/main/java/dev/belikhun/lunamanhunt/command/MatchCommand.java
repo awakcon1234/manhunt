@@ -6,6 +6,7 @@ import dev.belikhun.lunamanhunt.service.lobby.LobbyActionResult;
 import dev.belikhun.lunamanhunt.service.lobby.LobbyManager;
 import dev.belikhun.lunamanhunt.service.match.MatchManager;
 import dev.belikhun.lunamanhunt.service.gui.GuiService;
+import dev.belikhun.lunamanhunt.util.InviteNotifier;
 import dev.belikhun.lunamanhunt.util.Text;
 import dev.belikhun.lunamanhunt.util.UiColors;
 import dev.belikhun.lunamanhunt.service.spawn.LobbyItemService;
@@ -157,7 +158,7 @@ public class MatchCommand implements TabExecutor {
 		LobbyActionResult result = lobbyManager.invite(player.getUniqueId(), target.getUniqueId(), match);
 		Text.msg(player, result.getMessage());
 		if (result.isSuccess()) {
-			sendInviteMessage(target, match);
+			InviteNotifier.notifyMatchInvite(target, match);
 			playSuccessSound(player);
 		}
 	}
@@ -283,22 +284,6 @@ public class MatchCommand implements TabExecutor {
 		Text.msg(player, "<yellow>●</yellow> " + UiColors.command("/match seed <giá_trị|xoa>"));
 		Text.msg(player, "<yellow>●</yellow> " + UiColors.command("/match kit xoa"));
 		Text.msg(player, "<yellow>●</yellow> " + UiColors.command("/match gui"));
-	}
-
-	private void sendInviteMessage(Player target, Match match) {
-		if (target == null || match == null) {
-			return;
-		}
-		Text.send(target, Text.mm(Text.prefixMiniMessage()
-			+ "<green>✔</green> Bạn vừa nhận lời mời vào phòng " + UiColors.matchIdText(match.getId()) + "."));
-		Text.send(target, Text.mm(Text.prefixMiniMessage()
-			+ "<gray>Chọn: </gray>"
-			+ "<green><click:run_command:'/m accept'><hover:show_text:'<gray>Bấm để chấp nhận</gray>'><b>[CHẤP NHẬN]</b></hover></click></green> "
-			+ "<red><click:run_command:'/m decline'><hover:show_text:'<gray>Bấm để từ chối</gray>'><b>[TỪ CHỐI]</b></hover></click></red> "
-			+ "<gray>(</gray>" + UiColors.command("/m accept") + "<gray> | </gray>"
-			+ UiColors.command("/m decline") + "<gray>)</gray>"));
-		target.playSound(target.getLocation(), Sound.UI_TOAST_IN, 1.2f, 0.8f);
-		target.playSound(target.getLocation(), Sound.BLOCK_BELL_USE, 1.4f, 1.0f);
 	}
 
 	private void handleGui(Player player) {

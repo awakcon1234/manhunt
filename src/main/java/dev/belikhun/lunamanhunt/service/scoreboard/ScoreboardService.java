@@ -11,9 +11,13 @@ import dev.belikhun.lunamanhunt.service.card.ActiveCard;
 import dev.belikhun.lunamanhunt.model.card.CardType;
 import dev.belikhun.lunamanhunt.service.match.MatchLifecycleService;
 import dev.belikhun.lunamanhunt.service.point.PointService;
+import dev.belikhun.lunamanhunt.util.MatchDisplayFormatter;
+import dev.belikhun.lunamanhunt.util.MatchHistoryFormatter;
 import dev.belikhun.lunamanhunt.service.persistence.ProfileStore;
 import dev.belikhun.lunamanhunt.util.Debug;
+import dev.belikhun.lunamanhunt.util.MatchSettingsFormatter;
 import dev.belikhun.lunamanhunt.util.Text;
+import dev.belikhun.lunamanhunt.util.TimeFormat;
 import dev.belikhun.lunamanhunt.util.UiColors;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.minimessage.MiniMessage;
@@ -26,7 +30,6 @@ import org.bukkit.World;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
 
-import java.time.Duration;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Locale;
@@ -42,7 +45,7 @@ public class ScoreboardService {
 	private static final int ACTIVE_LINES_MAX = 4;
 	private static final int HISTORY_LINES_MAX = 3;
 	private static final int PROFILE_CACHE_MS = 5000;
-	private static final int WORLD_PROGRESS_BAR_LENGTH = 36;
+	private static final int WORLD_PROGRESS_BAR_LENGTH = 42;
 	private static final String WORLD_PROGRESS_BAR_FILL = "▍";
 	private static final String WORLD_PROGRESS_BAR_EMPTY = "▍";
 	private static final int DEBUG_TICK_LOG_INTERVAL_MS = 10000;
@@ -423,6 +426,11 @@ public class ScoreboardService {
 		if (placeholders == null) {
 			return;
 		}
+		dev.belikhun.lunamanhunt.model.match.MatchSettings settings = match == null ? null : match.getSettings();
+		dev.belikhun.lunamanhunt.model.match.MatchVisibility defaultVisibility = getDefaultVisibility();
+		dev.belikhun.lunamanhunt.model.match.WorldDifficultySetting defaultDifficulty = getDefaultDifficulty();
+		int defaultBorderLimit = cfgInt("match.defaults.worldBorderLimit", 1000);
+		int defaultStartingBorder = cfgInt("match.defaults.startingBorder", 10);
 		String matchId = safeStr(placeholders.get("match_id"));
 		placeholders.put("match_id_chip", UiColors.matchIdChip(matchId));
 		placeholders.put("match_owner_chip", "<yellow>👑</yellow> <white>"
@@ -447,14 +455,22 @@ public class ScoreboardService {
 			+ worldProgressBar + " <white>" + worldProgressPercent + "%</white>");
 		placeholders.put("match_world_eta_chip", "<#32faa7>⌚</#32faa7> <white>"
 			+ safeStr(placeholders.get("match_world_eta")) + "</white>");
-		placeholders.put("match_visibility_chip", "<gray>🔒</gray> <white>"
-			+ safeStr(placeholders.get("match_setting_visibility_display")) + "</white>");
-		placeholders.put("match_difficulty_chip", "<gray>⚔</gray> <white>"
-			+ safeStr(placeholders.get("match_setting_difficulty_display")) + "</white>");
-		placeholders.put("match_border_chip", "<gray>⌂</gray> <white>"
-			+ safeStr(placeholders.get("match_setting_border_limit")) + "</white>");
-		placeholders.put("match_start_border_chip", "<gray>◎</gray> <white>"
-			+ safeStr(placeholders.get("match_setting_starting_border")) + "</white>");
+		String visibilityValue = settings == null
+			? "<gray>Không rõ</gray>"
+			: MatchSettingsFormatter.formatVisibilityColored(settings.getVisibility(), defaultVisibility);
+		String difficultyValue = settings == null
+			? "<gray>Không rõ</gray>"
+			: MatchSettingsFormatter.formatWorldDifficultyColored(settings.getWorldDifficulty(), defaultDifficulty);
+		String borderValue = settings == null
+			? "<gray>-</gray>"
+			: MatchSettingsFormatter.formatNumericValue(settings.getWorldBorderLimit(), defaultBorderLimit);
+		String startBorderValue = settings == null
+			? "<gray>-</gray>"
+			: MatchSettingsFormatter.formatNumericValue(settings.getStartingBorder(), defaultStartingBorder);
+		placeholders.put("match_visibility_chip", "<gray>🔒</gray> " + visibilityValue);
+		placeholders.put("match_difficulty_chip", "<gray>⚔</gray> " + difficultyValue);
+		placeholders.put("match_border_chip", "<gray>⌂</gray> " + borderValue);
+		placeholders.put("match_start_border_chip", "<gray>◎</gray> " + startBorderValue);
 		placeholders.put("match_winner_chip", "<gold>★</gold> "
 			+ safeStr(placeholders.get("match_winner_display")));
 		placeholders.put("role_chip", formatRoleChip(player, match));
@@ -462,15 +478,29 @@ public class ScoreboardService {
 
 	private String formatRoleChip(Player player, Match match) {
 		if (match == null || player == null) {
-			return "<gray>● Người chơi</gray>";
+			return MatchDisplayFormatter.formatRoleChip(false, false);
 		}
-		if (isSpeedrunner(player, match)) {
-			return "<gold>★</gold> " + UiColors.roleSpeedrunner();
+		boolean speedrunner = isSpeedrunner(player, match);
+		boolean hunter = match.getHunters().contains(player.getUniqueId());
+		return MatchDisplayFormatter.formatRoleChip(speedrunner, hunter);
+	}
+
+	private dev.belikhun.lunamanhunt.model.match.MatchVisibility getDefaultVisibility() {
+		String raw = cfgString("match.defaults.visibility", "PUBLIC");
+		try {
+			return dev.belikhun.lunamanhunt.model.match.MatchVisibility.valueOf(raw.trim().toUpperCase(Locale.ROOT));
+		} catch (Exception ignored) {
+			return dev.belikhun.lunamanhunt.model.match.MatchVisibility.PUBLIC;
 		}
-		if (match.getHunters().contains(player.getUniqueId())) {
-			return "<red>⚔</red> " + UiColors.roleHunter();
+	}
+
+	private dev.belikhun.lunamanhunt.model.match.WorldDifficultySetting getDefaultDifficulty() {
+		String raw = cfgString("match.defaults.worldDifficulty", "MEDIUM");
+		try {
+			return dev.belikhun.lunamanhunt.model.match.WorldDifficultySetting.valueOf(raw.trim().toUpperCase(Locale.ROOT));
+		} catch (Exception ignored) {
+			return dev.belikhun.lunamanhunt.model.match.WorldDifficultySetting.MEDIUM;
 		}
-		return "<gray>● Người chơi</gray>";
 	}
 
 	private java.util.List<Component> buildRunningLines(Player player, Match match, String template,
@@ -641,7 +671,7 @@ public class ScoreboardService {
 			}
 		}
 		String playtimeDisplay = formatPlaytime(playtime);
-		String bestTimeDisplay = formatDuration(profile == null ? 0L : profile.getBestTimeMillis());
+		String bestTimeDisplay = MatchHistoryFormatter.formatDuration(profile == null ? 0L : profile.getBestTimeMillis());
 		String hunterWinrate = formatWinrate(hunterWins, hunterTotal);
 		String speedrunnerWinrate = formatWinrate(speedrunnerWins, speedrunnerTotal);
 		return new ProfileSnapshot(nowMillis, playtimeDisplay, bestTimeDisplay, kills,
@@ -652,7 +682,7 @@ public class ScoreboardService {
 		String matchId = safeStr(entry.getMatchId());
 		String roleDisplay = formatHistoryRole(entry.getRole());
 		String outcomeDisplay = formatHistoryOutcome(entry);
-		String durationDisplay = formatDuration(entry.getDurationMillis());
+		String durationDisplay = MatchHistoryFormatter.formatDuration(entry.getDurationMillis());
 		long timeMillis = entry.getEndedAtMillis() > 0 ? entry.getEndedAtMillis() : entry.getStartedAtMillis();
 		String timeAgo = formatRelativeTime(nowMillis, timeMillis);
 		return new HistoryLine(matchId, roleDisplay, outcomeDisplay, durationDisplay, timeAgo);
@@ -669,13 +699,9 @@ public class ScoreboardService {
 		if (match == null || player == null) {
 			return "-";
 		}
-		if (isSpeedrunner(player, match)) {
-			return UiColors.roleSpeedrunner();
-		}
-		if (match.getHunters().contains(player.getUniqueId())) {
-			return UiColors.roleHunter();
-		}
-		return "<white>Người chơi</white>";
+		boolean speedrunner = isSpeedrunner(player, match);
+		boolean hunter = match.getHunters().contains(player.getUniqueId());
+		return MatchDisplayFormatter.formatRoleColored(speedrunner, hunter);
 	}
 
 	private boolean isSpeedrunner(Player player, Match match) {
@@ -689,32 +715,11 @@ public class ScoreboardService {
 	}
 
 	private String formatShortDuration(long totalSeconds) {
-		long safeSeconds = Math.max(0L, totalSeconds);
-		long minutes = safeSeconds / 60L;
-		long seconds = safeSeconds % 60L;
-		return String.format(Locale.US, "%02d:%02d", minutes, seconds);
+		return TimeFormat.formatMinutesSecondsFromSeconds(totalSeconds);
 	}
 
 	private String formatPlaytime(long millis) {
-		long safeMillis = Math.max(0L, millis);
-		long totalSeconds = safeMillis / 1000L;
-		long hours = totalSeconds / 3600L;
-		long minutes = (totalSeconds % 3600L) / 60L;
-		return String.format(Locale.US, "%dh %02dm", hours, minutes);
-	}
-
-	private String formatDuration(long millis) {
-		if (millis <= 0L) {
-			return "Chưa có";
-		}
-		long totalSeconds = millis / 1000L;
-		long hours = totalSeconds / 3600L;
-		long minutes = (totalSeconds % 3600L) / 60L;
-		long seconds = totalSeconds % 60L;
-		if (hours > 0) {
-			return String.format(Locale.US, "%d:%02d:%02d", hours, minutes, seconds);
-		}
-		return String.format(Locale.US, "%d:%02d", minutes, seconds);
+		return TimeFormat.formatHoursMinutes(millis);
 	}
 
 	private String formatWinrate(int wins, int total) {
@@ -729,37 +734,18 @@ public class ScoreboardService {
 		if (role == null) {
 			return "-";
 		}
-		if ("SPEEDRUNNER".equalsIgnoreCase(role)) {
-			return UiColors.roleSpeedrunner();
-		}
-		if ("HUNTER".equalsIgnoreCase(role)) {
-			return UiColors.roleHunter();
-		}
-		return "<white>Người chơi</white>";
+		return MatchDisplayFormatter.formatRoleColored(role);
 	}
 
 	private String formatHistoryOutcome(MatchHistoryEntry entry) {
 		if (entry == null) {
 			return "-";
 		}
-		return entry.isWon() ? "<green>Thắng</green>" : "<red>Thua</red>";
+		return MatchHistoryFormatter.formatOutcome(entry.isWon());
 	}
 
 	private String formatRelativeTime(long nowMillis, long timeMillis) {
-		long delta = Math.max(0L, nowMillis - Math.max(0L, timeMillis));
-		long minutes = delta / 60000L;
-		if (minutes < 1) {
-			return "vừa xong";
-		}
-		if (minutes < 60) {
-			return minutes + "p trước";
-		}
-		long hours = minutes / 60L;
-		if (hours < 24) {
-			return hours + "h trước";
-		}
-		long days = hours / 24L;
-		return days + "d trước";
+		return TimeFormat.formatRelativeCompact(nowMillis, timeMillis);
 	}
 
 	private static final class ProfileSnapshot {
@@ -814,74 +800,36 @@ public class ScoreboardService {
 		if (setting == null) {
 			return "-";
 		}
-		return switch (setting) {
-			case CYCLE -> "Tự động";
-			case MORNING -> "Sáng";
-			case NOON -> "Trưa";
-			case NIGHT -> "Tối";
-			case MIDNIGHT -> "Nửa đêm";
-		};
+		return MatchSettingsFormatter.formatWorldTime(setting);
 	}
 
 	private String formatWorldWeather(dev.belikhun.lunamanhunt.model.match.WorldWeatherSetting setting) {
 		if (setting == null) {
 			return "-";
 		}
-		return switch (setting) {
-			case CYCLE -> "Tự động";
-			case CLEAR -> "Nắng";
-			case RAIN -> "Mưa";
-			case THUNDERSTORM -> "Bão";
-		};
+		return MatchSettingsFormatter.formatWorldWeather(setting);
 	}
 
 	private String formatWorldDifficulty(dev.belikhun.lunamanhunt.model.match.WorldDifficultySetting setting) {
 		if (setting == null) {
 			return "-";
 		}
-		return switch (setting) {
-			case PEACEFUL -> "Hòa bình";
-			case EASY -> "Dễ";
-			case MEDIUM -> "Thường";
-			case HARD -> "Khó";
-		};
+		return MatchSettingsFormatter.formatWorldDifficulty(setting);
 	}
 
 	private String formatVisibility(dev.belikhun.lunamanhunt.model.match.MatchVisibility visibility) {
 		if (visibility == null) {
 			return "-";
 		}
-		return switch (visibility) {
-			case PUBLIC -> "Công khai";
-			case INVITE_ONLY -> "Chỉ mời";
-			case PRIVATE -> "Riêng tư";
-		};
+		return MatchSettingsFormatter.formatVisibility(visibility);
 	}
 
 	private String resolveMatchStateDisplay(MatchState state) {
-		if (state == null) {
-			return "-";
-		}
-		return switch (state) {
-			case LOBBY -> "<gray>Đang chờ</gray>";
-			case WORLD_CREATING -> "<yellow>Đang tạo thế giới</yellow>";
-			case WORLD_READY -> "<yellow>Đang chuẩn bị</yellow>";
-			case RUN_PENDING -> "<aqua>Chờ bắt đầu</aqua>";
-			case RUNNING -> "<green>Đang chạy</green>";
-			case ENDING -> "<gold>Kết thúc</gold>";
-			case CLEANUP -> "<gold>Thu dọn</gold>";
-			case FINISHED -> "<gray>Đã xong</gray>";
-		};
+		return MatchDisplayFormatter.formatMatchStateColoredScoreboard(state);
 	}
 
 	private String resolveWinnerDisplay(MatchWinner winner) {
-		if (winner == null) {
-			return "-";
-		}
-		return switch (winner) {
-			case SPEEDRUNNER -> UiColors.roleSpeedrunner();
-			case HUNTERS -> UiColors.roleHunter();
-		};
+		return MatchHistoryFormatter.formatWinner(winner, "-");
 	}
 
 	private String resolvePendingHint(Player player, Match match) {
@@ -914,11 +862,7 @@ public class ScoreboardService {
 			return "00:00.000";
 		}
 		long elapsed = Math.max(0L, System.currentTimeMillis() - match.getStartedAtMillis());
-		long totalSeconds = elapsed / 1000L;
-		long minutes = totalSeconds / 60L;
-		long seconds = totalSeconds % 60L;
-		long millis = elapsed % 1000L;
-		return String.format(Locale.US, "%02d:%02d.%03d", minutes, seconds, millis);
+		return TimeFormat.formatRunTimer(elapsed);
 	}
 
 	private String formatMatchDuration(Match match) {
@@ -931,31 +875,15 @@ public class ScoreboardService {
 			return "-";
 		}
 		long elapsed = Math.max(0L, ended - started);
-		long totalSeconds = elapsed / 1000L;
-		long minutes = totalSeconds / 60L;
-		long seconds = totalSeconds % 60L;
-		long millis = elapsed % 1000L;
-		return String.format(Locale.US, "%02d:%02d.%03d", minutes, seconds, millis);
+		return TimeFormat.formatRunTimer(elapsed);
 	}
 
 	private String formatMilestone(Long millis) {
-		if (millis == null || millis <= 0) {
-			return "-";
-		}
-		long totalSeconds = millis / 1000L;
-		long minutes = totalSeconds / 60L;
-		long seconds = totalSeconds % 60L;
-		return String.format(Locale.US, "%02d:%02d", minutes, seconds);
+		return TimeFormat.formatMinutesSeconds(millis == null ? 0L : millis, "-");
 	}
 
 	private String formatEta(long seconds) {
-		if (seconds <= 0) {
-			return "--:--s";
-		}
-		Duration duration = Duration.ofSeconds(seconds);
-		long minutes = duration.toMinutes();
-		long remaining = duration.minusMinutes(minutes).toSeconds();
-		return String.format(Locale.US, "%02d:%02ds", minutes, remaining);
+		return TimeFormat.formatEtaSeconds(seconds, "--:--s");
 	}
 
 	private int safeInt(String value, int def) {
