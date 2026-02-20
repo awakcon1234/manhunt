@@ -131,7 +131,7 @@ public final class LunaManhuntPlugin extends JavaPlugin {
 		getServer().getPluginManager().registerEvents(new LobbyHotbarListener(lobbyItemService), this);
 		getServer().getPluginManager().registerEvents(new LobbyItemGuardListener(lobbyItemService), this);
 		getServer().getPluginManager().registerEvents(
-			new LobbyStateListener(lobbyItemService, lobbyTeleportService, lobbyManager), this);
+			new LobbyStateListener(this, lobbyItemService, lobbyTeleportService, lobbyManager), this);
 		getServer().getPluginManager().registerEvents(new CardListener(cardService), this);
 		getServer().getPluginManager().registerEvents(new CardEffectListener(cardService), this);
 		getServer().getPluginManager().registerEvents(new RunStartListener(matchLifecycleService), this);

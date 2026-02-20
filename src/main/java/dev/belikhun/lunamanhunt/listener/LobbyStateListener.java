@@ -9,21 +9,25 @@ import dev.belikhun.lunamanhunt.util.Text;
 import dev.belikhun.lunamanhunt.util.UiColors;
 import io.papermc.paper.event.player.AsyncPlayerSpawnLocationEvent;
 
+import org.bukkit.Bukkit;
 import org.bukkit.Sound;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerChangedWorldEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
+import org.bukkit.plugin.java.JavaPlugin;
 
 import java.util.Objects;
 
 public class LobbyStateListener implements Listener {
+	private final JavaPlugin plugin;
 	private final LobbyItemService lobbyItemService;
 	private final LobbyTeleportService lobbyTeleportService;
 	private final LobbyManager lobbyManager;
 
-	public LobbyStateListener(LobbyItemService lobbyItemService, LobbyTeleportService lobbyTeleportService,
+	public LobbyStateListener(JavaPlugin plugin, LobbyItemService lobbyItemService, LobbyTeleportService lobbyTeleportService,
 			LobbyManager lobbyManager) {
+		this.plugin = Objects.requireNonNull(plugin, "plugin");
 		this.lobbyItemService = Objects.requireNonNull(lobbyItemService, "lobbyItemService");
 		this.lobbyTeleportService = Objects.requireNonNull(lobbyTeleportService, "lobbyTeleportService");
 		this.lobbyManager = Objects.requireNonNull(lobbyManager, "lobbyManager");
@@ -48,6 +52,8 @@ public class LobbyStateListener implements Listener {
 		Text.msg(player, "");
 
 		player.playSound(player.getLocation(), Sound.UI_TOAST_IN, 0.7f, 1.0f);
+		Bukkit.getScheduler().runTaskLater(plugin, () -> lobbyItemService.applyLobbyStateIfEligible(player), 1L);
+		Bukkit.getScheduler().runTaskLater(plugin, () -> lobbyItemService.applyLobbyStateIfEligible(player), 20L);
 	}
 
 	@EventHandler
