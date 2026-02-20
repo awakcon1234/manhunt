@@ -182,17 +182,15 @@ public class MatchEndService {
 		}
 		awaitingPortal.remove(match.getId());
 		cardService.clearActiveCards(match);
+
+		if (match.getState() == MatchState.RUNNING || match.getState() == MatchState.ENDING) {
+			finishMatch(match, true, POST_TELEPORT_CLEANUP_DELAY_TICKS);
+			return;
+		}
+
 		match.setState(MatchState.CLEANUP);
 		match.setEndedAtMillis(System.currentTimeMillis());
 		cleanupWorlds(match);
-		match.getHunters().clear();
-		match.getDrawnCards().clear();
-		match.getKeptCards().clear();
-		match.setSpeedrunnerPoints(0);
-		pointService.clearMatchData(match);
-		match.setSpeedrunnerId(null);
-		match.setState(MatchState.FINISHED);
-		lobbyManager.disbandMatch(match);
 	}
 
 	private void clearEndedMatchEffects(Match match) {
