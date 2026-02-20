@@ -1196,6 +1196,9 @@ public class MatchLifecycleService {
 				if (speedrunnerId != null && speedrunnerId.equals(id)) {
 					message = message + " <gray>•</gray> <white>" + pointService.formatPoints(match.getSpeedrunnerPoints())
 						+ "</white>";
+				} else if (match.getHunters().contains(id)) {
+					message = message + " <gray>•</gray> <white>"
+						+ pointService.formatPoints(pointService.getHunterPoints(match, id)) + "</white>";
 				}
 				player.sendActionBar(Text.mm(message));
 			}

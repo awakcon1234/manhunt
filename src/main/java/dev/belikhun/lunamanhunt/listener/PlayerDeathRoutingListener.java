@@ -5,7 +5,9 @@ import dev.belikhun.lunamanhunt.model.match.MatchState;
 import dev.belikhun.lunamanhunt.model.match.MatchWinner;
 import dev.belikhun.lunamanhunt.model.match.MatchWorlds;
 import dev.belikhun.lunamanhunt.service.lobby.LobbyManager;
+import dev.belikhun.lunamanhunt.service.point.PointService;
 import dev.belikhun.lunamanhunt.service.spawn.LobbyTeleportService;
+import dev.belikhun.lunamanhunt.util.Text;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.World;
@@ -23,12 +25,14 @@ public class PlayerDeathRoutingListener implements Listener {
 	private final JavaPlugin plugin;
 	private final LobbyManager lobbyManager;
 	private final LobbyTeleportService lobbyTeleportService;
+	private final PointService pointService;
 
 	public PlayerDeathRoutingListener(JavaPlugin plugin, LobbyManager lobbyManager,
-			LobbyTeleportService lobbyTeleportService) {
+			LobbyTeleportService lobbyTeleportService, PointService pointService) {
 		this.plugin = Objects.requireNonNull(plugin, "plugin");
 		this.lobbyManager = Objects.requireNonNull(lobbyManager, "lobbyManager");
 		this.lobbyTeleportService = Objects.requireNonNull(lobbyTeleportService, "lobbyTeleportService");
+		this.pointService = Objects.requireNonNull(pointService, "pointService");
 	}
 
 	@EventHandler(priority = EventPriority.HIGHEST)
@@ -38,6 +42,11 @@ public class PlayerDeathRoutingListener implements Listener {
 		}
 		Player player = event.getEntity();
 		Match match = lobbyManager.getMatchForPlayer(player.getUniqueId());
+		if (match != null && match.getState() == MatchState.RUNNING && match.getHunters().contains(player.getUniqueId())) {
+			Location deathLocation = player.getLocation().clone();
+			pointService.recordHunterDeath(match, player.getUniqueId(), deathLocation);
+			sendHunterBackPrompt(player, match, deathLocation);
+		}
 		if (!isLobbyContext(match)) {
 			return;
 		}
@@ -141,5 +150,34 @@ public class PlayerDeathRoutingListener implements Listener {
 			return false;
 		}
 		return match.getSpeedrunnerId() != null && match.getSpeedrunnerId().equals(player.getUniqueId());
+	}
+
+	private void sendHunterBackPrompt(Player player, Match match, Location deathLocation) {
+		if (player == null || match == null || deathLocation == null) {
+			return;
+		}
+
+		int x = deathLocation.getBlockX();
+		int y = deathLocation.getBlockY();
+		int z = deathLocation.getBlockZ();
+		int cost = pointService.getHunterBackCost(match, player.getUniqueId());
+		String coordPlain = "x: " + x + ", y: " + y + ", z: " + z;
+		String coordColored = "<yellow>⚐</yellow> "
+			+ "<gray>x:</gray> <#66ccff><bold>" + x + "</bold></#66ccff>"
+			+ "<gray>,</gray> <gray>y:</gray> <#8aff92><bold>" + y + "</bold></#8aff92>"
+			+ "<gray>,</gray> <gray>z:</gray> <#ffc36b><bold>" + z + "</bold></#ffc36b>";
+
+		Bukkit.getScheduler().runTaskLater(plugin, () -> {
+			if (!player.isOnline()) {
+				return;
+			}
+			Text.tell(player, "<gray>Bạn đã chết tại tọa độ </gray>"
+				+ "<click:copy_to_clipboard:'" + coordPlain + "'><hover:show_text:'<yellow>Bấm để copy tọa độ</yellow>'>"
+				+ coordColored + "</hover></click>");
+			Text.tell(player, "<white>Dịch chuyển về chỗ bạn vừa chết không? </white>"
+				+ "<click:run_command:'/back'><hover:show_text:'<yellow>Bấm để dịch chuyển về điểm tử vong</yellow>'>"
+				+ "<#66ccff><bold>[⏪ DỊCH CHUYỂN]</bold></#66ccff></hover></click> <gray>(/back)</gray>");
+			Text.msg(player, "<yellow>ℹ</yellow> <gray>Dịch chuyển sẽ tốn <white>" + cost + " điểm</white>.</gray>");
+		}, 2L);
 	}
 }

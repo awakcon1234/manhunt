@@ -142,6 +142,35 @@ public class LobbyManager {
 		return leave(playerId, true);
 	}
 
+	public LobbyActionResult forceJoin(UUID playerId, String matchId) {
+		if (playerId == null || matchId == null || matchId.isBlank()) {
+			return LobbyActionResult.fail("<red>❌</red> Mã phòng không hợp lệ.");
+		}
+
+		Match match = matchManager.getMatch(matchId);
+		if (match == null) {
+			return LobbyActionResult.fail("<red>❌</red> Không tìm thấy phòng đấu.");
+		}
+		if (match.getState() != MatchState.LOBBY) {
+			return LobbyActionResult.fail("<red>❌</red> Chỉ có thể ép vào phòng đang ở sảnh.");
+		}
+
+		String currentMatchId = playerMatchIndex.get(playerId);
+		if (matchId.equals(currentMatchId)) {
+			return LobbyActionResult.ok("<green>✔</green> Người chơi đã ở trong phòng này.", match);
+		}
+
+		if (currentMatchId != null) {
+			leave(playerId, false);
+		}
+
+		match.getLobbyPlayers().add(playerId);
+		playerMatchIndex.put(playerId, match.getId());
+		announceMemberJoined(match, playerId);
+		return LobbyActionResult.ok("<green>✔</green> Đã ép người chơi vào phòng "
+			+ UiColors.matchIdText(match.getId()) + ".", match);
+	}
+
 	public LobbyActionResult leave(UUID playerId, boolean allowDisband) {
 		if (playerId == null) {
 			return LobbyActionResult.fail("<red>❌</red> Người chơi không hợp lệ.");

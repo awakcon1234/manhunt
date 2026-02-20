@@ -9,5 +9,7 @@ dependencies:
       required: true
     Multiverse-NetherPortals:
       required: true
+    FancyHolograms:
+      required: true
     PlaceholderAPI:
       required: false

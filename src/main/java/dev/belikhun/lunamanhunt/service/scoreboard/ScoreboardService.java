@@ -320,9 +320,14 @@ public class ScoreboardService {
 		placeholders.put("match_hunters", String.valueOf(match.getHunters().size()));
 		placeholders.put("match_speedrunner", resolvePlayerName(match.getSpeedrunnerId()));
 
-		String points = isSpeedrunner(player, match)
-			? pointService.formatPoints(match.getSpeedrunnerPoints())
-			: "-";
+		String points;
+		if (isSpeedrunner(player, match)) {
+			points = pointService.formatPoints(match.getSpeedrunnerPoints());
+		} else if (player != null && match.getHunters().contains(player.getUniqueId())) {
+			points = pointService.formatPoints(pointService.getHunterPoints(match, player.getUniqueId()));
+		} else {
+			points = "-";
+		}
 		placeholders.put("match_points", points);
 
 		placeholders.put("match_timer", formatRunTimer(match));
@@ -509,6 +514,10 @@ public class ScoreboardService {
 		java.util.List<String> header = cfgStringList("scoreboard.templates." + template + ".header", java.util.List.of());
 		java.util.List<String> footer = cfgStringList("scoreboard.templates." + template + ".footer", java.util.List.of());
 		lines.addAll(parseLines(player, header, placeholders));
+		if (TEMPLATE_PLAYING_HUNTER.equals(template) && !headerContainsPoints(header)) {
+			lines.add(parse(player, " <#ffc012>🔥</#ffc012> <white>%match_points%</white> ", placeholders));
+			lines.add(parse(player, "", placeholders));
+		}
 
 		if (TEMPLATE_PLAYING_SPEEDRUNNER.equals(template)) {
 			String powerupLine = cfgString("scoreboard.templates." + template + ".powerup_line", "");
@@ -531,6 +540,21 @@ public class ScoreboardService {
 
 		lines.addAll(parseLines(player, footer, placeholders));
 		return lines;
+	}
+
+	private boolean headerContainsPoints(java.util.List<String> header) {
+		if (header == null || header.isEmpty()) {
+			return false;
+		}
+		for (String line : header) {
+			if (line == null) {
+				continue;
+			}
+			if (line.contains("%match_points%") || line.contains("%match_points_chip%")) {
+				return true;
+			}
+		}
+		return false;
 	}
 
 	private java.util.List<Component> buildActiveLines(Player player, Match match, Map<String, String> basePlaceholders,

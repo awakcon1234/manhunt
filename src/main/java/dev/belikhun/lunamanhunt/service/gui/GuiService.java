@@ -482,7 +482,6 @@ public class GuiService {
 
 	private void fillMainMenu(Player player, Inventory inventory) {
 		List<Match> matches = matchManager.getMatches().stream()
-			.filter(match -> match.getState() == MatchState.LOBBY)
 			.filter(match -> canJoin(match, player.getUniqueId()))
 			.sorted(Comparator.comparing(Match::getId))
 			.toList();
@@ -2491,21 +2490,20 @@ public class GuiService {
 	}
 
 	private boolean canJoin(Match match, UUID playerId) {
-		if (match.getOwnerId().equals(playerId)) {
-			return true;
-		}
 		MatchVisibility visibility = match.getSettings().getVisibility();
-		if (visibility == MatchVisibility.PUBLIC) {
-			return true;
-		}
-		return match.getInvitedPlayers().contains(playerId);
+		return visibility == MatchVisibility.PUBLIC;
 	}
 
 	private ItemStack buildMatchItem(Match match) {
-		Material material = switch (match.getSettings().getVisibility()) {
-			case PUBLIC -> Material.LIME_CONCRETE;
-			case INVITE_ONLY -> Material.YELLOW_CONCRETE;
-			case PRIVATE -> Material.RED_CONCRETE;
+		Material material = switch (match.getState()) {
+			case LOBBY -> Material.LIME_CONCRETE;
+			case WORLD_CREATING -> Material.YELLOW_CONCRETE;
+			case WORLD_READY -> Material.LIGHT_BLUE_CONCRETE;
+			case RUN_PENDING -> Material.ORANGE_CONCRETE;
+			case RUNNING -> Material.RED_CONCRETE;
+			case ENDING -> Material.PURPLE_CONCRETE;
+			case CLEANUP -> Material.GRAY_CONCRETE;
+			case FINISHED -> Material.BLACK_CONCRETE;
 		};
 
 		String ownerName = resolvePlayerNameDisplay(match.getOwnerId());
@@ -2516,6 +2514,7 @@ public class GuiService {
 			meta.displayName(mmNoItalic("<yellow>Mã phòng: " + UiColors.matchIdText(match.getId()) + "</yellow>"));
 			meta.lore(mmNoItalic(List.of(
 				"<gray>● Chủ phòng:</gray> " + ownerName,
+				"<gray>● Trạng thái: " + formatStateColored(match.getState()) + "</gray>",
 				"<gray>● Hiển thị: " + formatVisibilityColored(match.getSettings().getVisibility()) + "</gray>",
 				"<gray>● Người chơi: <white>" + formatNumber(match.getLobbyPlayers().size()) + "</white></gray>",
 				" ",

@@ -26,6 +26,8 @@ import org.bukkit.entity.Player;
 import org.bukkit.inventory.meta.FireworkMeta;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitRunnable;
+import org.mvplugins.multiverse.core.world.WorldManager;
+import org.mvplugins.multiverse.core.world.options.DeleteWorldOptions;
 
 import java.io.File;
 import java.io.IOException;
@@ -46,8 +48,10 @@ public class MatchEndService {
 	private static final int CLEANUP_RETRY_DELAY_TICKS = 40;
 	private static final int WORLD_DELETE_RETRY_LIMIT = 5;
 	private static final int WORLD_DELETE_SPACING_TICKS = 20;
+	private static final long COMPLETED_MATCH_CLEANUP_INTERVAL_TICKS = 20L * 60L;
 	private final JavaPlugin plugin;
 	private final LobbyManager lobbyManager;
+	private final MatchManager matchManager;
 	private final MultiverseService multiverseService;
 	private final NetherPortalsService netherPortalsService;
 	private final LobbyTeleportService lobbyTeleportService;
@@ -58,18 +62,46 @@ public class MatchEndService {
 	private final Map<String, Integer> deleteWorldRetries = new ConcurrentHashMap<>();
 	private final Map<String, Integer> cleanupRetries = new ConcurrentHashMap<>();
 	private final Map<String, Boolean> cleanupScheduled = new ConcurrentHashMap<>();
+	private org.bukkit.scheduler.BukkitTask completedMatchCleanupTask;
 
-	public MatchEndService(JavaPlugin plugin, LobbyManager lobbyManager, MultiverseService multiverseService,
+	public MatchEndService(JavaPlugin plugin, LobbyManager lobbyManager, MatchManager matchManager,
+			MultiverseService multiverseService,
 			NetherPortalsService netherPortalsService, LobbyTeleportService lobbyTeleportService,
-			CardService cardService) {
+			CardService cardService, PointService pointService) {
 		this.plugin = Objects.requireNonNull(plugin, "plugin");
 		this.lobbyManager = Objects.requireNonNull(lobbyManager, "lobbyManager");
+		this.matchManager = Objects.requireNonNull(matchManager, "matchManager");
 		this.multiverseService = Objects.requireNonNull(multiverseService, "multiverseService");
 		this.netherPortalsService = Objects.requireNonNull(netherPortalsService, "netherPortalsService");
 		this.lobbyTeleportService = Objects.requireNonNull(lobbyTeleportService, "lobbyTeleportService");
 		this.cardService = Objects.requireNonNull(cardService, "cardService");
-		this.pointService = new PointService();
+		this.pointService = Objects.requireNonNull(pointService, "pointService");
 		this.cleanupFile = new File(plugin.getDataFolder(), "cleanup-worlds.yml");
+	}
+
+	public void startCompletedMatchCleanupMonitor() {
+		if (completedMatchCleanupTask != null) {
+			return;
+		}
+		completedMatchCleanupTask = Bukkit.getScheduler().runTaskTimer(plugin, () -> {
+			processQueuedWorlds();
+			for (Match match : Set.copyOf(matchManager.getMatches())) {
+				if (match == null) {
+					continue;
+				}
+				MatchState state = match.getState();
+				if (state != MatchState.CLEANUP && state != MatchState.FINISHED) {
+					continue;
+				}
+				MatchWorlds worlds = match.getWorlds();
+				if (worlds == null) {
+					continue;
+				}
+				if (!hasPlayersInMatchWorlds(worlds)) {
+					cleanupWorlds(match);
+				}
+			}
+		}, COMPLETED_MATCH_CLEANUP_INTERVAL_TICKS, COMPLETED_MATCH_CLEANUP_INTERVAL_TICKS);
 	}
 
 	public void processQueuedWorlds() {
@@ -84,6 +116,7 @@ public class MatchEndService {
 		}
 		match.setWinner(MatchWinner.HUNTERS);
 		match.setState(MatchState.ENDING);
+		clearEndedMatchEffects(match);
 		broadcast(match, message);
 		scheduleEndBoards(match);
 		if (!showSequence) {
@@ -104,6 +137,7 @@ public class MatchEndService {
 		}
 		match.setWinner(MatchWinner.SPEEDRUNNER);
 		match.setState(MatchState.ENDING);
+		clearEndedMatchEffects(match);
 		broadcast(match, message);
 		scheduleEndBoards(match);
 
@@ -155,9 +189,33 @@ public class MatchEndService {
 		match.getDrawnCards().clear();
 		match.getKeptCards().clear();
 		match.setSpeedrunnerPoints(0);
+		pointService.clearMatchData(match);
 		match.setSpeedrunnerId(null);
 		match.setState(MatchState.FINISHED);
 		lobbyManager.disbandMatch(match);
+	}
+
+	private void clearEndedMatchEffects(Match match) {
+		if (match == null) {
+			return;
+		}
+		cardService.clearActiveCards(match);
+		Set<UUID> members = new java.util.HashSet<>(match.getLobbyPlayers());
+		members.addAll(match.getHunters());
+		if (match.getSpeedrunnerId() != null) {
+			members.add(match.getSpeedrunnerId());
+		}
+		for (UUID memberId : Set.copyOf(members)) {
+			Player player = Bukkit.getPlayer(memberId);
+			if (player == null) {
+				continue;
+			}
+			for (var effect : List.copyOf(player.getActivePotionEffects())) {
+				if (effect != null && effect.getType() != null) {
+					player.removePotionEffect(effect.getType());
+				}
+			}
+		}
 	}
 
 	private void enforceSpeedrunnerEndSequenceState(Match match) {
@@ -533,6 +591,7 @@ public class MatchEndService {
 		match.getDrawnCards().clear();
 		match.getKeptCards().clear();
 		match.setSpeedrunnerPoints(0);
+		pointService.clearMatchData(match);
 		match.setSpeedrunnerId(null);
 		match.setState(MatchState.FINISHED);
 		lobbyManager.disbandMatch(match);
@@ -619,50 +678,30 @@ public class MatchEndService {
 			Bukkit.unloadWorld(world, false);
 		}
 		deleteWorldRetries.remove(worldName);
-		removeWorldFromMultiverse(worldName);
-		File folder = new File(Bukkit.getWorldContainer(), worldName);
-		Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
-			if (deleteFolder(folder)) {
-				removeQueuedWorld(worldName);
-			} else {
+		deleteWorldWithMultiverse(worldName);
+	}
+
+	private void deleteWorldWithMultiverse(String worldName) {
+		WorldManager manager = multiverseService.getCoreApi().getWorldManager();
+		manager.getWorld(worldName).fold(
+			() -> {
 				queueWorldCleanup(worldName);
+				debugCleanup("Cleanup queued (Multiverse world not found): world=" + worldName);
+				return null;
+			},
+			world -> {
+				manager.deleteWorld(DeleteWorldOptions.world(world))
+					.onFailure(failure -> {
+						queueWorldCleanup(worldName);
+						debugCleanup("Cleanup failed in Multiverse: world=" + worldName + " reason=" + failure);
+					})
+					.onSuccess(ignore -> {
+						removeQueuedWorld(worldName);
+						plugin.getLogger().info("[Cleanup] Đã dọn dẹp thế giới: " + worldName);
+					});
+				return null;
 			}
-		});
-	}
-
-	private void removeWorldFromMultiverse(String worldName) {
-		Object manager = multiverseService.getCoreApi().getWorldManager();
-		invokeIfExists(manager, "removeWorld", worldName);
-		invokeIfExists(manager, "deleteWorld", worldName);
-	}
-
-	private void invokeIfExists(Object manager, String methodName, String worldName) {
-		try {
-			var method = manager.getClass().getMethod(methodName, String.class);
-			method.invoke(manager, worldName);
-		} catch (Throwable ignored) {
-		}
-	}
-
-	private boolean deleteFolder(File folder) {
-		if (folder == null || !folder.exists()) {
-			return true;
-		}
-		File[] files = folder.listFiles();
-		if (files != null) {
-			for (File file : files) {
-				if (file.isDirectory()) {
-					if (!deleteFolder(file)) {
-						return false;
-					}
-				} else {
-					if (!file.delete()) {
-						return false;
-					}
-				}
-			}
-		}
-		return folder.delete();
+		);
 	}
 
 	private void debugCleanup(String message) {

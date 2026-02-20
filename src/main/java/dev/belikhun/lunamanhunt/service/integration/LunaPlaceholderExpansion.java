@@ -119,6 +119,8 @@ public class LunaPlaceholderExpansion extends PlaceholderExpansion {
 				case "match_hunters" -> String.valueOf(safeHuntersSize(match));
 				case "match_owner" -> resolvePlayerName(match == null ? null : match.getOwnerId());
 				case "match_speedrunner" -> resolvePlayerName(match == null ? null : match.getSpeedrunnerId());
+				case "match_points" -> resolveMatchPoints(playerId, match, false);
+				case "match_points_chip" -> resolveMatchPoints(playerId, match, true);
 				case "match_timer" -> resolveMatchTimer(match);
 				case "role" -> role;
 				case "role_display" -> resolveRoleDisplay(role);
@@ -210,6 +212,26 @@ public class LunaPlaceholderExpansion extends PlaceholderExpansion {
 			: System.currentTimeMillis();
 		long elapsed = Math.max(0L, endAt - startedAt);
 		return formatTimer(elapsed);
+	}
+
+	private String resolveMatchPoints(UUID playerId, Match match, boolean withIcon) {
+		if (match == null || playerId == null || plugin.getPointService() == null) {
+			return withIcon ? "<gray>-</gray>" : "-";
+		}
+
+		String points;
+		if (playerId.equals(match.getSpeedrunnerId())) {
+			points = plugin.getPointService().formatPoints(match.getSpeedrunnerPoints());
+		} else if (safeHuntersContains(match, playerId)) {
+			points = plugin.getPointService().formatPoints(plugin.getPointService().getHunterPoints(match, playerId));
+		} else {
+			points = "-";
+		}
+
+		if (!withIcon) {
+			return points;
+		}
+		return "<#ffc012>🔥</#ffc012> " + points;
 	}
 
 	private String formatTimer(long millis) {

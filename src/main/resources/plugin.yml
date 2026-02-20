@@ -6,6 +6,7 @@ author: Belikhun
 depend:
   - Multiverse-Core
   - Multiverse-NetherPortals
+  - FancyHolograms
 softdepend:
   - PlaceholderAPI
 
@@ -28,6 +29,12 @@ commands:
     description: "Lấy lại la bàn truy tìm"
     usage: "/compass"
     aliases: ["tracker"]
+  back:
+    description: "Quay về điểm tử vong trước đó của thợ săn"
+    usage: "/back"
+  holo:
+    description: "Quản lý hologram xếp hạng"
+    usage: "/holo timerecords <action>"
 
 permissions:
   lunamanhunt.match:
@@ -56,9 +63,15 @@ permissions:
     default: op
   lunamanhunt.admin.force-stop:
     default: op
+  lunamanhunt.admin.close-match:
+    default: op
+  lunamanhunt.admin.force-join-all:
+    default: op
   lunamanhunt.admin.reload:
     default: op
   lunamanhunt.admin.setspawn:
+    default: op
+  lunamanhunt.admin.holo:
     default: op
   lunamanhunt.spawn:
     description: "Dịch chuyển về sảnh"
@@ -71,4 +84,7 @@ permissions:
     default: true
   lunamanhunt.compass:
     description: "Lấy lại la bàn truy tìm"
+    default: true
+  lunamanhunt.back:
+    description: "Dùng /back về điểm tử vong"
     default: true

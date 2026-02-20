@@ -15,6 +15,7 @@ repositories {
 	maven("https://repo.papermc.io/repository/maven-public/")
 	maven("https://repo.onarandombox.com/content/groups/public/")
 	maven("https://repo.extendedclip.com/content/repositories/placeholderapi/")
+	maven("https://repo.fancyinnovations.com/releases")
 }
 
 dependencies {
@@ -22,6 +23,7 @@ dependencies {
 	compileOnly("org.mvplugins.multiverse.core:multiverse-core:5.5.2")
 	compileOnly("org.mvplugins.multiverse.netherportals:multiverse-netherportals:5.0.4")
 	compileOnly("me.clip:placeholderapi:2.11.6")
+	compileOnly("de.oliver:FancyHolograms:2.9.1")
 	implementation("net.megavex:scoreboard-library-api:2.5.0")
 	implementation("net.megavex:scoreboard-library-implementation:2.5.0")
 	runtimeOnly("net.megavex:scoreboard-library-modern:2.5.0")

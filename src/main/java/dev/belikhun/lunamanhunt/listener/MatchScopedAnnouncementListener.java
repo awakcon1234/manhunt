@@ -7,6 +7,7 @@ import dev.belikhun.lunamanhunt.util.Text;
 import dev.belikhun.lunamanhunt.util.UiColors;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.minimessage.MiniMessage;
+import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import net.kyori.adventure.translation.GlobalTranslator;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
@@ -64,12 +65,19 @@ public class MatchScopedAnnouncementListener implements Listener {
 			String playerName = Text.playerNameDisplay(player.getUniqueId(), target);
 			String playerColored = resolveRoleColoredPlayer(match, player.getUniqueId());
 			String roleIcon = resolveRoleIcon(match, player.getUniqueId());
-			String localizedDeathMessage = localizeComponentMiniMessage(deathMessage, target);
+			String localizedDeathMessage = localizeComponentPlainText(deathMessage, target);
+			String deathMessageBody = stripVictimName(localizedDeathMessage,
+				Text.plainPlayerName(player.getUniqueId()),
+				player.getName());
+			deathMessageBody = escapeMiniMessage(deathMessageBody);
+			if (deathMessageBody.isBlank()) {
+				deathMessageBody = escapeMiniMessage(localizedDeathMessage);
+			}
 			if (localizedDeathMessage.isBlank()) {
 				continue;
 			}
 			String rendered = resolveTemplate(format, safe(match.getId()), playerName, playerColored,
-				roleIcon, localizedDeathMessage, localizedDeathMessage, null);
+				roleIcon, deathMessageBody, deathMessageBody, null);
 			rendered = applyPlaceholderApi(target, rendered);
 			Text.tell(target, rendered);
 		}
@@ -88,9 +96,6 @@ public class MatchScopedAnnouncementListener implements Listener {
 		Player player = event.getPlayer();
 		Match match = lobbyManager.getMatchForPlayer(player.getUniqueId());
 		if (match == null || match.getState() != MatchState.RUNNING) {
-			return;
-		}
-		if (match.getSpeedrunnerId() == null || !match.getSpeedrunnerId().equals(player.getUniqueId())) {
 			return;
 		}
 
@@ -148,6 +153,41 @@ public class MatchScopedAnnouncementListener implements Listener {
 		Component rendered = GlobalTranslator.render(source, locale);
 		String serialized = MINI_MESSAGE.serialize(rendered);
 		return serialized == null ? "" : serialized;
+	}
+
+	private String localizeComponentPlainText(Component source, Player target) {
+		if (source == null || target == null) {
+			return "";
+		}
+		Locale locale = resolveLocale(target);
+		Component rendered = GlobalTranslator.render(source, locale);
+		String serialized = PlainTextComponentSerializer.plainText().serialize(rendered);
+		return serialized == null ? "" : serialized;
+	}
+
+	private String stripVictimName(String message, String... names) {
+		if (message == null || message.isBlank() || names == null || names.length == 0) {
+			return message == null ? "" : message;
+		}
+
+		String trimmed = message.trim();
+		for (String rawName : names) {
+			if (rawName == null || rawName.isBlank()) {
+				continue;
+			}
+			String name = rawName.trim();
+			if (trimmed.equals(name)) {
+				return "";
+			}
+			if (trimmed.regionMatches(true, 0, name, 0, name.length())) {
+				int nextIndex = name.length();
+				if (trimmed.length() > nextIndex && Character.isWhitespace(trimmed.charAt(nextIndex))) {
+					return trimmed.substring(nextIndex).trim();
+				}
+			}
+		}
+
+		return trimmed;
 	}
 
 	private Locale resolveLocale(Player player) {

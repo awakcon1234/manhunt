@@ -1,11 +1,13 @@
 package dev.belikhun.lunamanhunt.command;
 
 import dev.belikhun.lunamanhunt.model.match.Match;
+import dev.belikhun.lunamanhunt.model.match.MatchState;
 import dev.belikhun.lunamanhunt.service.lobby.LobbyManager;
 import dev.belikhun.lunamanhunt.service.match.MatchManager;
 import dev.belikhun.lunamanhunt.service.match.MatchEndService;
 import dev.belikhun.lunamanhunt.util.Text;
 import dev.belikhun.lunamanhunt.util.UiColors;
+import org.bukkit.Bukkit;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
 import org.bukkit.command.TabExecutor;
@@ -18,7 +20,9 @@ import java.util.Objects;
 
 public class LmAdminCommand implements TabExecutor {
 	private static final String PERM_BASE = "lunamanhunt.admin";
+	private static final String PERM_CLOSE_MATCH = "lunamanhunt.admin.close-match";
 	private static final String PERM_FORCE_STOP = "lunamanhunt.admin.force-stop";
+	private static final String PERM_FORCE_JOIN_ALL = "lunamanhunt.admin.force-join-all";
 	private static final String PERM_RELOAD = "lunamanhunt.admin.reload";
 	private static final String PERM_SET_SPAWN = "lunamanhunt.admin.setspawn";
 
@@ -43,7 +47,9 @@ public class LmAdminCommand implements TabExecutor {
 		}
 
 		switch (args[0].toLowerCase(Locale.ROOT)) {
+			case "close-match" -> handleCloseMatch(sender, args);
 			case "force-stop" -> handleForceStop(sender, args);
+			case "force-join-all" -> handleForceJoinAll(sender, args);
 			case "reload" -> handleReload(sender);
 			case "setspawn" -> handleSetSpawn(sender);
 			case "help" -> sendHelp(sender);
@@ -56,15 +62,36 @@ public class LmAdminCommand implements TabExecutor {
 	@Override
 	public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
 		if (args.length == 1) {
-			return filter(List.of("force-stop", "reload", "setspawn", "help"), args[0]);
+			return filter(List.of("close-match", "force-stop", "force-join-all", "reload", "setspawn", "help"), args[0]);
 		}
-		if (args.length == 2 && "force-stop".equalsIgnoreCase(args[0])) {
+		if (args.length == 2 && ("force-stop".equalsIgnoreCase(args[0])
+			|| "close-match".equalsIgnoreCase(args[0])
+			|| "force-join-all".equalsIgnoreCase(args[0]))) {
 			List<String> ids = matchManager.getMatches().stream()
 				.map(Match::getId)
 				.toList();
 			return filter(ids, args[1]);
 		}
 		return List.of();
+	}
+
+	private void handleCloseMatch(CommandSender sender, String[] args) {
+		if (!hasPerm(sender, PERM_CLOSE_MATCH)) {
+			return;
+		}
+		if (args.length < 2 || args[1] == null || args[1].isBlank()) {
+			reply(sender, "<red>❌</red> Dùng: <white>/lm close-match <mã_phòng></white>");
+			return;
+		}
+
+		Match match = matchManager.getMatch(args[1]);
+		if (match == null) {
+			reply(sender, "<red>❌</red> Không tìm thấy phòng cần đóng.");
+			return;
+		}
+
+		matchEndService.forceCleanup(match);
+		reply(sender, "<green>✔</green> Đã đóng phòng " + UiColors.matchIdText(match.getId()) + ".");
 	}
 
 	private void handleForceStop(CommandSender sender, String[] args) {
@@ -85,6 +112,58 @@ public class LmAdminCommand implements TabExecutor {
 
 		matchEndService.forceCleanup(match);
 		reply(sender, "<green>✔</green> Đã dừng trận và dọn dẹp " + UiColors.matchIdText(match.getId()) + ".");
+	}
+
+	private void handleForceJoinAll(CommandSender sender, String[] args) {
+		if (!hasPerm(sender, PERM_FORCE_JOIN_ALL)) {
+			return;
+		}
+		if (args.length < 2 || args[1] == null || args[1].isBlank()) {
+			reply(sender, "<red>❌</red> Dùng: <white>/lm force-join-all <mã_phòng></white>");
+			return;
+		}
+
+		Match targetMatch = matchManager.getMatch(args[1]);
+		if (targetMatch == null) {
+			reply(sender, "<red>❌</red> Không tìm thấy phòng đích.");
+			return;
+		}
+		if (targetMatch.getState() != MatchState.LOBBY) {
+			reply(sender, "<red>❌</red> Chỉ có thể ép tất cả vào phòng đang ở sảnh.");
+			return;
+		}
+
+		broadcastAll("<yellow>⚠</yellow> Quản trị viên đang gom tất cả người chơi vào phòng "
+			+ UiColors.matchIdText(targetMatch.getId()) + "<gray>. Vui lòng chờ...</gray>");
+
+		int closedCount = 0;
+		for (Match match : java.util.Set.copyOf(matchManager.getMatches())) {
+			if (match == null || match.getId().equals(targetMatch.getId())) {
+				continue;
+			}
+			matchEndService.forceCleanup(match);
+			closedCount++;
+		}
+
+		int joinedCount = 0;
+		int failedCount = 0;
+		for (Player online : Bukkit.getOnlinePlayers()) {
+			var result = lobbyManager.forceJoin(online.getUniqueId(), targetMatch.getId());
+			if (result.isSuccess()) {
+				joinedCount++;
+			} else {
+				failedCount++;
+			}
+		}
+
+		broadcastAll("<green>✔</green> Đã gom người chơi vào phòng " + UiColors.matchIdText(targetMatch.getId())
+			+ "<gray>. Phòng khác đã được đóng: <white>" + closedCount + "</white></gray>");
+
+		reply(sender, "<green>✔</green> Đã đóng <white>" + closedCount + "</white> phòng khác và ép <white>"
+			+ joinedCount + "</white> người vào phòng " + UiColors.matchIdText(targetMatch.getId()) + ".");
+		if (failedCount > 0) {
+			reply(sender, "<yellow>ℹ</yellow> Có <white>" + failedCount + "</white> người không ép vào được.");
+		}
 	}
 
 	private void handleReload(CommandSender sender) {
@@ -115,7 +194,9 @@ public class LmAdminCommand implements TabExecutor {
 	}
 
 	private void sendHelp(CommandSender sender) {
+		reply(sender, "<yellow>●</yellow> <white>/lm close-match <mã_phòng></white>");
 		reply(sender, "<yellow>●</yellow> <white>/lm force-stop [mã_phòng]</white>");
+		reply(sender, "<yellow>●</yellow> <white>/lm force-join-all <mã_phòng></white>");
 		reply(sender, "<yellow>●</yellow> <white>/lm reload</white>");
 		reply(sender, "<yellow>●</yellow> <white>/lm setspawn</white>");
 	}
@@ -136,6 +217,12 @@ public class LmAdminCommand implements TabExecutor {
 				.replace("<green>", "&a").replace("</green>", "")
 				.replace("<yellow>", "&e").replace("</yellow>", "")
 				.replace("<white>", "&f").replace("</white>", "")));
+		}
+	}
+
+	private void broadcastAll(String message) {
+		for (Player online : Bukkit.getOnlinePlayers()) {
+			Text.msg(online, message);
 		}
 	}
 
