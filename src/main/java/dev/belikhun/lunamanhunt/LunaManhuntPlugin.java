@@ -19,6 +19,7 @@ import dev.belikhun.lunamanhunt.listener.MatchConnectionListener;
 import dev.belikhun.lunamanhunt.listener.MatchPortalLinkListener;
 import dev.belikhun.lunamanhunt.listener.MatchStatsListener;
 import dev.belikhun.lunamanhunt.listener.MatchWinListener;
+import dev.belikhun.lunamanhunt.listener.PlaceholderApiHookListener;
 import dev.belikhun.lunamanhunt.listener.PlayerDeathRoutingListener;
 import dev.belikhun.lunamanhunt.listener.RunStartListener;
 import dev.belikhun.lunamanhunt.listener.SpawnConfirmListener;
@@ -113,6 +114,7 @@ public final class LunaManhuntPlugin extends JavaPlugin {
 			pointService, persistenceManager.getProfileStore());
 		registerPlaceholderExpansion();
 
+		getServer().getPluginManager().registerEvents(new PlaceholderApiHookListener(this), this);
 		getServer().getPluginManager().registerEvents(new MatchWinListener(winConditionService), this);
 		getServer().getPluginManager().registerEvents(
 			new PlayerDeathRoutingListener(this, lobbyManager, lobbyTeleportService), this);
@@ -141,6 +143,9 @@ public final class LunaManhuntPlugin extends JavaPlugin {
 		BasicCommandAdapter matchAdapter = new BasicCommandAdapter("match", matchCommand);
 		BasicCommandAdapter matchAliasAdapter = new BasicCommandAdapter("m", matchCommand);
 		BasicCommandAdapter adminAdapter = new BasicCommandAdapter("lm", adminCommand);
+		BasicCommandAdapter adminManhuntAdapter = new BasicCommandAdapter("manhunt", adminCommand);
+		BasicCommandAdapter adminHuntAdapter = new BasicCommandAdapter("hunt", adminCommand);
+		BasicCommandAdapter adminMhAdapter = new BasicCommandAdapter("mh", adminCommand);
 		BasicCommandAdapter spawnAdapter = new BasicCommandAdapter("spawn", spawnCommand);
 		BasicCommandAdapter cardsAdapter = new BasicCommandAdapter("cards", cardsCommand);
 		BasicCommandAdapter cardsAliasAdapter = new BasicCommandAdapter("c", cardsCommand);
@@ -150,6 +155,9 @@ public final class LunaManhuntPlugin extends JavaPlugin {
 			event.registrar().register("match", matchAdapter);
 			event.registrar().register("m", matchAliasAdapter);
 			event.registrar().register("lm", adminAdapter);
+			event.registrar().register("manhunt", adminManhuntAdapter);
+			event.registrar().register("hunt", adminHuntAdapter);
+			event.registrar().register("mh", adminMhAdapter);
 			event.registrar().register("spawn", spawnAdapter);
 			event.registrar().register("cards", cardsAdapter);
 			event.registrar().register("c", cardsAliasAdapter);
@@ -201,21 +209,45 @@ public final class LunaManhuntPlugin extends JavaPlugin {
 		return matchManager;
 	}
 
-	private void registerPlaceholderExpansion() {
+	private synchronized void registerPlaceholderExpansion() {
+		if (placeholderExpansion != null) {
+			try {
+				placeholderExpansion.unregister();
+			} catch (Throwable ignored) {
+			}
+			placeholderExpansion = null;
+		}
+
 		if (!getServer().getPluginManager().isPluginEnabled("PlaceholderAPI")) {
+			getLogger().info("PlaceholderAPI chưa sẵn sàng, sẽ chờ hook để đăng ký %mh_*%.");
 			return;
 		}
+
 		try {
 			placeholderExpansion = new LunaPlaceholderExpansion(this, lobbyManager,
 				persistenceManager.getProfileStore());
 			if (placeholderExpansion.register()) {
-				getLogger().info("PlaceholderAPI expansion đã đăng ký: %lunamanhunt_*%.");
+				getLogger().info("PlaceholderAPI expansion đã đăng ký: %mh_*%.");
 				return;
 			}
-			getLogger().warning("Không thể đăng ký PlaceholderAPI expansion cho LunaManhunt.");
+			getLogger().warning("Không thể đăng ký PlaceholderAPI expansion cho LunaManhunt (%mh_*%).");
 			placeholderExpansion = null;
 		} catch (Throwable throwable) {
 			getLogger().warning("Lỗi đăng ký PlaceholderAPI expansion: " + throwable.getMessage());
+			placeholderExpansion = null;
+		}
+	}
+
+	public synchronized void onPlaceholderApiEnabled() {
+		registerPlaceholderExpansion();
+	}
+
+	public synchronized void onPlaceholderApiDisabled() {
+		if (placeholderExpansion != null) {
+			try {
+				placeholderExpansion.unregister();
+			} catch (Throwable ignored) {
+			}
 			placeholderExpansion = null;
 		}
 	}

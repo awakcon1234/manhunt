@@ -1129,7 +1129,7 @@ public class GuiService {
 			"<yellow>ℹ</yellow> Thông tin phòng",
 			List.of(
 				"<gray>Mã phòng: " + UiColors.matchIdText(match.getId()) + "</gray>",
-				"<gray>Chủ phòng: " + ownerName + "</gray>",
+				"<gray>Chủ phòng:</gray> " + ownerName,
 				" ",
 				"<gray>Hiển thị: " + formatVisibilityColored(match.getSettings().getVisibility()) + "</gray>",
 				"<gray>Trạng thái: " + formatStateColored(match.getState()) + "</gray>",
@@ -1572,6 +1572,8 @@ public class GuiService {
 			+ "<red><click:run_command:'/m decline'><hover:show_text:'<gray>Bấm để từ chối</gray>'><b>[TỪ CHỐI]</b></hover></click></red> "
 			+ "<gray>(</gray>" + UiColors.command("/m accept") + "<gray> | </gray>"
 			+ UiColors.command("/m decline") + "<gray>)</gray>"));
+		target.playSound(target.getLocation(), Sound.UI_TOAST_IN, 1.2f, 0.8f);
+		target.playSound(target.getLocation(), Sound.BLOCK_BELL_USE, 1.4f, 1.0f);
 	}
 
 	private void handleOpenSettings(Player player, String matchId) {
@@ -2604,7 +2606,7 @@ public class GuiService {
 		if (meta != null) {
 			meta.displayName(mmNoItalic("<yellow>Mã phòng: " + UiColors.matchIdText(match.getId()) + "</yellow>"));
 			meta.lore(mmNoItalic(List.of(
-				"<gray>● Chủ phòng: " + ownerName + "</gray>",
+				"<gray>● Chủ phòng:</gray> " + ownerName,
 				"<gray>● Hiển thị: " + formatVisibilityColored(match.getSettings().getVisibility()) + "</gray>",
 				"<gray>● Người chơi: <white>" + formatNumber(match.getLobbyPlayers().size()) + "</white></gray>",
 				" ",
@@ -2882,7 +2884,7 @@ public class GuiService {
 			int maxShown = 8;
 			int shown = Math.min(maxShown, players.size());
 			for (int i = 0; i < shown; i++) {
-				lore.add("<gray>● " + resolvePlayerNameDisplay(players.get(i)) + "</gray>");
+				lore.add("<gray>●</gray> " + resolvePlayerNameDisplay(players.get(i)));
 			}
 			if (players.size() > maxShown) {
 				int remaining = players.size() - maxShown;

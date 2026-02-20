@@ -11,6 +11,7 @@ import dev.belikhun.lunamanhunt.service.kit.SpeedrunnerKitService;
 import dev.belikhun.lunamanhunt.service.lobby.LobbyManager;
 import dev.belikhun.lunamanhunt.service.integration.NetherPortalsService;
 import dev.belikhun.lunamanhunt.service.point.PointService;
+import dev.belikhun.lunamanhunt.util.Debug;
 import dev.belikhun.lunamanhunt.service.worldgen.WorldGenerationService;
 import dev.belikhun.lunamanhunt.util.Text;
 import dev.belikhun.lunamanhunt.util.UiColors;
@@ -47,6 +48,10 @@ public class MatchLifecycleService {
 	private static final int WORLD_TOTAL = 3;
 	private static final int COUNTDOWN_SECONDS = 10;
 	private static final int RUN_ACTIONBAR_TICKS = 1;
+	private static final int WARMUP_CHUNK_RADIUS = 3;
+	private static final int WARMUP_BATCH_SIZE = 2;
+	private static final double DEFAULT_WARMUP_SECONDS_PER_CHUNK = 0.9;
+	private static final long ETA_DEBUG_LOG_INTERVAL_MS = 2000L;
 
 	private final JavaPlugin plugin;
 	private final LobbyManager lobbyManager;
@@ -65,6 +70,8 @@ public class MatchLifecycleService {
 	private final ConcurrentMap<String, BukkitTask> runningActionTasks = new ConcurrentHashMap<>();
 	private final ConcurrentMap<String, WarmupStatus> warmupStatuses = new ConcurrentHashMap<>();
 	private final ConcurrentMap<String, Long> preparationStartMillis = new ConcurrentHashMap<>();
+	private final ConcurrentMap<String, Long> etaDebugNextLogMillis = new ConcurrentHashMap<>();
+	private volatile double warmupSecondsPerChunkEma = 0.0;
 
 	public static final class WorldProgressSnapshot {
 		private final String stageLabel;
@@ -121,6 +128,8 @@ public class MatchLifecycleService {
 			return;
 		}
 		preparationStartMillis.putIfAbsent(match.getId(), System.currentTimeMillis());
+		etaDebugNextLogMillis.remove(match.getId());
+		debugEta(match.getId(), "start: entering WORLD_CREATING, prep timer started");
 		broadcast(match, "<yellow>ℹ</yellow> Trận đấu đang được chuẩn bị, hãy sẵn sàng!");
 		playMatchSound(match, Sound.UI_TOAST_IN, 0.7f, 1.0f);
 		sendActionBar(match, "<yellow>⌛</yellow> Đang tạo thế giới: <white>0/" + WORLD_TOTAL + "</white>");
@@ -694,6 +703,8 @@ public class MatchLifecycleService {
 			totalRemaining = worldgenRemaining + warmupTotal;
 		}
 		int percent = (int) Math.round(Math.min(1.0, Math.max(0.0, overallProgress)) * 100.0);
+		logEtaSnapshot(match.getId(), progress, warmupStatus, stageLabel, elapsedSeconds,
+			worldgenRemaining, warmupRemaining, warmupTotal, worldgenWeight, overallProgress, percent, totalRemaining);
 		return new WorldProgressSnapshot(stageLabel, ready, WORLD_TOTAL, percent, totalRemaining);
 	}
 
@@ -733,8 +744,106 @@ public class MatchLifecycleService {
 	}
 
 	private long estimateWarmupTotalSeconds() {
-		int totalChunks = 7 * 7;
-		return estimateWarmupEtaSeconds(totalChunks, 0, 2);
+		int side = WARMUP_CHUNK_RADIUS * 2 + 1;
+		int totalChunks = side * side;
+		return estimateWarmupTotalSeconds(totalChunks, WARMUP_BATCH_SIZE);
+	}
+
+	private long estimateWarmupTotalSeconds(int totalChunks, int batchSize) {
+		if (totalChunks <= 0) {
+			return 0L;
+		}
+		double secondsPerChunk = warmupSecondsPerChunkEma > 0.0
+			? warmupSecondsPerChunkEma
+			: DEFAULT_WARMUP_SECONDS_PER_CHUNK;
+		long adaptive = Math.max(1L, Math.round(totalChunks * secondsPerChunk));
+		long legacy = Math.max(1L, estimateWarmupEtaSeconds(totalChunks, 0, batchSize));
+		return Math.max(adaptive, legacy);
+	}
+
+	private void recordWarmupCalibration(WarmupStatus warmupStatus) {
+		if (warmupStatus == null) {
+			return;
+		}
+		double observed = warmupStatus.getObservedSecondsPerChunk();
+		if (!(observed > 0.0) || !Double.isFinite(observed)) {
+			return;
+		}
+		double previous = warmupSecondsPerChunkEma;
+		warmupSecondsPerChunkEma = warmupSecondsPerChunkEma <= 0.0
+			? observed
+			: warmupSecondsPerChunkEma * 0.75 + observed * 0.25;
+		debugEta(warmupStatus.getMatchId(),
+			"calibration: observed=" + formatFixed(observed, 3)
+				+ "s/chunk, ema=" + formatFixed(previous, 3)
+				+ " -> " + formatFixed(warmupSecondsPerChunkEma, 3));
+	}
+
+	private void logEtaSnapshot(String matchId,
+			WorldGenerationService.GenerationProgress progress,
+			WarmupStatus warmupStatus,
+			String stageLabel,
+			long elapsedSeconds,
+			long worldgenRemaining,
+			long warmupRemaining,
+			long warmupTotal,
+			double worldgenWeight,
+			double overallProgress,
+			int percent,
+			long totalRemaining) {
+		if (!isEtaDebugEnabled() || matchId == null) {
+			return;
+		}
+		long now = System.currentTimeMillis();
+		long next = etaDebugNextLogMillis.getOrDefault(matchId, 0L);
+		if (now < next) {
+			return;
+		}
+		etaDebugNextLogMillis.put(matchId, now + ETA_DEBUG_LOG_INTERVAL_MS);
+		String stage = progress == null || progress.getStage() == null ? "none" : progress.getStage().name();
+		double worldgenProgress = progress == null ? 0.0 : progress.getOverallProgress();
+		double warmupProgress = warmupStatus == null ? 0.0 : warmupStatus.getProgress();
+		double cps = warmupStatus == null ? 0.0 : warmupStatus.getChunksPerSecond();
+		int completed = warmupStatus == null ? 0 : warmupStatus.getCompletedChunks();
+		int totalChunks = warmupStatus == null ? 0 : warmupStatus.getTotalChunks();
+		debugEta(matchId,
+			"snapshot: stageLabel='" + stageLabel + "', stage=" + stage
+				+ ", elapsed=" + elapsedSeconds + "s"
+				+ ", remain(worldgen/warmup/total)=" + worldgenRemaining + "/" + warmupRemaining + "/" + totalRemaining + "s"
+				+ ", progress(worldgen/warmup/overall)="
+				+ formatPercent(worldgenProgress) + "/" + formatPercent(warmupProgress) + "/" + formatPercent(overallProgress)
+				+ ", worldgenWeight=" + formatPercent(worldgenWeight)
+				+ ", warmup(total/completed/cps)=" + totalChunks + "/" + completed + "/" + formatFixed(cps, 2)
+				+ ", warmupTotalEstimate=" + warmupTotal + "s"
+				+ ", etaPercent=" + percent + "%");
+	}
+
+	private boolean isEtaDebugEnabled() {
+		if (!Debug.isEnabled()) {
+			return false;
+		}
+		return plugin.getConfig().getBoolean("debug.eta", true);
+	}
+
+	private void debugEta(String matchId, String message) {
+		if (!isEtaDebugEnabled() || message == null) {
+			return;
+		}
+		String key = matchId == null || matchId.isBlank() ? "-" : matchId;
+		plugin.getLogger().info("[ETA] [" + key + "] " + message);
+	}
+
+	private String formatPercent(double value) {
+		double clamped = Math.max(0.0, Math.min(1.0, value));
+		return formatFixed(clamped * 100.0, 1) + "%";
+	}
+
+	private String formatFixed(double value, int decimals) {
+		if (!Double.isFinite(value)) {
+			return "0";
+		}
+		int safe = Math.max(0, decimals);
+		return String.format(java.util.Locale.US, "%1$." + safe + "f", value);
 	}
 
 	private double computeWorldgenWeight(long elapsedSeconds, long remainingSeconds, long warmupSeconds) {
@@ -752,18 +861,23 @@ public class MatchLifecycleService {
 	}
 
 	private static class WarmupStatus {
+		private final String matchId;
 		private final int totalChunks;
 		private final int batchSize;
 		private final double worldgenWeight;
+		private final long startedAtMillis;
 		private volatile int completedChunks;
 		private volatile long lastUpdateMillis;
 		private volatile int lastCompletedChunks;
 		private volatile double chunksPerSecond;
+		private volatile long finishedAtMillis;
 
-		private WarmupStatus(int totalChunks, int batchSize, double worldgenWeight) {
+		private WarmupStatus(String matchId, int totalChunks, int batchSize, double worldgenWeight) {
+			this.matchId = matchId;
 			this.totalChunks = totalChunks;
 			this.batchSize = batchSize;
 			this.worldgenWeight = Math.min(1.0, Math.max(0.0, worldgenWeight));
+			this.startedAtMillis = System.currentTimeMillis();
 		}
 
 		void updateRate(int completedChunks, long nowMillis) {
@@ -799,8 +913,10 @@ public class MatchLifecycleService {
 				double seconds = remaining / chunksPerSecond;
 				return Math.max(0L, Math.round(seconds));
 			}
-			int ticksRemaining = (int) Math.ceil(remaining / (double) Math.max(1, batchSize));
-			return Math.max(0L, Math.round(ticksRemaining / 20.0));
+			double fallbackRate = 1.0 / Math.max(0.1, DEFAULT_WARMUP_SECONDS_PER_CHUNK);
+			double seconds = remaining / fallbackRate;
+			long legacySeconds = Math.max(0L, Math.round(Math.ceil(remaining / (double) Math.max(1, batchSize)) / 20.0));
+			return Math.max(Math.max(1L, Math.round(seconds)), legacySeconds);
 		}
 
 		long getTotalSeconds() {
@@ -811,6 +927,35 @@ public class MatchLifecycleService {
 		double getWorldgenWeight() {
 			return worldgenWeight;
 		}
+
+		String getMatchId() {
+			return matchId;
+		}
+
+		int getCompletedChunks() {
+			return completedChunks;
+		}
+
+		int getTotalChunks() {
+			return totalChunks;
+		}
+
+		double getChunksPerSecond() {
+			return chunksPerSecond;
+		}
+
+		void markFinished(long nowMillis) {
+			finishedAtMillis = Math.max(nowMillis, startedAtMillis);
+		}
+
+		double getObservedSecondsPerChunk() {
+			if (totalChunks <= 0 || completedChunks < totalChunks) {
+				return -1.0;
+			}
+			long ended = finishedAtMillis > 0L ? finishedAtMillis : System.currentTimeMillis();
+			long durationMillis = Math.max(1L, ended - startedAtMillis);
+			return durationMillis / 1000.0 / totalChunks;
+		}
 	}
 
 	private void startOverworldWarmup(Match match, World overworld) {
@@ -819,15 +964,22 @@ public class MatchLifecycleService {
 		int centerX = spawn.getBlockX() >> 4;
 		int centerZ = spawn.getBlockZ() >> 4;
 		List<int[]> chunks = new ArrayList<>();
-		for (int dx = -3; dx <= 3; dx++) {
-			for (int dz = -3; dz <= 3; dz++) {
+		for (int dx = -WARMUP_CHUNK_RADIUS; dx <= WARMUP_CHUNK_RADIUS; dx++) {
+			for (int dz = -WARMUP_CHUNK_RADIUS; dz <= WARMUP_CHUNK_RADIUS; dz++) {
 				chunks.add(new int[] { centerX + dx, centerZ + dz });
 			}
 		}
 		int total = chunks.size();
-		int batch = 2;
-		WarmupStatus warmupStatus = new WarmupStatus(total, batch,
-			computeWorldgenWeightForWarmup(match.getId(), estimateWarmupEtaSeconds(total, 0, batch)));
+		int batch = WARMUP_BATCH_SIZE;
+		long warmupEta = estimateWarmupTotalSeconds(total, batch);
+		WarmupStatus warmupStatus = new WarmupStatus(match.getId(), total, batch,
+			computeWorldgenWeightForWarmup(match.getId(), warmupEta));
+		debugEta(match.getId(),
+			"warmup-start: chunks=" + total
+				+ ", batch=" + batch
+				+ ", warmupEtaEstimate=" + warmupEta + "s"
+				+ ", emaSecPerChunk=" + formatFixed(warmupSecondsPerChunkEma, 3)
+				+ ", weight=" + formatPercent(warmupStatus.getWorldgenWeight()));
 		warmupStatuses.put(match.getId(), warmupStatus);
 		updateWorldProgressActionBar(match.getId());
 
@@ -862,6 +1014,13 @@ public class MatchLifecycleService {
 						}));
 				}
 				if (completed >= total) {
+					long now = System.currentTimeMillis();
+					warmupStatus.markFinished(now);
+					debugEta(match.getId(),
+						"warmup-finish: completed=" + completed + "/" + total
+							+ ", observed=" + formatFixed(warmupStatus.getObservedSecondsPerChunk(), 3)
+							+ "s/chunk");
+					recordWarmupCalibration(warmupStatus);
 					stopOverworldWarmupTask(match.getId());
 					warmupStatuses.remove(match.getId());
 					preparationStartMillis.remove(match.getId());

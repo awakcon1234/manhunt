@@ -88,7 +88,13 @@ public class PlayerDeathRoutingListener implements Listener {
 	}
 
 	private boolean isLobbyContext(Match match) {
-		return match == null || match.getState() == MatchState.LOBBY;
+		if (match == null || match.getState() == null) {
+			return true;
+		}
+		return switch (match.getState()) {
+			case LOBBY, WORLD_CREATING, WORLD_READY -> true;
+			default -> false;
+		};
 	}
 
 	private boolean isMatchWorld(Match match, World world) {

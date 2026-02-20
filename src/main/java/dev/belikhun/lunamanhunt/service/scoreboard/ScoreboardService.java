@@ -42,7 +42,9 @@ public class ScoreboardService {
 	private static final int ACTIVE_LINES_MAX = 4;
 	private static final int HISTORY_LINES_MAX = 3;
 	private static final int PROFILE_CACHE_MS = 5000;
-	private static final int DEBUG_LOG_INTERVAL_MS = 5000;
+	private static final int WORLD_PROGRESS_BAR_LENGTH = 36;
+	private static final String WORLD_PROGRESS_BAR_FILL = "▍";
+	private static final String WORLD_PROGRESS_BAR_EMPTY = "▍";
 	private static final int DEBUG_TICK_LOG_INTERVAL_MS = 10000;
 	private static final String TEMPLATE_LOBBY = "lobby";
 	private static final String TEMPLATE_MATCH_LOBBY = "match_lobby";
@@ -283,12 +285,14 @@ public class ScoreboardService {
 			placeholders.put("match_players_chip", "<gray>👻 0</gray>");
 			placeholders.put("match_hunters_chip", "<gray>👻 0</gray>");
 			placeholders.put("match_timer_chip", "<gray>⌚ --:--</gray>");
-			placeholders.put("match_points_chip", "<gray>🔥 -</gray>");
+			placeholders.put("match_points_chip", "<gray>-</gray>");
 			placeholders.put("match_kills_chip", "<gray>⚔ 0</gray>");
 			placeholders.put("match_countdown_chip", "<gray>⏳ -</gray>");
 			placeholders.put("match_world_progress_chip", "<gray>0%</gray>");
-			placeholders.put("match_world_progress_bar", "<dark_gray>░░░░░░░░░░░░</dark_gray>");
-			placeholders.put("match_world_progress_bar_chip", "<white>▏</white> <dark_gray>░░░░░░░░░░░░</dark_gray> <gray>0%</gray>");
+			String emptyWorldProgressBar = formatProgressBar(0, WORLD_PROGRESS_BAR_LENGTH);
+			placeholders.put("match_world_progress_bar", emptyWorldProgressBar);
+			placeholders.put("match_world_progress_bar_chip", "<white>▏</white> "
+				+ emptyWorldProgressBar + " <gray>0%</gray>");
 			placeholders.put("match_world_eta_chip", "<gray>⌚ --:--s</gray>");
 			placeholders.put("match_visibility_chip", "<gray>🔒 -</gray>");
 			placeholders.put("match_difficulty_chip", "<gray>⚔ -</gray>");
@@ -429,14 +433,14 @@ public class ScoreboardService {
 			+ safeStr(placeholders.get("match_hunters")) + "</white>");
 		placeholders.put("match_timer_chip", "<#32faa7>⌚</#32faa7> <white>"
 			+ safeStr(placeholders.get("match_timer")) + "</white>");
-		placeholders.put("match_points_chip", "<#ffc012>🔥</#ffc012> <white>"
+		placeholders.put("match_points_chip", "<white>"
 			+ safeStr(placeholders.get("match_points")) + "</white>");
 		placeholders.put("match_kills_chip", "<#ff9f68>⚔</#ff9f68> <white>"
 			+ safeStr(placeholders.get("match_kills")) + "</white>");
 		placeholders.put("match_countdown_chip", "<#e7ffa3>⏳</#e7ffa3> <white>"
 			+ safeStr(placeholders.get("match_countdown")) + "</white>");
 		int worldProgressPercent = safeInt(placeholders.get("match_world_progress"), 0);
-		String worldProgressBar = formatProgressBar(worldProgressPercent, 12);
+		String worldProgressBar = formatProgressBar(worldProgressPercent, WORLD_PROGRESS_BAR_LENGTH);
 		placeholders.put("match_world_progress_chip", "<white>" + worldProgressPercent + "%</white>");
 		placeholders.put("match_world_progress_bar", worldProgressBar);
 		placeholders.put("match_world_progress_bar_chip", "<white>▏</white> "
@@ -970,8 +974,8 @@ public class ScoreboardService {
 		int clampedPercent = Math.max(0, Math.min(100, percent));
 		int filled = (int) Math.round((clampedPercent / 100.0) * safeLength);
 		String fillColor = clampedPercent >= 80 ? "green" : clampedPercent >= 45 ? "yellow" : "red";
-		String fillPart = "█".repeat(Math.max(0, filled));
-		String emptyPart = "░".repeat(Math.max(0, safeLength - filled));
+		String fillPart = WORLD_PROGRESS_BAR_FILL.repeat(Math.max(0, filled));
+		String emptyPart = WORLD_PROGRESS_BAR_EMPTY.repeat(Math.max(0, safeLength - filled));
 		return "<" + fillColor + ">" + fillPart + "</" + fillColor + ">"
 			+ "<dark_gray>" + emptyPart + "</dark_gray>";
 	}

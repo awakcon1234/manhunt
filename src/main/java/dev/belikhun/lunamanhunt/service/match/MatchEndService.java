@@ -329,7 +329,7 @@ public class MatchEndService {
 			" <white>Nether </white>" + netherTime + " <gray>●</gray> <white>End </white>" + endTime,
 			" <white>đã hạ </white><yellow>⚔</yellow> <white>" + huntersKilled + " </white>" + UiColors.roleHunterLower()
 				+ " <gray>●</gray> <white>tổng </white>" + damage + " <red>❤</red> <white>điểm sát thương</white>",
-			" <yellow>●</yellow> <white>thẻ dùng </white>" + cardsUsed,
+			" <white>thẻ dùng </white>" + cardsUsed,
 			"",
 			"",
 			""

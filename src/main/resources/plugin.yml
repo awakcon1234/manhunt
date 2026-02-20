@@ -16,6 +16,7 @@ commands:
   lm:
     description: "Lệnh quản trị LunaManhunt"
     usage: "/lm help"
+    aliases: ["manhunt", "hunt", "mh"]
   spawn:
     description: "Dịch chuyển về sảnh"
     usage: "/spawn"

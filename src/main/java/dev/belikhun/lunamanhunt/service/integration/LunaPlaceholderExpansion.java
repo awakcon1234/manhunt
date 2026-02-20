@@ -14,11 +14,11 @@ import org.bukkit.OfflinePlayer;
 import org.bukkit.entity.Player;
 
 import java.time.Duration;
-import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class LunaPlaceholderExpansion extends PlaceholderExpansion {
 	private static final long PROFILE_CACHE_MS = 5000L;
@@ -26,7 +26,7 @@ public class LunaPlaceholderExpansion extends PlaceholderExpansion {
 	private final LunaManhuntPlugin plugin;
 	private final LobbyManager lobbyManager;
 	private final ProfileStore profileStore;
-	private final Map<UUID, CachedProfileSnapshot> profileCache = new HashMap<>();
+	private final Map<UUID, CachedProfileSnapshot> profileCache = new ConcurrentHashMap<>();
 
 	private static final class CachedProfileSnapshot {
 		private final long loadedAtMillis;
@@ -65,7 +65,7 @@ public class LunaPlaceholderExpansion extends PlaceholderExpansion {
 
 	@Override
 	public String getIdentifier() {
-		return "lunamanhunt";
+		return "mh";
 	}
 
 	@Override
@@ -98,58 +98,65 @@ public class LunaPlaceholderExpansion extends PlaceholderExpansion {
 			return "";
 		}
 
-		String key = params.toLowerCase(Locale.ROOT);
-		Match match = playerId == null ? null : lobbyManager.getMatchForPlayer(playerId);
-		String role = resolveRole(playerId, match);
-		ProfileSnapshot profile = playerId == null ? emptyProfileSnapshot() : getProfileSnapshot(playerId);
+		try {
+			String key = params.toLowerCase(Locale.ROOT);
+			Match match = playerId == null ? null : lobbyManager.getMatchForPlayer(playerId);
+			String role = resolveRole(playerId, match);
+			ProfileSnapshot profile = playerId == null ? emptyProfileSnapshot() : getProfileSnapshot(playerId);
 
-		String value = switch (key) {
-			case "match_exists" -> match == null ? "false" : "true";
-			case "match_id" -> match == null || match.getId() == null || match.getId().isBlank()
-				? "-"
-				: match.getId();
-			case "match_id_colored" -> match == null ? UiColors.matchIdText("-") : UiColors.matchIdText(match.getId());
-			case "match_id_chip" -> match == null ? UiColors.matchIdChip("-") : UiColors.matchIdChip(match.getId());
-			case "match_id_hash" -> match == null || match.getId() == null || match.getId().isBlank()
-				? "#-"
-				: "#" + match.getId();
-			case "match_players" -> String.valueOf(match == null ? 0 : match.getLobbyPlayers().size());
-			case "match_hunters" -> String.valueOf(match == null ? 0 : match.getHunters().size());
-			case "match_owner" -> resolvePlayerName(match == null ? null : match.getOwnerId());
-			case "match_speedrunner" -> resolvePlayerName(match == null ? null : match.getSpeedrunnerId());
-			case "match_timer" -> resolveMatchTimer(match);
-			case "role" -> role;
-			case "role_display" -> resolveRoleDisplay(role);
-			case "role_color" -> switch (role) {
-				case "speedrunner" -> UiColors.ROLE_SPEEDRUNNER + ":" + UiColors.ROLE_SPEEDRUNNER_ACCENT;
-				case "hunter" -> UiColors.ROLE_HUNTER + ":" + UiColors.ROLE_HUNTER_ACCENT;
-				default -> "#FFFFFF";
+			String value = switch (key) {
+				case "match_exists" -> match == null ? "false" : "true";
+				case "match_id" -> match == null || match.getId() == null || match.getId().isBlank()
+					? "-"
+					: match.getId();
+				case "match_id_colored" -> match == null ? UiColors.matchIdText("-") : UiColors.matchIdText(match.getId());
+				case "match_id_chip" -> match == null ? UiColors.matchIdChip("-") : UiColors.matchIdChip(match.getId());
+				case "match_id_hash" -> match == null || match.getId() == null || match.getId().isBlank()
+					? "#-"
+					: "#" + match.getId();
+				case "match_players" -> String.valueOf(safeLobbyPlayersSize(match));
+				case "match_hunters" -> String.valueOf(safeHuntersSize(match));
+				case "match_owner" -> resolvePlayerName(match == null ? null : match.getOwnerId());
+				case "match_speedrunner" -> resolvePlayerName(match == null ? null : match.getSpeedrunnerId());
+				case "match_timer" -> resolveMatchTimer(match);
+				case "role" -> role;
+				case "role_display" -> resolveRoleDisplay(role);
+				case "role_color" -> switch (role) {
+					case "speedrunner" -> UiColors.ROLE_SPEEDRUNNER + ":" + UiColors.ROLE_SPEEDRUNNER_ACCENT;
+					case "hunter" -> UiColors.ROLE_HUNTER + ":" + UiColors.ROLE_HUNTER_ACCENT;
+					default -> "#FFFFFF";
+				};
+				case "match_state" -> resolveMatchState(match);
+				case "match_state_display" -> resolveMatchStateDisplay(match);
+				case "profile_total_wins" -> String.valueOf(profile.wins);
+				case "profile_total_losses" -> String.valueOf(profile.losses);
+				case "profile_total_matches" -> String.valueOf(profile.totalMatches);
+				case "profile_win_rate" -> profile.winRate;
+				case "profile_best_time" -> profile.bestTime;
+				case "profile_kills" -> String.valueOf(profile.huntersKilled);
+				case "profile_hunter_kills" -> String.valueOf(profile.huntersKilled);
+				default -> null;
 			};
-			case "match_state" -> resolveMatchState(match);
-			case "match_state_display" -> resolveMatchStateDisplay(match);
-			case "profile_total_wins" -> String.valueOf(profile.wins);
-			case "profile_total_losses" -> String.valueOf(profile.losses);
-			case "profile_total_matches" -> String.valueOf(profile.totalMatches);
-			case "profile_win_rate" -> profile.winRate;
-			case "profile_best_time" -> profile.bestTime;
-			case "profile_kills" -> String.valueOf(profile.huntersKilled);
-			case "profile_hunter_kills" -> String.valueOf(profile.huntersKilled);
-			default -> null;
-		};
 
-		if (value == null) {
-			debugLog("unknown:" + key,
-				"[PAPI] Placeholder chưa hỗ trợ: %lunamanhunt_" + key + "%"
-					+ " | player=" + debugPlayerName(playerContext, playerId));
-			return null;
+			if (value == null) {
+				debugLog("unknown:" + key,
+					"[PAPI] Placeholder chưa hỗ trợ: %mh_" + key + "%"
+						+ " | player=" + debugPlayerName(playerContext, playerId));
+				return null;
+			}
+
+			if (playerId == null) {
+				debugLog("contextless:" + key,
+					"[PAPI] Placeholder gọi không có player context: %mh_" + key + "%");
+			}
+
+			return value;
+		} catch (Throwable throwable) {
+			debugLog("error:" + params,
+				"[PAPI] Lỗi xử lý placeholder %mh_" + params + "%: " + throwable.getClass().getSimpleName()
+					+ " - " + (throwable.getMessage() == null ? "(không rõ)" : throwable.getMessage()));
+			return "-";
 		}
-
-		if (playerId == null) {
-			debugLog("contextless:" + key,
-				"[PAPI] Placeholder gọi không có player context: %lunamanhunt_" + key + "%");
-		}
-
-		return value;
 	}
 
 	private ProfileSnapshot emptyProfileSnapshot() {
@@ -299,12 +306,56 @@ public class LunaPlaceholderExpansion extends PlaceholderExpansion {
 		if (playerId.equals(match.getSpeedrunnerId())) {
 			return "speedrunner";
 		}
-		if (match.getHunters().contains(playerId)) {
+		if (safeHuntersContains(match, playerId)) {
 			return "hunter";
 		}
-		if (match.getLobbyPlayers().contains(playerId)) {
+		if (safeLobbyPlayersContains(match, playerId)) {
 			return "lobby";
 		}
 		return "none";
+	}
+
+	private int safeLobbyPlayersSize(Match match) {
+		if (match == null) {
+			return 0;
+		}
+		try {
+			return match.getLobbyPlayers().size();
+		} catch (Throwable ignored) {
+			return 0;
+		}
+	}
+
+	private int safeHuntersSize(Match match) {
+		if (match == null) {
+			return 0;
+		}
+		try {
+			return match.getHunters().size();
+		} catch (Throwable ignored) {
+			return 0;
+		}
+	}
+
+	private boolean safeLobbyPlayersContains(Match match, UUID playerId) {
+		if (match == null || playerId == null) {
+			return false;
+		}
+		try {
+			return match.getLobbyPlayers().contains(playerId);
+		} catch (Throwable ignored) {
+			return false;
+		}
+	}
+
+	private boolean safeHuntersContains(Match match, UUID playerId) {
+		if (match == null || playerId == null) {
+			return false;
+		}
+		try {
+			return match.getHunters().contains(playerId);
+		} catch (Throwable ignored) {
+			return false;
+		}
 	}
 }

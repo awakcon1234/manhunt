@@ -496,8 +496,8 @@ public class CardService {
 			}
 			if ("card_keep".equals(actionValue)) {
 				lore.add("");
-				lore.add("<yellow>ℹ</yellow> <white>Chuột trái: dùng ngay.</white>");
-				lore.add("<yellow>ℹ</yellow> <white>Chuột phải: giữ vào ô thẻ.</white>");
+				lore.add("<yellow>ℹ</yellow> <gray>Chuột trái:</gray> <white>dùng ngay.</white>");
+				lore.add("<yellow>ℹ</yellow> <gray>Chuột phải:</gray> <white>giữ vào ô thẻ.</white>");
 			}
 			lore.add("");
 			lore.add("<dark_gray>#card/" + card.getId() + "</dark_gray>");

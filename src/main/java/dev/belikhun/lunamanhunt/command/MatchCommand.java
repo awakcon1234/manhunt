@@ -297,7 +297,8 @@ public class MatchCommand implements TabExecutor {
 			+ "<red><click:run_command:'/m decline'><hover:show_text:'<gray>Bấm để từ chối</gray>'><b>[TỪ CHỐI]</b></hover></click></red> "
 			+ "<gray>(</gray>" + UiColors.command("/m accept") + "<gray> | </gray>"
 			+ UiColors.command("/m decline") + "<gray>)</gray>"));
-		target.playSound(target.getLocation(), Sound.UI_TOAST_IN, 0.7f, 1.0f);
+		target.playSound(target.getLocation(), Sound.UI_TOAST_IN, 1.2f, 0.8f);
+		target.playSound(target.getLocation(), Sound.BLOCK_BELL_USE, 1.4f, 1.0f);
 	}
 
 	private void handleGui(Player player) {
