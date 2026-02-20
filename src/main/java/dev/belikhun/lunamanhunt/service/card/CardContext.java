@@ -21,13 +21,16 @@ public class CardContext {
 	private final Player speedrunner;
 	private final LobbyManager lobbyManager;
 	private final CompassService compassService;
+	private final CardService cardService;
 
-	public CardContext(JavaPlugin plugin, Match match, Player speedrunner, LobbyManager lobbyManager, CompassService compassService) {
+	public CardContext(JavaPlugin plugin, Match match, Player speedrunner, LobbyManager lobbyManager,
+			CompassService compassService, CardService cardService) {
 		this.plugin = plugin;
 		this.match = match;
 		this.speedrunner = speedrunner;
 		this.lobbyManager = lobbyManager;
 		this.compassService = compassService;
+		this.cardService = cardService;
 	}
 
 	public JavaPlugin getPlugin() {
@@ -48,6 +51,10 @@ public class CardContext {
 
 	public CompassService getCompassService() {
 		return compassService;
+	}
+
+	public CardService getCardService() {
+		return cardService;
 	}
 
 	public boolean applyPotionToSpeedrunner(PotionEffect effect) {

@@ -5,6 +5,7 @@ import dev.belikhun.lunamanhunt.model.card.CardRarity;
 import dev.belikhun.lunamanhunt.model.card.CardType;
 import dev.belikhun.lunamanhunt.service.card.cards.BlazeRodCard;
 import dev.belikhun.lunamanhunt.service.card.cards.CompassScrambleCard;
+import dev.belikhun.lunamanhunt.service.card.cards.CurseInterdimensionalSicknessCard;
 import dev.belikhun.lunamanhunt.service.card.cards.CurseBlindCard;
 import dev.belikhun.lunamanhunt.service.card.cards.CurseBrokenHandCard;
 import dev.belikhun.lunamanhunt.service.card.cards.CurseDizzyCard;
@@ -12,20 +13,25 @@ import dev.belikhun.lunamanhunt.service.card.cards.CurseHungryCard;
 import dev.belikhun.lunamanhunt.service.card.cards.CurseShiningCard;
 import dev.belikhun.lunamanhunt.service.card.cards.CurseSonicCard;
 import dev.belikhun.lunamanhunt.service.card.cards.CurseTooSlowCard;
+import dev.belikhun.lunamanhunt.service.card.cards.CurseVeganCard;
 import dev.belikhun.lunamanhunt.service.card.cards.CurseZombieOutbreakCard;
+import dev.belikhun.lunamanhunt.service.card.cards.AdrenalineCard;
 import dev.belikhun.lunamanhunt.service.card.cards.EnderEyeCard;
 import dev.belikhun.lunamanhunt.service.card.cards.FireResistCard;
 import dev.belikhun.lunamanhunt.service.card.cards.HulkCard;
 import dev.belikhun.lunamanhunt.service.card.cards.HunterBlindnessCard;
 import dev.belikhun.lunamanhunt.service.card.cards.HunterSlownessCard;
+import dev.belikhun.lunamanhunt.service.card.cards.ImmortalCard;
 import dev.belikhun.lunamanhunt.service.card.cards.InvisibleCard;
 import dev.belikhun.lunamanhunt.service.card.cards.LavaSwimmerCard;
 import dev.belikhun.lunamanhunt.service.card.cards.MoreLivesCard;
 import dev.belikhun.lunamanhunt.service.card.cards.RegenCard;
 import dev.belikhun.lunamanhunt.service.card.cards.ResistanceCard;
 import dev.belikhun.lunamanhunt.service.card.cards.RunningMinionCard;
+import dev.belikhun.lunamanhunt.service.card.cards.SpawnistCard;
 import dev.belikhun.lunamanhunt.service.card.cards.SpeedBoostCard;
 import dev.belikhun.lunamanhunt.service.card.cards.SpeeeeeeedCard;
+import dev.belikhun.lunamanhunt.service.card.cards.StunCard;
 import dev.belikhun.lunamanhunt.service.card.cards.SpyCard;
 import dev.belikhun.lunamanhunt.service.card.cards.YearnForTheMinesCard;
 import dev.belikhun.lunamanhunt.model.match.Match;
@@ -71,6 +77,7 @@ public class CardService {
 	private final List<CardDefinition> cardPool;
 	private final Random random = new Random();
 	private final Map<String, List<ActiveCard>> activeCards = new ConcurrentHashMap<>();
+	private final Map<String, Integer> spawnistCharges = new ConcurrentHashMap<>();
 
 	public CardService(JavaPlugin plugin, LobbyManager lobbyManager, CompassService compassService, PointService pointService) {
 		this.plugin = Objects.requireNonNull(plugin, "plugin");
@@ -191,6 +198,7 @@ public class CardService {
 		if (match == null) {
 			return;
 		}
+		spawnistCharges.remove(match.getId());
 		List<ActiveCard> entries = activeCards.get(match.getId());
 		if (entries == null || entries.isEmpty()) {
 			return;
@@ -359,7 +367,7 @@ public class CardService {
 			Text.msg(player, "<red>❌</red> Bạn không đủ điểm để dùng thẻ này.");
 			return false;
 		}
-		CardContext context = new CardContext(plugin, match, player, lobbyManager, compassService);
+		CardContext context = new CardContext(plugin, match, player, lobbyManager, compassService, this);
 		if (!card.apply(context)) {
 			return false;
 		}
@@ -608,8 +616,85 @@ public class CardService {
 			activeCards.remove(match.getId());
 		}
 		Player speedrunner = resolveSpeedrunner(match);
-		CardContext context = new CardContext(plugin, match, speedrunner, lobbyManager, compassService);
+		CardContext context = new CardContext(plugin, match, speedrunner, lobbyManager, compassService, this);
 		entry.card().clear(context);
+	}
+
+	public Match getRunningMatch(Player player) {
+		if (player == null) {
+			return null;
+		}
+		Match match = lobbyManager.getMatchForPlayer(player.getUniqueId());
+		if (match == null || match.getState() != MatchState.RUNNING) {
+			return null;
+		}
+		return match;
+	}
+
+	public boolean isSpeedrunner(Match match, Player player) {
+		if (match == null || player == null) {
+			return false;
+		}
+		UUID speedrunnerId = match.getSpeedrunnerId();
+		return speedrunnerId != null && speedrunnerId.equals(player.getUniqueId());
+	}
+
+	public boolean isHunter(Match match, Player player) {
+		if (match == null || player == null) {
+			return false;
+		}
+		return match.getHunters().contains(player.getUniqueId());
+	}
+
+	public boolean isCardActive(Match match, String cardId) {
+		if (match == null || cardId == null || cardId.isBlank()) {
+			return false;
+		}
+		String normalizedCardId = normalizeCardId(cardId);
+		long now = System.currentTimeMillis();
+		List<ActiveCard> entries = activeCards.get(match.getId());
+		if (entries != null && !entries.isEmpty()) {
+			for (ActiveCard entry : List.copyOf(entries)) {
+				CardDefinition active = entry.card();
+				if (active == null || normalizeCardId(active.getId()) == null) {
+					continue;
+				}
+				if (entry.expiresAtMillis() > 0L && entry.expiresAtMillis() <= now) {
+					continue;
+				}
+				if (normalizeCardId(active.getId()).equals(normalizedCardId)) {
+					return true;
+				}
+			}
+		}
+		if ("spawnist".equals(normalizedCardId)) {
+			return spawnistCharges.getOrDefault(match.getId(), 0) > 0;
+		}
+		return false;
+	}
+
+	public void addSpawnistCharge(Match match, int amount) {
+		if (match == null || amount <= 0) {
+			return;
+		}
+		spawnistCharges.merge(match.getId(), amount, Integer::sum);
+	}
+
+	public boolean consumeSpawnistCharge(Match match) {
+		if (match == null) {
+			return false;
+		}
+		String matchId = match.getId();
+		Integer current = spawnistCharges.get(matchId);
+		if (current == null || current <= 0) {
+			return false;
+		}
+		if (current <= 1) {
+			spawnistCharges.remove(matchId);
+		} else {
+			spawnistCharges.put(matchId, current - 1);
+		}
+		return true;
 	}
 
 	private Player resolveSpeedrunner(Match match) {
@@ -738,10 +823,14 @@ public class CardService {
 		List<CardDefinition> cards = new ArrayList<>();
 		cards.add(new SpeedBoostCard());
 		cards.add(new RegenCard());
+		cards.add(new StunCard());
+		cards.add(new SpawnistCard());
+		cards.add(new AdrenalineCard());
 		cards.add(new FireResistCard());
 		cards.add(new ResistanceCard());
 		cards.add(new HunterSlownessCard());
 		cards.add(new HunterBlindnessCard());
+		cards.add(new ImmortalCard());
 		cards.add(new MoreLivesCard());
 		cards.add(new EnderEyeCard());
 		cards.add(new BlazeRodCard());
@@ -761,6 +850,8 @@ public class CardService {
 		cards.add(new CurseBrokenHandCard());
 		cards.add(new CurseSonicCard());
 		cards.add(new CurseShiningCard());
+		cards.add(new CurseInterdimensionalSicknessCard());
+		cards.add(new CurseVeganCard());
 		return cards;
 	}
 }

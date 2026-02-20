@@ -527,6 +527,17 @@ public class MatchLifecycleService {
 	}
 
 	private void giveSpeedrunnerKit(Match match, UUID speedrunnerId) {
+		if (match == null) {
+			return;
+		}
+		if (match.getHunters().size() < 3) {
+			Player speedrunnerNoKit = Bukkit.getPlayer(speedrunnerId);
+			if (speedrunnerNoKit != null) {
+				Text.msg(speedrunnerNoKit,
+					"<yellow>ℹ</yellow> Trận có dưới <white>3</white> thợ săn nên bộ đồ khởi đầu đã bị tắt.");
+			}
+			return;
+		}
 		Player speedrunner = Bukkit.getPlayer(speedrunnerId);
 		if (speedrunner == null) {
 			return;
