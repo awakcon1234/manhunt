@@ -391,6 +391,7 @@ public class MatchLifecycleService {
 		}
 		world.setGameRule(GameRules.IMMEDIATE_RESPAWN, true);
 		world.setGameRule(GameRules.LOCATOR_BAR, false);
+		world.setGameRule(GameRules.SHOW_DEATH_MESSAGES, false);
 		if (settings == null) {
 			return;
 		}

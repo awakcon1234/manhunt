@@ -22,11 +22,15 @@ import java.util.concurrent.ConcurrentHashMap;
 public class LobbyManager {
 	private final MatchManager matchManager;
 	private final MatchSettingsService matchSettingsService;
+	private final int maxHunters;
+	private final int maxMatchPlayers;
 	private final Map<UUID, String> playerMatchIndex = new ConcurrentHashMap<>();
 
-	public LobbyManager(MatchManager matchManager, MatchSettingsService matchSettingsService) {
+	public LobbyManager(MatchManager matchManager, MatchSettingsService matchSettingsService, int maxHunters) {
 		this.matchManager = Objects.requireNonNull(matchManager, "matchManager");
 		this.matchSettingsService = Objects.requireNonNull(matchSettingsService, "matchSettingsService");
+		this.maxHunters = clampMaxHunters(maxHunters);
+		this.maxMatchPlayers = this.maxHunters + 1;
 	}
 
 	public Match createMatch(UUID ownerId) {
@@ -122,6 +126,10 @@ public class LobbyManager {
 		}
 		if (!canJoin(match, playerId)) {
 			return LobbyActionResult.fail("<red>❌</red> Bạn không có quyền vào phòng này.");
+		}
+		if (match.getLobbyPlayers().size() >= maxMatchPlayers) {
+			return LobbyActionResult.fail("<red>❌</red> Phòng đã đủ người. Tối đa <white>"
+				+ maxHunters + "</white> thợ săn.");
 		}
 
 		match.getLobbyPlayers().add(playerId);
@@ -242,6 +250,10 @@ public class LobbyManager {
 		return match;
 	}
 
+	public Set<Match> getActiveMatches() {
+		return Set.copyOf(matchManager.getMatches());
+	}
+
 	private Match findMatchForMember(UUID playerId) {
 		for (Match match : matchManager.getMatches()) {
 			if (match == null) {
@@ -281,5 +293,9 @@ public class LobbyManager {
 			return true;
 		}
 		return match.getInvitedPlayers().contains(playerId);
+	}
+
+	private int clampMaxHunters(int value) {
+		return Math.max(16, Math.min(32, value));
 	}
 }

@@ -91,6 +91,10 @@ public class CardService {
 		return cardPool;
 	}
 
+	public JavaPlugin getPlugin() {
+		return plugin;
+	}
+
 	public List<String> getAllCardIds() {
 		List<String> ids = new ArrayList<>(cardPool.size());
 		for (CardDefinition card : cardPool) {
@@ -432,12 +436,28 @@ public class CardService {
 		if (speedrunnerId == null || !speedrunnerId.equals(player.getUniqueId())) {
 			return;
 		}
-		addPoint(match, 1);
+		int gainedPoints = resolveAdvancementPoints(match);
+		addPoint(match, gainedPoints);
 		drawNewCards(match);
-		Text.msg(player, "<green>✔</green> Bạn nhận được " + pointService.formatPoints(1)
+		Text.msg(player, "<green>✔</green> Bạn nhận được " + pointService.formatPoints(gainedPoints)
 			+ " từ thành tựu. Hiện có: " + pointService.formatPoints(match.getSpeedrunnerPoints()) + ". <gray>(" + UiColors.command("/c") + " để sử dụng điểm)</gray>");
 		Text.msg(player, "<yellow>ℹ</yellow> <green>Đã mở " + POOL_COUNT + " thẻ mới</green>, hãy giữ vào ô thẻ.");
 		player.playSound(player.getLocation(), Sound.BLOCK_NOTE_BLOCK_PLING, 0.7f, 1.3f);
+	}
+
+	private int resolveAdvancementPoints(Match match) {
+		if (match == null) {
+			return 1;
+		}
+		int basePoints = cfgInt("balance.cards.advancement.basePoints", 1);
+		int extraPerStep = cfgInt("balance.cards.advancement.extraPointsPerStep", 1);
+		int huntersPerStep = Math.max(1, cfgInt("balance.cards.advancement.huntersPerStep", 2));
+		int maxPoints = Math.max(basePoints, cfgInt("balance.cards.advancement.maxPoints", 5));
+
+		int hunters = Math.max(0, match.getHunters().size());
+		int extraSteps = Math.max(0, (hunters - 1) / huntersPerStep);
+		int scaled = basePoints + (extraSteps * Math.max(0, extraPerStep));
+		return Math.max(1, Math.min(maxPoints, scaled));
 	}
 
 	public void sendCardList(Player player, Match match) {
@@ -677,7 +697,14 @@ public class CardService {
 		if (match == null || amount <= 0) {
 			return;
 		}
-		spawnistCharges.merge(match.getId(), amount, Integer::sum);
+		int maxCharges = resolveSpawnistMaxCharges(match);
+		int current = Math.max(0, spawnistCharges.getOrDefault(match.getId(), 0));
+		int next = Math.min(maxCharges, current + amount);
+		if (next <= 0) {
+			spawnistCharges.remove(match.getId());
+			return;
+		}
+		spawnistCharges.put(match.getId(), next);
 	}
 
 	public boolean consumeSpawnistCharge(Match match) {
@@ -695,6 +722,24 @@ public class CardService {
 			spawnistCharges.put(matchId, current - 1);
 		}
 		return true;
+	}
+
+	private int resolveSpawnistMaxCharges(Match match) {
+		if (match == null) {
+			return 1;
+		}
+		int threshold = Math.max(1, cfgInt("balance.cards.spawnist.highHunterThreshold", 5));
+		int lowMax = Math.max(1, cfgInt("balance.cards.spawnist.maxChargesLowHunters", 1));
+		int highMax = Math.max(lowMax, cfgInt("balance.cards.spawnist.maxChargesHighHunters", 2));
+		int hunters = Math.max(0, match.getHunters().size());
+		return hunters >= threshold ? highMax : lowMax;
+	}
+
+	private int cfgInt(String path, int fallback) {
+		if (plugin == null || plugin.getConfig() == null || path == null || path.isBlank()) {
+			return fallback;
+		}
+		return plugin.getConfig().getInt(path, fallback);
 	}
 
 	private Player resolveSpeedrunner(Match match) {

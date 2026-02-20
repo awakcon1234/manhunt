@@ -23,6 +23,10 @@ match:
     visibility: PUBLIC
     speedrunnerKitId: starter
     speedrunnerKit: []
+  chat:
+    chatFormat: '<gray>[#<white>%match_id%</white>]</gray> %player%<gray>:</gray> <white>%message%</white>'
+    deathMessageFormat: '<red>☠</red> %player% <gray>%death_message%</gray>'
+    advancementMessageFormat: '<green>✔</green> %player% <gray>đạt thành tựu</gray> %advancement%'
 
 generator:
   javaCommand: "java"
@@ -34,6 +38,21 @@ generator:
 debug:
   enabled: false
   placeholderapi: false
+
+balance:
+  maxHunters: 24
+  cards:
+    advancement:
+      basePoints: 1
+      extraPointsPerStep: 1
+      huntersPerStep: 2
+      maxPoints: 5
+    spawnist:
+      highHunterThreshold: 5
+      maxChargesLowHunters: 1
+      maxChargesHighHunters: 2
+    stun:
+      targetCooldownMillis: 12000
 
 ui:
   player-name-format: '<gradient:#7fd36b:#8fd3ff>%player_name%</gradient>'

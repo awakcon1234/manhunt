@@ -37,6 +37,7 @@ public class CardEffectListener implements Listener {
 
 	private static final double STUN_CHANCE = 0.10;
 	private static final int STUN_DURATION_TICKS = 20 * 5;
+	private static final long DEFAULT_STUN_TARGET_COOLDOWN_MS = 12_000L;
 	private static final double ADRENALINE_HEALTH_THRESHOLD = 8.0;
 	private static final int ADRENALINE_BUFF_TICKS = 20 * 8;
 	private static final long ADRENALINE_COOLDOWN_MS = 20_000L;
@@ -68,6 +69,7 @@ public class CardEffectListener implements Listener {
 	private final Set<UUID> spawnistGuard = ConcurrentHashMap.newKeySet();
 	private final ConcurrentHashMap<UUID, Long> adrenalineCooldownUntil = new ConcurrentHashMap<>();
 	private final ConcurrentHashMap<UUID, Long> portalSicknessCooldownUntil = new ConcurrentHashMap<>();
+	private final ConcurrentHashMap<UUID, Long> stunTargetCooldownUntil = new ConcurrentHashMap<>();
 
 	public CardEffectListener(CardService cardService) {
 		this.cardService = Objects.requireNonNull(cardService, "cardService");
@@ -104,9 +106,18 @@ public class CardEffectListener implements Listener {
 		if (!cardService.isCardActive(match, CARD_STUN)) {
 			return;
 		}
+		long now = System.currentTimeMillis();
+		UUID victimId = victim.getUniqueId();
+		long stunCooldownUntil = stunTargetCooldownUntil.getOrDefault(victimId, 0L);
+		if (stunCooldownUntil > now) {
+			return;
+		}
 		if (random.nextDouble() >= STUN_CHANCE) {
 			return;
 		}
+		long cooldownMillis = Math.max(1000L,
+			cardService.getPlugin().getConfig().getLong("balance.cards.stun.targetCooldownMillis", DEFAULT_STUN_TARGET_COOLDOWN_MS));
+		stunTargetCooldownUntil.put(victimId, now + cooldownMillis);
 		victim.addPotionEffect(new PotionEffect(PotionEffectType.SLOWNESS, STUN_DURATION_TICKS, 6, false, true, true));
 		victim.addPotionEffect(new PotionEffect(PotionEffectType.MINING_FATIGUE, STUN_DURATION_TICKS, 2, false, true, true));
 		victim.addPotionEffect(new PotionEffect(PotionEffectType.WEAKNESS, STUN_DURATION_TICKS, 1, false, true, true));

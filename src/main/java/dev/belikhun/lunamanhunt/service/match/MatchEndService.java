@@ -112,7 +112,7 @@ public class MatchEndService {
 			awaitingPortal.put(match.getId(), speedrunnerId);
 		}
 
-		teleportHuntersToEnd(match);
+		enforceSpeedrunnerEndSequenceState(match);
 		startEndFireworks(match);
 	}
 
@@ -122,6 +122,12 @@ public class MatchEndService {
 		}
 		Match match = lobbyManager.getMatchForPlayer(player.getUniqueId());
 		if (match == null || match.getWinner() != MatchWinner.SPEEDRUNNER) {
+			return false;
+		}
+		if (player.getGameMode() != GameMode.SURVIVAL) {
+			return false;
+		}
+		if (player.getWorld() == null || player.getWorld().getEnvironment() != World.Environment.THE_END) {
 			return false;
 		}
 		UUID expected = awaitingPortal.get(match.getId());
@@ -154,19 +160,28 @@ public class MatchEndService {
 		lobbyManager.disbandMatch(match);
 	}
 
-	private void teleportHuntersToEnd(Match match) {
+	private void enforceSpeedrunnerEndSequenceState(Match match) {
 		MatchWorlds worlds = match.getWorlds();
 		World endWorld = worlds == null ? null : Bukkit.getWorld(worlds.getEndName());
 		Location target = endWorld == null ? null : endWorld.getSpawnLocation();
+		UUID speedrunnerId = match.getSpeedrunnerId();
+		Set<UUID> members = new java.util.HashSet<>(match.getLobbyPlayers());
+		members.addAll(match.getHunters());
+		if (speedrunnerId != null) {
+			members.add(speedrunnerId);
+		}
 
-		for (UUID hunterId : Set.copyOf(match.getHunters())) {
-			Player hunter = Bukkit.getPlayer(hunterId);
-			if (hunter == null) {
+		for (UUID memberId : Set.copyOf(members)) {
+			Player member = Bukkit.getPlayer(memberId);
+			if (member == null) {
 				continue;
 			}
-			hunter.setGameMode(GameMode.SPECTATOR);
-			if (target != null) {
-				hunter.teleport(target);
+			boolean isSpeedrunner = speedrunnerId != null && speedrunnerId.equals(memberId);
+			member.setGameMode(isSpeedrunner ? GameMode.SURVIVAL : GameMode.SPECTATOR);
+			boolean alreadyInEnd = member.getWorld() != null
+				&& member.getWorld().getEnvironment() == World.Environment.THE_END;
+			if (target != null && !alreadyInEnd) {
+				member.teleport(target);
 			}
 		}
 	}
@@ -292,8 +307,8 @@ public class MatchEndService {
 
 	private List<String> buildWinnerBoard(Match match) {
 		String winnerName = match.getWinner() == MatchWinner.SPEEDRUNNER
-			? "<b>" + resolvePlayerName(match.getSpeedrunnerId()) + "</b>"
-			: UiColors.roleHunterBold();
+			? resolvePlayerName(match.getSpeedrunnerId())
+			: UiColors.roleHunter();
 		String resultTitle = match.getWinner() == MatchWinner.SPEEDRUNNER
 			? UiColors.speedrunner("<b>SPEEDRUNNER CHIẾN THẮNG!</b>")
 			: UiColors.hunter("<b>THỢ SĂN CHIẾN THẮNG!</b>");

@@ -16,7 +16,9 @@ import dev.belikhun.lunamanhunt.listener.LobbyHotbarListener;
 import dev.belikhun.lunamanhunt.listener.LobbyItemGuardListener;
 import dev.belikhun.lunamanhunt.listener.LobbyStateListener;
 import dev.belikhun.lunamanhunt.listener.MatchConnectionListener;
+import dev.belikhun.lunamanhunt.listener.MatchChatListener;
 import dev.belikhun.lunamanhunt.listener.MatchPortalLinkListener;
+import dev.belikhun.lunamanhunt.listener.MatchScopedAnnouncementListener;
 import dev.belikhun.lunamanhunt.listener.MatchStatsListener;
 import dev.belikhun.lunamanhunt.listener.MatchWinListener;
 import dev.belikhun.lunamanhunt.listener.PlaceholderApiHookListener;
@@ -91,7 +93,8 @@ public final class LunaManhuntPlugin extends JavaPlugin {
 		this.netherPortalsService = new NetherPortalsService();
 		this.worldGenerationService = new WorldGenerationService(this);
 		this.matchManager = new MatchManager(this, multiverseService, worldGenerationService);
-		this.lobbyManager = new LobbyManager(matchManager, matchSettingsService);
+		int maxHunters = Math.max(16, Math.min(32, getConfig().getInt("balance.maxHunters", 24)));
+		this.lobbyManager = new LobbyManager(matchManager, matchSettingsService, maxHunters);
 		this.compassService = new CompassService(this, lobbyManager);
 		this.pointService = new PointService();
 		this.cardService = new CardService(this, lobbyManager, compassService, pointService);
@@ -115,7 +118,7 @@ public final class LunaManhuntPlugin extends JavaPlugin {
 		registerPlaceholderExpansion();
 
 		getServer().getPluginManager().registerEvents(new PlaceholderApiHookListener(this), this);
-		getServer().getPluginManager().registerEvents(new MatchWinListener(winConditionService), this);
+		getServer().getPluginManager().registerEvents(new MatchWinListener(winConditionService, lobbyManager), this);
 		getServer().getPluginManager().registerEvents(
 			new PlayerDeathRoutingListener(this, lobbyManager, lobbyTeleportService), this);
 		getServer().getPluginManager().registerEvents(new MatchConnectionListener(matchDisconnectService), this);
@@ -123,6 +126,8 @@ public final class LunaManhuntPlugin extends JavaPlugin {
 		getServer().getPluginManager().registerEvents(new SpawnConfirmListener(spawnService), this);
 		getServer().getPluginManager().registerEvents(new GuiListener(guiService), this);
 		getServer().getPluginManager().registerEvents(new GuiInputListener(this, guiService), this);
+		getServer().getPluginManager().registerEvents(new MatchChatListener(this, lobbyManager, guiService), this);
+		getServer().getPluginManager().registerEvents(new MatchScopedAnnouncementListener(this, lobbyManager), this);
 		getServer().getPluginManager().registerEvents(new LobbyHotbarListener(lobbyItemService), this);
 		getServer().getPluginManager().registerEvents(new LobbyItemGuardListener(lobbyItemService), this);
 		getServer().getPluginManager().registerEvents(
