@@ -25,7 +25,7 @@
 - Use helpers: `Text.msg`, `Text.item`, `Text.title`, MiniMessage in config.yml
 - Console logs may be English; player-facing must not
 
-## UI text consistency
+## UI icons
 - **Minecraft-safe symbols only** (do not use lookalikes):
   + Bullet: `●` | Check: `✔` | Cross: `❌` | Info: `ℹ` | Time: `⌚` | Wait: `⌛ ⏳`
   + `🪓` `⛏` `⚔` `🗡` `🏹` `⬤` `█` `»` `▶` `★` `❤` `•` `☀` `⛀⛁💰` `☠` `☹` `👾` `👻` `🔧` `🌧` `☁` `☄` `⭐` `🔍` `☮` `☯` `⛔` `⚠` `🔔` `♣` `♦` `♥` `♠` `🔥` `❣` `💢💬` `💤` `☹` `☻` `☺` `☂` `☃` `™` `®` `©` `₪` `★` `☆` `✦` `🧪` `⚗`
